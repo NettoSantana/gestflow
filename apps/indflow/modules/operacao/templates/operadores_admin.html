@@ -1,0 +1,126 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\operacao\templates\operadores_admin.html
+Último recode: 2026-08-31 20:35 (America/Bahia)
+Motivo: Cadastrar operadores por PIN e vincular até 3 operadores ativos por máquina.
+#}
+{% extends "base.html" %}
+{% block title %}Operadores — IndFlow{% endblock %}
+{% block content %}
+<style>
+.opadm-wrap{display:flex;flex-direction:column;gap:14px}.opadm-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}.opadm-head h1{margin:0;font-size:25px}.opadm-actions{display:flex;gap:8px;flex-wrap:wrap}.opadm-note{padding:12px 14px;border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;font-size:12px;font-weight:700}.opadm-msg{padding:11px 13px;border-radius:10px;font-size:12px;font-weight:800}.opadm-msg.ok{background:#dcfce7;color:#166534}.opadm-msg.err{background:#fee2e2;color:#991b1b}.opadm-panel{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:15px}.opadm-panel h2{margin:0 0 12px;font-size:17px}.opadm-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.opadm-field label{display:block;margin:0 0 5px;color:#64748b;font-size:10px;font-weight:900;text-transform:uppercase}.opadm-field input,.opadm-field select{width:100%;box-sizing:border-box;padding:10px 11px;border:1px solid #cbd5e1;border-radius:9px;background:#fff}.opadm-machines{display:flex;gap:8px;flex-wrap:wrap}.opadm-check{display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:9px;background:#f8fafc;font-size:12px;font-weight:800}.opadm-check input{width:auto}.opadm-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.opadm-card{border:1px solid #e2e8f0;border-radius:13px;padding:14px;background:#fff}.opadm-card-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.opadm-card h3{margin:0;font-size:17px}.opadm-pill{padding:4px 8px;border-radius:999px;font-size:10px;font-weight:900}.opadm-pill.on{background:#dcfce7;color:#166534}.opadm-pill.off{background:#fee2e2;color:#991b1b}.opadm-meta{margin-top:4px;color:#64748b;font-size:11px}.opadm-form{margin-top:12px;padding-top:12px;border-top:1px solid #eef2f7}.opadm-form strong{display:block;margin-bottom:7px;font-size:11px}.opadm-row{display:flex;gap:8px;align-items:end;flex-wrap:wrap}.opadm-row input[type=text]{min-width:150px;padding:9px;border:1px solid #cbd5e1;border-radius:8px}.opadm-empty{color:#64748b;padding:20px;text-align:center}.opadm-submit{margin-top:12px}@media(max-width:1000px){.opadm-grid,.opadm-list{grid-template-columns:1fr}} 
+</style>
+
+<div class="opadm-wrap">
+  <div class="opadm-head">
+    <div>
+      <div class="page-eyebrow">Acesso do chão de fábrica</div>
+      <h1>Operadores por máquina</h1>
+      <p class="page-description">Cada operador entra com PIN de 4 dígitos, escolhe apenas entre as máquinas autorizadas e acessa somente a Tela Operacional.</p>
+    </div>
+    <div class="opadm-actions">
+      <a class="btn btn-primary" href="/operacao/acesso-operador{% if is_superadmin %}?cliente_id={{ cliente_id }}{% endif %}">Abrir acesso por PIN</a>
+      <a class="btn btn-secondary" href="/admin/usuarios">Usuários de gestão</a>
+    </div>
+  </div>
+
+  <div class="opadm-note">Regra do plano: <strong>até {{ max_per_machine }} operadores ativos por máquina</strong>. O mesmo operador pode ser autorizado em várias máquinas. Se ele trocar de máquina, a sessão anterior deixa de valer para a máquina antiga. Para uso diário, abra <strong>Acesso por PIN</strong> no tablet/navegador dedicado da operação. Após 5 tentativas de PIN incorretas, o acesso daquele dispositivo fica bloqueado por 5 minutos.</div>
+
+  {% if message %}<div class="opadm-msg ok">{{ message }}</div>{% endif %}
+  {% if error %}<div class="opadm-msg err">{{ error }}</div>{% endif %}
+
+  {% if is_superadmin %}
+  <section class="opadm-panel">
+    <h2>Empresa</h2>
+    <form method="get" action="/operacao/operadores">
+      <div class="opadm-row">
+        <div class="opadm-field" style="min-width:320px">
+          <label>Cliente</label>
+          <select name="cliente_id" onchange="this.form.submit()">
+            {% for c in clientes %}
+            <option value="{{ c.id }}" {% if c.id == cliente_id %}selected{% endif %}>{{ c.nome }} — {{ c.id }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </form>
+  </section>
+  {% endif %}
+
+  <section class="opadm-panel">
+    <h2>Cadastrar operador</h2>
+    {% if not machines %}
+      <div class="opadm-empty">Cadastre/vincule pelo menos uma máquina antes de criar operadores.</div>
+    {% else %}
+    <form method="post" action="/operacao/operadores/criar">
+      {% if is_superadmin %}<input type="hidden" name="cliente_id" value="{{ cliente_id }}">{% endif %}
+      <div class="opadm-grid">
+        <div class="opadm-field"><label>Nome do operador</label><input name="nome" maxlength="80" placeholder="Ex.: João" required></div>
+        <div class="opadm-field"><label>PIN de 4 números</label><input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="0000" required></div>
+        <div class="opadm-field"><label>Limite</label><input value="3 operadores ativos por máquina" disabled></div>
+      </div>
+      <div class="opadm-form">
+        <strong>Máquinas autorizadas</strong>
+        <div class="opadm-machines">
+          {% for mid in machines %}
+          <label class="opadm-check"><input type="checkbox" name="machine_ids" value="{{ mid }}"> {{ mid|upper }}</label>
+          {% endfor %}
+        </div>
+      </div>
+      <button class="btn btn-primary opadm-submit" type="submit">Cadastrar operador</button>
+    </form>
+    {% endif %}
+  </section>
+
+  <section class="opadm-panel">
+    <h2>Operadores cadastrados</h2>
+    {% if not operadores %}
+      <div class="opadm-empty">Nenhum operador cadastrado.</div>
+    {% else %}
+    <div class="opadm-list">
+      {% for op in operadores %}
+      <article class="opadm-card">
+        <div class="opadm-card-head">
+          <div>
+            <h3>{{ op.nome }}</h3>
+            <div class="opadm-meta">
+              {% if op.active_machine_id %}Em operação: <strong>{{ op.active_machine_id|upper }}</strong>{% else %}Sem máquina ativa no momento{% endif %}
+            </div>
+          </div>
+          <span class="opadm-pill {% if op.status == 'active' %}on{% else %}off{% endif %}">{% if op.status == 'active' %}ATIVO{% else %}INATIVO{% endif %}</span>
+        </div>
+
+        <form class="opadm-form" method="post" action="/operacao/operadores/maquinas">
+          <input type="hidden" name="operator_id" value="{{ op.id }}">
+          {% if is_superadmin %}<input type="hidden" name="cliente_id" value="{{ cliente_id }}">{% endif %}
+          <strong>Máquinas autorizadas</strong>
+          <div class="opadm-machines">
+            {% for mid in machines %}
+            <label class="opadm-check"><input type="checkbox" name="machine_ids" value="{{ mid }}" {% if mid in op.machines %}checked{% endif %}> {{ mid|upper }}</label>
+            {% endfor %}
+          </div>
+          <button class="btn btn-secondary opadm-submit" type="submit">Salvar máquinas</button>
+        </form>
+
+        <div class="opadm-form">
+          <div class="opadm-row">
+            <form method="post" action="/operacao/operadores/pin">
+              <input type="hidden" name="operator_id" value="{{ op.id }}">
+              {% if is_superadmin %}<input type="hidden" name="cliente_id" value="{{ cliente_id }}">{% endif %}
+              <strong>Trocar PIN</strong>
+              <input type="text" name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="Novo PIN" required>
+              <button class="btn btn-secondary" type="submit">Alterar PIN</button>
+            </form>
+            <form method="post" action="/operacao/operadores/status">
+              <input type="hidden" name="operator_id" value="{{ op.id }}">
+              {% if is_superadmin %}<input type="hidden" name="cliente_id" value="{{ cliente_id }}">{% endif %}
+              <button class="btn {% if op.status == 'active' %}btn-secondary{% else %}btn-primary{% endif %}" type="submit">{% if op.status == 'active' %}Desativar{% else %}Ativar{% endif %}</button>
+            </form>
+          </div>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

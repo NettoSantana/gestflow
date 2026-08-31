@@ -1,0 +1,34 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\operacao\templates\operador_maquinas.html
+Último recode: 2026-08-31 20:35 (America/Bahia)
+Motivo: Permitir que o operador escolha somente entre as máquinas autorizadas após validar o PIN.
+#}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0f172a"><title>Escolher máquina — IndFlow</title>
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#f1f5f9;font-family:Arial,sans-serif;color:#0f172a;padding:24px}.wrap{width:min(980px,100%);margin:0 auto}.top{text-align:center;margin-bottom:22px}.brand{font-size:12px;font-weight:900;color:#2563eb;text-transform:uppercase;letter-spacing:.12em}.top h1{margin:8px 0 4px;font-size:29px}.top p{margin:0;color:#64748b}.machines{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.machine-form{margin:0}.machine-btn{width:100%;min-height:150px;border:2px solid #cbd5e1;border-radius:18px;background:#fff;cursor:pointer;padding:20px;font-size:22px;font-weight:950;color:#0f172a;box-shadow:0 8px 24px rgba(15,23,42,.05)}.machine-btn:hover{border-color:#2563eb;background:#eff6ff}.error{max-width:700px;margin:0 auto 16px;padding:12px;border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:10px;text-align:center;font-weight:800}.footer{display:flex;justify-content:center;margin-top:20px}.footer a{color:#64748b;font-weight:800;text-decoration:none}@media(max-width:760px){.machines{grid-template-columns:1fr}.machine-btn{min-height:110px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">IndFlow · Operação</div>
+    <h1>Olá, {{ operador }}</h1>
+    <p>Qual máquina você vai operar agora?</p>
+  </div>
+  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  <div class="machines">
+    {% for mid in machines %}
+    <form class="machine-form" method="post" action="/operacao/escolher-maquina">
+      <input type="hidden" name="machine_id" value="{{ mid }}">
+      <button class="machine-btn" type="submit">{{ mid|upper }}</button>
+    </form>
+    {% endfor %}
+  </div>
+  <div class="footer"><a href="/operacao/sair-operador">Sair do operador</a></div>
+</div>
+</body>
+</html>

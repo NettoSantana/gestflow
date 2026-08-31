@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\templates\base.html
-Último recode: 2026-08-31 19:51 (America/Bahia)
-Motivo: Tornar a lateral retrátil por aproximação do mouse um comportamento global do IndFlow no desktop, preservando o menu por botão em telas touch/mobile.
+Último recode: 2026-08-31 20:35 (America/Bahia)
+Motivo: Restringir o perfil OPERADOR à Tela Operacional, exibir identificação do operador e adicionar gestão de operadores por máquina.
 #}
 
 <!DOCTYPE html>
@@ -29,6 +29,7 @@ Motivo: Tornar a lateral retrátil por aproximação do mouse um comportamento g
 <body>
   {% set _path = request.path if request is defined else '' %}
   {% set _role = (session.get('role') or 'viewer')|lower %}
+  {% set _is_operator = _role == 'operator' and session.get('operator_id') %}
   {% set _is_technical = _role in ['admin', 'superadmin'] %}
   {% set _gestflow_url = gestflow_base_url|default('https://gestflow-web-production.up.railway.app', true) %}
 
@@ -36,7 +37,7 @@ Motivo: Tornar a lateral retrátil por aproximação do mouse um comportamento g
     <div class="sidebar-desktop-hover-zone" id="sidebarDesktopHoverZone" aria-hidden="true"></div>
     <aside class="industrial-sidebar" id="industrialSidebar">
       <div class="industrial-brand">
-        <a href="/" class="industrial-brand-link" aria-label="IndFlow - Painel Industrial">
+        <a href="{% if _is_operator %}/operacao/{% else %}/{% endif %}" class="industrial-brand-link" aria-label="IndFlow - Painel Industrial">
           <img src="/static/img/logo.png" alt="IndFlow" class="industrial-brand-logo">
           <div class="industrial-brand-text">
             <strong>IndFlow</strong>
@@ -47,6 +48,15 @@ Motivo: Tornar a lateral retrátil por aproximação do mouse um comportamento g
       </div>
 
       <nav class="industrial-nav" aria-label="Navegação principal do IndFlow">
+        {% if _is_operator %}
+        <div class="industrial-nav-section">
+          <span class="industrial-nav-label">Operador</span>
+          <a class="industrial-nav-item active" href="/operacao/">
+            <span class="industrial-nav-icon">▣</span>
+            <span>Tela Operacional</span>
+          </a>
+        </div>
+        {% else %}
         <div class="industrial-nav-section">
           <span class="industrial-nav-label">Operação</span>
 
@@ -90,6 +100,11 @@ Motivo: Tornar a lateral retrátil por aproximação do mouse um comportamento g
         <div class="industrial-nav-section industrial-nav-section-technical">
           <span class="industrial-nav-label">Técnico</span>
 
+          <a class="industrial-nav-item {% if _path.startswith('/operacao/operadores') %}active{% endif %}" href="/operacao/operadores">
+            <span class="industrial-nav-icon">♙</span>
+            <span>Operadores</span>
+          </a>
+
           <a class="industrial-nav-item {% if _path.startswith('/devices') %}active{% endif %}" href="/devices/">
             <span class="industrial-nav-icon">⌘</span>
             <span>Devices</span>
@@ -106,9 +121,20 @@ Motivo: Tornar a lateral retrátil por aproximação do mouse um comportamento g
           </a>
         </div>
         {% endif %}
+        {% endif %}
       </nav>
 
       <div class="industrial-sidebar-footer">
+        {% if _is_operator %}
+        <a class="industrial-nav-item" href="/operacao/trocar-maquina">
+          <span class="industrial-nav-icon">⇄</span>
+          <span>Trocar máquina</span>
+        </a>
+        <a class="industrial-nav-item" href="/operacao/sair-operador">
+          <span class="industrial-nav-icon">↪</span>
+          <span>Sair do operador</span>
+        </a>
+        {% else %}
         <a class="industrial-nav-item industrial-back-gestflow" href="{{ _gestflow_url }}">
           <span class="industrial-nav-icon">←</span>
           <span>Voltar ao GestFlow</span>
@@ -117,6 +143,7 @@ Motivo: Tornar a lateral retrátil por aproximação do mouse um comportamento g
           <span class="industrial-nav-icon">↪</span>
           <span>Sair</span>
         </a>
+        {% endif %}
         <div class="industrial-version">GestFlow · IndFlow</div>
       </div>
     </aside>
@@ -147,8 +174,8 @@ Motivo: Tornar a lateral retrátil por aproximação do mouse um comportamento g
         <div class="industrial-topbar-user">
           <span class="industrial-live-dot" aria-hidden="true"></span>
           <div>
-            <strong>{{ session.get('email') or 'Usuário conectado' }}</strong>
-            <span>{{ _role|upper }}</span>
+            <strong>{% if _is_operator %}{{ session.get('operator_name') or 'Operador' }}{% else %}{{ session.get('email') or 'Usuário conectado' }}{% endif %}</strong>
+            <span>{% if _is_operator %}OPERADOR{% else %}{{ _role|upper }}{% endif %}</span>
           </div>
         </div>
       </header>
