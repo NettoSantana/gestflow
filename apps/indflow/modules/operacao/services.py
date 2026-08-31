@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\operacao\services.py
-# Último recode: 2026-08-21 06:43 (America/Bahia)
-# Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+# Último recode: 2026-08-31 19:39 (America/Bahia)
+# Motivo: Garantir motivo fixo OUTROS na Tela Operacional e manter sua posição ao final da lista de paradas.
 
 from __future__ import annotations
 
@@ -24,6 +24,7 @@ DEFAULT_TEMPO_OBRIGATORIO_MIN = 3
 DEFAULT_BOTOES_POR_PAGINA = 8
 DEFAULT_ORDENACAO = "mais_clicados"
 VALID_ORDENACOES = {"codigo_crescente", "codigo_decrescente", "mais_clicados"}
+OTHER_REASON_DESCRIPTION = "OUTROS"
 
 
 def _table_exists(conn: sqlite3.Connection, table: str) -> bool:
@@ -44,6 +45,80 @@ def _safe_int(value, default: int = 0) -> int:
 def _code_key(value: str) -> tuple:
     parts = re.split(r"(\d+)", str(value or ""))
     return tuple(int(p) if p.isdigit() else p.casefold() for p in parts)
+
+
+def _ensure_other_reason(cliente_id: str) -> int | None:
+    cid = str(cliente_id or "").strip()
+    if not cid:
+        return None
+
+    ensure_catalog_seed(cid)
+    stamp = now_local().isoformat()
+    conn = get_db()
+    try:
+        existing = conn.execute(
+            """
+            SELECT id
+            FROM parada_motivos
+            WHERE cliente_id=? AND lower(descricao)=lower(?)
+            LIMIT 1
+            """,
+            (cid, OTHER_REASON_DESCRIPTION),
+        ).fetchone()
+        if existing:
+            reason_id = int(existing["id"])
+            conn.execute(
+                """
+                UPDATE parada_motivos
+                SET aplica_todas=1, ativo=1, updated_at=?
+                WHERE id=? AND cliente_id=?
+                """,
+                (stamp, reason_id, cid),
+            )
+            conn.commit()
+            return reason_id
+
+        category = conn.execute(
+            """
+            SELECT id
+            FROM parada_categorias
+            WHERE cliente_id=? AND lower(nome)=lower('Outros')
+            LIMIT 1
+            """,
+            (cid,),
+        ).fetchone()
+        if not category:
+            cursor = conn.execute(
+                """
+                INSERT INTO parada_categorias
+                (cliente_id, nome, slug, ordem, ativo, created_at, updated_at)
+                VALUES (?, 'Outros', 'outros', 80, 1, ?, ?)
+                """,
+                (cid, stamp, stamp),
+            )
+            category_id = int(cursor.lastrowid)
+        else:
+            category_id = int(category["id"])
+
+        code = "999"
+        if conn.execute(
+            "SELECT 1 FROM parada_motivos WHERE cliente_id=? AND codigo=? LIMIT 1",
+            (cid, code),
+        ).fetchone():
+            code = "OUT"
+
+        cursor = conn.execute(
+            """
+            INSERT INTO parada_motivos
+            (cliente_id, categoria_id, codigo, descricao, tipo, aplica_todas, ativo, created_at, updated_at)
+            VALUES (?, ?, ?, ?, 'nao_planejada', 1, 1, ?, ?)
+            """,
+            (cid, category_id, code, OTHER_REASON_DESCRIPTION, stamp, stamp),
+        )
+        conn.commit()
+        return int(cursor.lastrowid)
+    finally:
+        conn.close()
 
 
 def get_operational_config(cliente_id: str, machine_id: str) -> dict:
@@ -133,7 +208,7 @@ def save_operational_config(cliente_id: str, machine_id: str, payload: dict) -> 
 def list_operational_reasons(cliente_id: str, machine_id: str, order: str) -> list[dict]:
     cid = str(cliente_id or "").strip()
     mid = normalize_machine_id(machine_id, cid)
-    ensure_catalog_seed(cid)
+    _ensure_other_reason(cid)
     reasons = list_reasons(cid, machine_id=mid)
     usage: dict[int, int] = {}
 
@@ -162,6 +237,10 @@ def list_operational_reasons(cliente_id: str, machine_id: str, order: str) -> li
         reasons.sort(key=lambda r: (-int(r.get("uso_count") or 0), _code_key(r.get("codigo") or "")))
     else:
         reasons.sort(key=lambda r: _code_key(r.get("codigo") or ""))
+
+    reasons.sort(
+        key=lambda r: str(r.get("descricao") or "").strip().casefold() == OTHER_REASON_DESCRIPTION.casefold()
+    )
     return reasons
 
 
