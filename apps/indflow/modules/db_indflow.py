@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\db_indflow.py
-# Último recode: 2026-08-21 06:43 (America/Bahia)
-# Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+# Último recode: 2026-08-31 13:45 (America/Bahia)
+# Motivo: Isolar configuracao e estado de parada por cliente + maquina, com backfill apenas quando o proprietario estiver comprovado por device ativo.
 
 import os
 import sqlite3
@@ -77,6 +77,120 @@ def _table_exists(conn: sqlite3.Connection, table: str) -> bool:
         return bool(row)
     except Exception:
         return False
+
+
+def _active_device_owner_for_machine(conn: sqlite3.Connection, machine_id: str) -> str | None:
+    """Retorna o unico cliente ativo comprovado por device para a maquina.
+
+    Se nao houver device, houver mais de um dono, ou o cliente nao estiver ativo,
+    nao assume propriedade. Isso impede adotar registros historicos ambiguos.
+    """
+    mid = (machine_id or "").strip().lower()
+    if not mid or not _table_exists(conn, "devices") or not _table_exists(conn, "clientes"):
+        return None
+
+    try:
+        rows = conn.execute(
+            """
+            SELECT DISTINCT TRIM(d.cliente_id) AS cliente_id
+            FROM devices d
+            JOIN clientes c ON c.id = d.cliente_id
+            WHERE lower(trim(COALESCE(d.machine_id,''))) = ?
+              AND TRIM(COALESCE(d.cliente_id,'')) <> ''
+              AND lower(trim(COALESCE(c.status,''))) = 'active'
+            """,
+            (mid,),
+        ).fetchall()
+    except Exception:
+        return None
+
+    owners = [str(r[0]).strip() for r in rows if r and r[0] and str(r[0]).strip()]
+    return owners[0] if len(owners) == 1 else None
+
+
+def _backfill_proven_machine_owners(conn: sqlite3.Connection) -> None:
+    """Migra apenas registros cuja propriedade possa ser provada por devices.
+
+    - Nao altera IDs historicos orfaos.
+    - Nao atribui maquinas sem device.
+    - Nao sobrescreve config tenant ja existente.
+    - Mantem as tabelas legadas intactas para auditoria/rollback.
+    """
+    if _table_exists(conn, "machine_config") and _table_exists(conn, "machine_config_tenant"):
+        try:
+            rows = conn.execute(
+                """
+                SELECT machine_id, meta_turno, turno_inicio, turno_fim,
+                       rampa_percentual, horas_turno_json, meta_por_hora_json,
+                       unidade_1, unidade_2, conv_m_por_pcs,
+                       alerta_sem_contagem_seg, config_json, updated_at,
+                       cliente_id
+                FROM machine_config
+                """
+            ).fetchall()
+        except Exception:
+            rows = []
+
+        for row in rows:
+            mid = str(row[0] or "").strip().lower()
+            if not mid:
+                continue
+            owner = _active_device_owner_for_machine(conn, mid)
+            if not owner:
+                continue
+
+            legacy_owner = str(row[13] or "").strip()
+            if legacy_owner and legacy_owner != owner:
+                continue
+
+            conn.execute(
+                """
+                UPDATE machine_config
+                SET cliente_id=?
+                WHERE machine_id=?
+                  AND (cliente_id IS NULL OR TRIM(cliente_id)='')
+                """,
+                (owner, row[0]),
+            )
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO machine_config_tenant (
+                    cliente_id, machine_id, meta_turno, turno_inicio, turno_fim,
+                    rampa_percentual, horas_turno_json, meta_por_hora_json,
+                    unidade_1, unidade_2, conv_m_por_pcs,
+                    alerta_sem_contagem_seg, config_json, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    owner, mid, int(row[1] or 0), row[2], row[3], int(row[4] or 0),
+                    row[5] or "[]", row[6] or "[]", row[7], row[8], row[9],
+                    row[10], row[11], row[12] or "",
+                ),
+            )
+
+    if _table_exists(conn, "machine_stop") and _table_exists(conn, "machine_stop_tenant"):
+        try:
+            rows = conn.execute(
+                "SELECT machine_id, stopped_since_ms, updated_at FROM machine_stop"
+            ).fetchall()
+        except Exception:
+            rows = []
+
+        for row in rows:
+            mid = str(row[0] or "").strip().lower()
+            if not mid or "::" in mid:
+                continue
+            owner = _active_device_owner_for_machine(conn, mid)
+            if not owner:
+                continue
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO machine_stop_tenant
+                    (cliente_id, machine_id, stopped_since_ms, updated_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                (owner, mid, int(row[1] or 0), row[2] or ""),
+            )
 
 
 def init_db():
@@ -181,6 +295,8 @@ def init_db():
     cur.execute("CREATE INDEX IF NOT EXISTS ix_producao_diaria_cliente_id ON producao_diaria(cliente_id)")
 
     # -------------------- machine_config --------------------
+    # A tabela antiga e preservada para compatibilidade/auditoria. Novas gravacoes
+    # autenticadas usam machine_config_tenant, cuja chave e cliente + maquina.
     cur.execute("""
         CREATE TABLE IF NOT EXISTS machine_config (
             machine_id TEXT PRIMARY KEY,
@@ -195,7 +311,63 @@ def init_db():
     """)
     _add_column_if_missing(conn, "machine_config", "cliente_id", "TEXT")
     _add_column_if_missing(conn, "machine_config", "config_json", "TEXT")
+    _add_column_if_missing(conn, "machine_config", "unidade_1", "TEXT")
+    _add_column_if_missing(conn, "machine_config", "unidade_2", "TEXT")
+    _add_column_if_missing(conn, "machine_config", "conv_m_por_pcs", "REAL")
+    _add_column_if_missing(conn, "machine_config", "alerta_sem_contagem_seg", "INTEGER")
     cur.execute("CREATE INDEX IF NOT EXISTS ix_machine_config_cliente_id ON machine_config(cliente_id)")
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS machine_config_tenant (
+            cliente_id TEXT NOT NULL,
+            machine_id TEXT NOT NULL,
+            meta_turno INTEGER NOT NULL DEFAULT 0,
+            turno_inicio TEXT,
+            turno_fim TEXT,
+            rampa_percentual INTEGER NOT NULL DEFAULT 0,
+            horas_turno_json TEXT NOT NULL DEFAULT '[]',
+            meta_por_hora_json TEXT NOT NULL DEFAULT '[]',
+            unidade_1 TEXT,
+            unidade_2 TEXT,
+            conv_m_por_pcs REAL,
+            alerta_sem_contagem_seg INTEGER,
+            config_json TEXT,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (cliente_id, machine_id)
+        )
+    """)
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS ix_machine_config_tenant_machine_id "
+        "ON machine_config_tenant(machine_id)"
+    )
+
+    # -------------------- machine_stop --------------------
+    # machine_stop e mantida somente como legado. Todo fluxo autenticado passa a
+    # usar machine_stop_tenant para impedir colisao de nomes entre empresas.
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS machine_stop (
+            machine_id TEXT PRIMARY KEY,
+            stopped_since_ms INTEGER NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS ix_machine_stop_updated_at ON machine_stop(updated_at)")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS machine_stop_tenant (
+            cliente_id TEXT NOT NULL,
+            machine_id TEXT NOT NULL,
+            stopped_since_ms INTEGER NOT NULL,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (cliente_id, machine_id)
+        )
+    """)
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS ix_machine_stop_tenant_updated_at "
+        "ON machine_stop_tenant(updated_at)"
+    )
+
+    # Adota apenas configuracao/STOP cujo dono pode ser provado pelo device.
+    _backfill_proven_machine_owners(conn)
 
     # -------------------- producao_horaria --------------------
     cur.execute("""
@@ -214,16 +386,12 @@ def init_db():
     """)
     _add_column_if_missing(conn, "producao_horaria", "cliente_id", "TEXT")
 
-    # limpa duplicados antes de índices unique (evita crash)
     try:
         _dedupe_keep_latest(conn, "producao_horaria", ["machine_id", "data_ref", "hora_idx"])
     except Exception:
         pass
 
-    # remove índice legado antigo (pode colidir com multi-tenant)
     cur.execute("DROP INDEX IF EXISTS ux_producao_horaria")
-
-    # unique multi-tenant + legado parcial
     cur.execute("""
         CREATE UNIQUE INDEX IF NOT EXISTS ux_producao_horaria_cliente
         ON producao_horaria(cliente_id, machine_id, data_ref, hora_idx)
@@ -247,16 +415,12 @@ def init_db():
     """)
     _add_column_if_missing(conn, "baseline_diario", "cliente_id", "TEXT")
 
-    # limpa duplicados antes de índices unique (RESOLVE seu erro do Railway)
     try:
         _dedupe_keep_latest(conn, "baseline_diario", ["machine_id", "dia_ref"])
     except Exception:
         pass
 
-    # remove índice legado antigo que está derrubando o deploy
     cur.execute("DROP INDEX IF EXISTS ux_baseline_diario")
-
-    # unique multi-tenant + legado parcial
     cur.execute("""
         CREATE UNIQUE INDEX IF NOT EXISTS ux_baseline_diario_cliente
         ON baseline_diario(cliente_id, machine_id, dia_ref)
@@ -269,13 +433,6 @@ def init_db():
     cur.execute("CREATE INDEX IF NOT EXISTS ix_baseline_diario_cliente_id ON baseline_diario(cliente_id)")
 
     # -------------------- machine_state_event (RUN/STOP) --------------------
-    # Fonte persistente de estado para montar o Historico (segments) sem "sumir" no refresh.
-    #
-    # IMPORTANTE:
-    # O machine_routes.py já tenta inserir: machine_id, effective_machine_id, cliente_id, ts_ms, ts_iso, data_ref, hora_idx, state.
-    # Se o schema não tiver essas colunas, o insert falha e o erro fica "silencioso" (try/except).
-    #
-    # Por isso, aqui garantimos o schema completo.
     cur.execute("""
         CREATE TABLE IF NOT EXISTS machine_state_event (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -290,14 +447,12 @@ def init_db():
         )
     """)
 
-    # Migração defensiva (caso a tabela já exista em schema antigo)
     if _table_exists(conn, "machine_state_event"):
         _add_column_if_missing(conn, "machine_state_event", "machine_id", "TEXT")
         _add_column_if_missing(conn, "machine_state_event", "cliente_id", "TEXT")
         _add_column_if_missing(conn, "machine_state_event", "ts_iso", "TEXT")
         _add_column_if_missing(conn, "machine_state_event", "hora_idx", "INTEGER")
 
-    # Índices para leitura por dia e reconstrução de segments
     cur.execute("""
         CREATE INDEX IF NOT EXISTS ix_machine_state_event_eff_day_ts
         ON machine_state_event(effective_machine_id, data_ref, ts_ms)
@@ -311,10 +466,7 @@ def init_db():
         ON machine_state_event(machine_id, data_ref, ts_ms)
     """)
 
-    
     # -------------------- paradas / motivos / classificacao --------------------
-    # A telemetria original permanece em machine_state_event. Estas tabelas apenas
-    # guardam catalogo e classificacao das ocorrencias detectadas.
     cur.execute("""
         CREATE TABLE IF NOT EXISTS parada_categorias (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -407,32 +559,24 @@ def init_db():
     # -----------------------------
     # Estrutura para bobinas por OP
     # -----------------------------
-
-    # Eventos por bobina (N bobinas por OP)
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS ordens_producao_bobina_eventos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             op_id INTEGER NOT NULL,
             seq INTEGER NOT NULL DEFAULT 0,
-
             comprimento_m INTEGER NOT NULL DEFAULT 0,
-
             started_at TEXT NOT NULL,
             ended_at TEXT,
-
             start_abs_pcs INTEGER NOT NULL DEFAULT 0,
             end_abs_pcs INTEGER,
-
             created_at TEXT,
             updated_at TEXT,
-
             UNIQUE(op_id, seq)
         )
         """
     )
 
-    # Garantir colunas (compatibilidade/migracao leve)
     _add_column_if_missing(conn, "ordens_producao_bobina_eventos", "op_id", "INTEGER NOT NULL DEFAULT 0")
     _add_column_if_missing(conn, "ordens_producao_bobina_eventos", "seq", "INTEGER NOT NULL DEFAULT 0")
     _add_column_if_missing(conn, "ordens_producao_bobina_eventos", "comprimento_m", "INTEGER NOT NULL DEFAULT 0")
@@ -446,18 +590,15 @@ def init_db():
     cur.execute("CREATE INDEX IF NOT EXISTS ix_op_bobina_eventos_opid ON ordens_producao_bobina_eventos(op_id)")
     cur.execute("CREATE INDEX IF NOT EXISTS ix_op_bobina_eventos_opid_seq ON ordens_producao_bobina_eventos(op_id, seq)")
 
-    # Pendencia de troca: impede clique duplo e sincroniza inicio da proxima bobina no primeiro machine/update
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS ordens_producao_bobina_pendencia (
             op_id INTEGER PRIMARY KEY,
             machine_id TEXT NOT NULL,
             armed_at TEXT NOT NULL,
-
             closed_seq INTEGER NOT NULL DEFAULT 0,
             closed_abs_pcs INTEGER NOT NULL DEFAULT 0,
             next_seq INTEGER NOT NULL DEFAULT 0,
-
             created_at TEXT,
             updated_at TEXT
         )
@@ -474,7 +615,15 @@ def init_db():
 
     cur.execute("CREATE INDEX IF NOT EXISTS ix_op_bobina_pend_opid ON ordens_producao_bobina_pendencia(op_id)")
 
-
     conn.commit()
     conn.close()
+
+    # Aplica guards de compatibilidade somente depois do schema estar pronto.
+    # Em imports iniciais alguns modulos ainda podem nao existir; a chamada e
+    # repetida pelo server.init_db() e e idempotente.
+    try:
+        from modules.tenant_runtime_safety import install_runtime_guards
+        install_runtime_guards()
+    except Exception:
+        pass
 ##
