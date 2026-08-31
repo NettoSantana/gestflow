@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\templates\base.html
-Último recode: 2026-08-31 19:00 (America/Bahia)
-Motivo: Adicionar modo panorâmico no Painel Industrial, permitindo recolher a barra lateral e ampliar a área útil sem alterar os cards das máquinas.
+Último recode: 2026-08-31 19:10 (America/Bahia)
+Motivo: Tornar a lateral do Painel Industrial retrátil por aproximação do mouse, mantendo a área panorâmica livre sem alterar os cards das máquinas.
 #}
 
 <!DOCTYPE html>
@@ -13,14 +13,15 @@ Motivo: Adicionar modo panorâmico no Painel Industrial, permitindo recolher a b
   <title>{% block title %}IndFlow — Operação Industrial{% endblock %}</title>
   <link rel="stylesheet" href="/static/style.css?v=20260811">
   <style>
-    .sidebar-desktop-toggle { display: none; }
+    .sidebar-desktop-hover-zone { display: none; }
     @media (min-width: 981px) {
-      .industrial-dashboard-shell .sidebar-desktop-toggle { display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; flex:0 0 40px; border:1px solid #dbe3ee; border-radius:10px; background:#fff; color:#334155; font-size:20px; line-height:1; cursor:pointer; }
       .industrial-dashboard-shell .industrial-container { width:100%; max-width:none; }
       .industrial-dashboard-shell .industrial-topbar { min-height:56px; padding-top:8px; padding-bottom:8px; }
       .industrial-dashboard-shell .industrial-content { padding-top:18px; }
-      body.industrial-sidebar-collapsed .industrial-dashboard-shell .industrial-sidebar { width:0 !important; min-width:0 !important; padding:0 !important; border:0 !important; overflow:hidden !important; transform:translateX(-100%); }
-      body.industrial-sidebar-collapsed .industrial-dashboard-shell .industrial-main { width:100% !important; max-width:none !important; margin-left:0 !important; }
+      .industrial-dashboard-shell .industrial-main { width:100% !important; max-width:none !important; margin-left:0 !important; }
+      .industrial-dashboard-shell .industrial-sidebar { position:fixed; top:0; bottom:0; left:0; z-index:1002; transform:translateX(-100%); transition:transform .18s ease; box-shadow:8px 0 24px rgba(15,23,42,.14); }
+      body.industrial-sidebar-hover-open .industrial-dashboard-shell .industrial-sidebar { transform:translateX(0); }
+      .industrial-dashboard-shell .sidebar-desktop-hover-zone { display:block; position:fixed; top:0; bottom:0; left:0; width:12px; z-index:1001; }
     }
   </style>
   {% block head %}{% endblock %}
@@ -32,6 +33,9 @@ Motivo: Adicionar modo panorâmico no Painel Industrial, permitindo recolher a b
   {% set _gestflow_url = gestflow_base_url|default('https://gestflow-web-production.up.railway.app', true) %}
 
   <div class="industrial-shell{% if _path == '/' %} industrial-dashboard-shell{% endif %}">
+    {% if _path == '/' %}
+    <div class="sidebar-desktop-hover-zone" id="sidebarDesktopHoverZone" aria-hidden="true"></div>
+    {% endif %}
     <aside class="industrial-sidebar" id="industrialSidebar">
       <div class="industrial-brand">
         <a href="/" class="industrial-brand-link" aria-label="IndFlow - Painel Industrial">
@@ -124,9 +128,6 @@ Motivo: Adicionar modo panorâmico no Painel Industrial, permitindo recolher a b
     <div class="industrial-main">
       <header class="industrial-topbar">
         <button class="sidebar-mobile-toggle" id="sidebarMobileToggle" type="button" aria-label="Abrir menu">☰</button>
-        {% if _path == '/' %}
-        <button class="sidebar-desktop-toggle" id="sidebarDesktopToggle" type="button" aria-label="Ativar modo panorâmico" aria-pressed="false" title="Modo panorâmico">⤢</button>
-        {% endif %}
         <div class="industrial-topbar-context">
           <span class="industrial-topbar-kicker">GestFlow</span>
           <strong>
@@ -166,25 +167,33 @@ Motivo: Adicionar modo panorâmico no Painel Industrial, permitindo recolher a b
     (function () {
       const body = document.body;
       const toggle = document.getElementById('sidebarMobileToggle');
-      const desktopToggle = document.getElementById('sidebarDesktopToggle');
+      const hoverZone = document.getElementById('sidebarDesktopHoverZone');
+      const sidebar = document.getElementById('industrialSidebar');
       const close = document.getElementById('sidebarMobileClose');
       const backdrop = document.getElementById('industrialSidebarBackdrop');
+      let hoverCloseTimer = null;
 
       function openSidebar(){ body.classList.add('industrial-sidebar-open'); }
       function closeSidebar(){ body.classList.remove('industrial-sidebar-open'); }
-      function setDesktopSidebarCollapsed(collapsed){
-        body.classList.toggle('industrial-sidebar-collapsed', collapsed);
-        if (!desktopToggle) return;
-        desktopToggle.setAttribute('aria-pressed', collapsed ? 'true' : 'false');
-        desktopToggle.setAttribute('aria-label', collapsed ? 'Mostrar menu lateral' : 'Ativar modo panorâmico');
-        desktopToggle.title = collapsed ? 'Mostrar menu lateral' : 'Modo panorâmico';
-        desktopToggle.textContent = collapsed ? '☰' : '⤢';
+      function showDesktopSidebar(){
+        if (window.innerWidth <= 980) return;
+        if (hoverCloseTimer) clearTimeout(hoverCloseTimer);
+        body.classList.add('industrial-sidebar-hover-open');
+      }
+      function scheduleHideDesktopSidebar(){
+        if (window.innerWidth <= 980) return;
+        if (hoverCloseTimer) clearTimeout(hoverCloseTimer);
+        hoverCloseTimer = setTimeout(function(){
+          body.classList.remove('industrial-sidebar-hover-open');
+        }, 300);
       }
 
       if (toggle) toggle.addEventListener('click', openSidebar);
-      if (desktopToggle) desktopToggle.addEventListener('click', function(){
-        setDesktopSidebarCollapsed(!body.classList.contains('industrial-sidebar-collapsed'));
-      });
+      if (hoverZone) hoverZone.addEventListener('pointerenter', showDesktopSidebar);
+      if (sidebar) {
+        sidebar.addEventListener('pointerenter', showDesktopSidebar);
+        sidebar.addEventListener('pointerleave', scheduleHideDesktopSidebar);
+      }
       if (close) close.addEventListener('click', closeSidebar);
       if (backdrop) backdrop.addEventListener('click', closeSidebar);
 
@@ -197,11 +206,11 @@ Motivo: Adicionar modo panorâmico no Painel Industrial, permitindo recolher a b
       document.addEventListener('keydown', function(event){
         if (event.key !== 'Escape') return;
         if (window.innerWidth <= 980) closeSidebar();
-        else if (body.classList.contains('industrial-sidebar-collapsed')) setDesktopSidebarCollapsed(false);
+        else body.classList.remove('industrial-sidebar-hover-open');
       });
 
       window.addEventListener('resize', function(){
-        if (window.innerWidth <= 980 && body.classList.contains('industrial-sidebar-collapsed')) setDesktopSidebarCollapsed(false);
+        if (window.innerWidth <= 980) body.classList.remove('industrial-sidebar-hover-open');
       });
     })();
   </script>
