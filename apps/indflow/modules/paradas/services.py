@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\paradas\services.py
-# Último recode: 2026-08-21 06:43 (America/Bahia)
-# Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+# Último recode: 2026-08-31 15:47 (America/Bahia)
+# Motivo: Centralizar a lista de máquinas reais em Devices, isolada por tenant e MAC válido.
 
 from __future__ import annotations
 
@@ -239,44 +239,59 @@ def list_reasons(
 
 
 def list_tenant_machines(cliente_id: str, include_test: bool = False) -> list[str]:
+    """
+    Fonte única das máquinas reais visíveis ao tenant.
+
+    Uma máquina real só pertence à lista quando existe um device:
+    - do cliente atual;
+    - com MAC válido;
+    - com machine_id vinculado.
+
+    Dados históricos, configurações e eventos não recriam máquinas removidas ou
+    ainda não vinculadas. Máquinas sintéticas entram somente com include_test=True.
+    """
     cid = str(cliente_id or "").strip()
     if not cid:
         return []
-    conn = get_db()
+
     out: set[str] = set()
+    conn = get_db()
     try:
-        sources = [
-            ("devices", "machine_id"),
-            ("machine_config_tenant", "machine_id"),
-            ("machine_config", "machine_id"),
-            ("machine_state_event", "effective_machine_id"),
-            ("machine_state_event", "machine_id"),
-            ("producao_evento", "machine_id"),
-            ("producao_horaria", "machine_id"),
-            ("producao_diaria", "machine_id"),
-        ]
-        for table, col in sources:
-            cols = _columns(conn, table)
-            if col not in cols:
-                continue
-            try:
-                if "cliente_id" in cols:
-                    rows = conn.execute(
-                        f"SELECT DISTINCT {col} FROM {table} WHERE cliente_id=? AND {col} IS NOT NULL AND trim({col})<>''",
-                        (cid,),
-                    ).fetchall()
+        cols = _columns(conn, "devices")
+        required = {"device_id", "cliente_id", "machine_id"}
+        if required.issubset(cols):
+            rows = conn.execute(
+                """
+                SELECT device_id, machine_id
+                FROM devices
+                WHERE cliente_id=?
+                  AND machine_id IS NOT NULL
+                  AND trim(machine_id)<>''
+                """,
+                (cid,),
+            ).fetchall()
+
+            for row in rows:
+                if isinstance(row, sqlite3.Row):
+                    device_id = str(row["device_id"] or "")
+                    machine_id = row["machine_id"]
                 else:
+                    device_id = str(row[0] or "")
+                    machine_id = row[1]
+
+                normalized_mac = device_id.strip().upper().replace(":", "").replace("-", "")
+                if not re.fullmatch(r"[0-9A-F]{12}", normalized_mac):
                     continue
-                for r in rows:
-                    mid = normalize_machine_id(r[0], cid)
-                    if mid:
-                        out.add(mid)
-            except Exception:
-                continue
+
+                mid = normalize_machine_id(machine_id, cid)
+                if mid:
+                    out.add(mid)
     finally:
         conn.close()
+
     if include_test:
         out.update(list_active_test_machines(cid))
+
     return sorted(out, key=lambda x: x.casefold())
 
 
