@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-28 09:43 (America/Bahia)
-# Motivo: Corrigir o fluxo Orçamento → Venda no MAIN para gerar Venda editável e executar estoque/financeiro somente ao concretizar a Venda.
+# Último recode: 2026-08-31 20:57 (America/Bahia)
+# Motivo: Centralizar no GestFlow o limite de 3 usuários ativos por empresa (Administrador principal + até 2 usuários de gestão), sem contabilizar operadores do IndFlow.
 
 from __future__ import annotations
 
@@ -41,6 +41,7 @@ app = Flask(__name__)
 app.secret_key = getattr(config, "SECRET_KEY", "gestflow-dev-secret-key-trocar-em-producao")
 app.permanent_session_lifetime = timedelta(days=30)
 GESTFLOW_VERSAO = "1.0.0"
+GESTFLOW_LIMITE_USUARIOS_ATIVOS = 3
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -22248,6 +22249,14 @@ def validar_usuario_configuracoes_formulario(
     if dados["status"] not in {"ativo", "inativo"}:
         return "Status de usuário inválido."
 
+    if dados["status"] == "ativo":
+        ja_ocupa_vaga_ativa = usuario_configuracoes_esta_ativo(usuario_id)
+        if (
+            not ja_ocupa_vaga_ativa
+            and contar_usuarios_ativos_empresa() >= GESTFLOW_LIMITE_USUARIOS_ATIVOS
+        ):
+            return 'Limite do plano atingido: a empresa pode manter até 3 usuários ativos (1 Administrador principal + até 2 usuários de gestão).'
+
     with conectar_db() as conn:
         conflito_email = conn.execute(
             """
@@ -22299,6 +22308,46 @@ def validar_usuario_configuracoes_formulario(
             return "A confirmação da senha não confere."
 
     return ""
+
+
+def contar_usuarios_ativos_empresa(excluir_usuario_id: int | None = None) -> int:
+    parametros: list[Any] = [empresa_logada_id()]
+    filtro = ""
+    if excluir_usuario_id:
+        filtro = " AND id <> ?"
+        parametros.append(excluir_usuario_id)
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            f"""
+            SELECT COUNT(*) AS total
+            FROM usuarios
+            WHERE empresa_id = ?
+              AND LOWER(COALESCE(status, '')) = 'ativo'
+              {filtro}
+            """,
+            parametros,
+        ).fetchone()
+    return int(row["total"] or 0)
+
+
+def usuario_configuracoes_esta_ativo(usuario_id: int | None) -> bool:
+    if not usuario_id:
+        return False
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT 1
+            FROM usuarios
+            WHERE id = ?
+              AND empresa_id = ?
+              AND LOWER(COALESCE(status, '')) = 'ativo'
+            LIMIT 1
+            """,
+            (int(usuario_id), empresa_logada_id()),
+        ).fetchone()
+    return row is not None
 
 
 def contar_administradores_ativos_empresa(excluir_usuario_id: int | None = None) -> int:
@@ -26751,6 +26800,15 @@ def alterar_status_usuario_configuracoes(usuario_id: int) -> Response:
     if usuario_id == usuario_logado_id() and novo_status == "inativo":
         return redirecionar_configuracoes_usuarios(
             erro="Você não pode inativar o próprio usuário."
+        )
+
+    if (
+        novo_status == "ativo"
+        and str(usuario.get("status") or "").strip().lower() != "ativo"
+        and contar_usuarios_ativos_empresa() >= GESTFLOW_LIMITE_USUARIOS_ATIVOS
+    ):
+        return redirecionar_configuracoes_usuarios(
+            erro='Limite do plano atingido: a empresa pode manter até 3 usuários ativos (1 Administrador principal + até 2 usuários de gestão).'
         )
 
     if (

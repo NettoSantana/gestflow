@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\operacao\routes.py
-# Último recode: 2026-08-31 20:35 (America/Bahia)
-# Motivo: Criar acesso operacional por PIN, limitar 3 operadores por máquina, permitir escolha entre máquinas autorizadas e aplicar o plano de 1 administrador + 2 gestores.
+# Último recode: 2026-08-31 20:57 (America/Bahia)
+# Motivo: Manter acesso operacional por PIN e limite de 3 operadores por máquina, removendo do IndFlow o limite comercial de usuários de gestão, que passa a pertencer ao GestFlow.
 
 from __future__ import annotations
 
@@ -28,8 +28,6 @@ from modules.operacao.services import (
 
 operacao_bp = Blueprint("operacao", __name__, template_folder="templates")
 
-MAX_MANAGEMENT_USERS = 3
-MAX_GESTORES = 2
 MAX_OPERATORS_PER_MACHINE = 3
 OPERATOR_ACCESS_SALT = "indflow-operator-access-v1"
 
@@ -150,7 +148,7 @@ def _cliente_from_operator_token(token: str) -> str:
     return cid
 
 
-def _management_cliente_id() -> str:
+def _operator_admin_cliente_id() -> str:
     if _is_superadmin_session():
         requested = str(
             request.values.get("cliente_id")
@@ -538,215 +536,6 @@ def _request_wants_json() -> bool:
     )
 
 
-def _count_active_management_users(cliente_id: str) -> int:
-    conn = get_db()
-    try:
-        row = conn.execute(
-            "SELECT COUNT(1) FROM usuarios WHERE cliente_id=? AND status='active'",
-            (str(cliente_id or "").strip(),),
-        ).fetchone()
-    finally:
-        conn.close()
-    return int(row[0] or 0) if row else 0
-
-
-def _count_active_role(cliente_id: str, role: str, exclude_user_id: str = "") -> int:
-    conn = get_db()
-    try:
-        row = conn.execute(
-            """
-            SELECT COUNT(1)
-            FROM usuarios
-            WHERE cliente_id=? AND status='active' AND role=?
-              AND (?='' OR id<>?)
-            """,
-            (str(cliente_id or "").strip(), str(role), exclude_user_id, exclude_user_id),
-        ).fetchone()
-    finally:
-        conn.close()
-    return int(row[0] or 0) if row else 0
-
-
-def _count_role_records(cliente_id: str, role: str, exclude_user_id: str = "") -> int:
-    conn = get_db()
-    try:
-        row = conn.execute(
-            """
-            SELECT COUNT(1)
-            FROM usuarios
-            WHERE cliente_id=? AND role=?
-              AND (?='' OR id<>?)
-            """,
-            (str(cliente_id or "").strip(), str(role), exclude_user_id, exclude_user_id),
-        ).fetchone()
-    finally:
-        conn.close()
-    return int(row[0] or 0) if row else 0
-
-
-def _get_management_user(user_id: str):
-    conn = get_db()
-    try:
-        row = conn.execute(
-            "SELECT id, email, cliente_id, role, status, created_at FROM usuarios WHERE id=? LIMIT 1",
-            (str(user_id or "").strip(),),
-        ).fetchone()
-    finally:
-        conn.close()
-    return dict(row) if row else None
-
-
-def _validate_management_create() -> str:
-    role = str(request.form.get("role") or "viewer").strip().lower()
-    if role not in ("admin", "viewer"):
-        role = "viewer"
-    cid = (
-        str(request.form.get("cliente_id") or "").strip()
-        if _is_superadmin_session()
-        else _cliente_id()
-    )
-    if not cid:
-        return ""
-    if _count_active_management_users(cid) >= MAX_MANAGEMENT_USERS:
-        return "Limite de 3 usuários de gestão atingido."
-    if role == "admin" and _count_role_records(cid, "admin") >= 1:
-        return "A empresa já possui o Administrador principal."
-    if role == "viewer" and _count_active_role(cid, "viewer") >= MAX_GESTORES:
-        return "Limite de 2 Gestores ativos atingido."
-    return ""
-
-
-def _validate_management_toggle() -> str:
-    target = _get_management_user(request.form.get("user_id"))
-    if not target:
-        return ""
-    cid = str(target.get("cliente_id") or "")
-    if not _is_superadmin_session() and cid != _cliente_id():
-        return ""
-    new_status = "inactive" if str(target.get("status")) == "active" else "active"
-    if new_status == "inactive":
-        if str(target.get("role")) == "admin" and _count_active_role(
-            cid, "admin", str(target.get("id"))
-        ) == 0:
-            return "O Administrador principal não pode ser desativado."
-        return ""
-    if _count_active_management_users(cid) >= MAX_MANAGEMENT_USERS:
-        return "Limite de 3 usuários de gestão atingido."
-    if str(target.get("role")) == "admin" and _count_active_role(
-        cid, "admin", str(target.get("id"))
-    ) >= 1:
-        return "A empresa já possui o Administrador principal."
-    if str(target.get("role")) == "viewer" and _count_active_role(
-        cid, "viewer", str(target.get("id"))
-    ) >= MAX_GESTORES:
-        return "Limite de 2 Gestores ativos atingido."
-    return ""
-
-
-def _validate_management_role() -> str:
-    target = _get_management_user(request.form.get("user_id"))
-    if not target:
-        return ""
-    cid = str(target.get("cliente_id") or "")
-    if not _is_superadmin_session() and cid != _cliente_id():
-        return ""
-    new_role = str(request.form.get("role") or "viewer").strip().lower()
-    if new_role not in ("admin", "viewer"):
-        new_role = "viewer"
-    current_role = str(target.get("role") or "")
-    if new_role == current_role:
-        return ""
-    if current_role == "admin" and new_role != "admin":
-        if _count_role_records(cid, "admin", str(target.get("id"))) == 0:
-            return "O Administrador principal não pode ser rebaixado. Transfira a administração antes."
-    if new_role == "admin" and _count_role_records(
-        cid, "admin", str(target.get("id"))
-    ) >= 1:
-        return "A empresa já possui o Administrador principal."
-    if (
-        str(target.get("status")) == "active"
-        and new_role == "viewer"
-        and _count_active_role(cid, "viewer", str(target.get("id"))) >= MAX_GESTORES
-    ):
-        return "Limite de 2 Gestores ativos atingido."
-    return ""
-
-
-def _management_users_context() -> dict:
-    conn = get_db()
-    try:
-        if _is_superadmin_session():
-            users = [
-                dict(r)
-                for r in conn.execute(
-                    """
-                    SELECT id, email, role, status, created_at, cliente_id
-                    FROM usuarios
-                    ORDER BY created_at DESC
-                    """
-                ).fetchall()
-            ]
-            clients = [
-                dict(r)
-                for r in conn.execute(
-                    "SELECT id, nome, status FROM clientes ORDER BY nome COLLATE NOCASE"
-                ).fetchall()
-            ]
-        else:
-            cid = _cliente_id()
-            users = [
-                dict(r)
-                for r in conn.execute(
-                    """
-                    SELECT id, email, role, status, created_at, cliente_id
-                    FROM usuarios
-                    WHERE cliente_id=?
-                    ORDER BY created_at DESC
-                    """,
-                    (cid,),
-                ).fetchall()
-            ]
-            clients = []
-    finally:
-        conn.close()
-    return {"usuarios": users, "clientes": clients}
-
-
-def _sso_new_user_limit_response():
-    try:
-        from modules.admin.routes import _decode_gestflow_sso_token, _get_gestflow_sso_link
-
-        payload = _decode_gestflow_sso_token(request.args.get("token"))
-        existing = _get_gestflow_sso_link(payload["empresa_id"], payload["usuario_id"])
-        if existing:
-            return None
-
-        conn = get_db()
-        try:
-            row = conn.execute(
-                """
-                SELECT indflow_cliente_id
-                FROM integracao_gestflow_empresas
-                WHERE gestflow_empresa_id=? AND status='active'
-                LIMIT 1
-                """,
-                (payload["empresa_id"],),
-            ).fetchone()
-        finally:
-            conn.close()
-        if not row:
-            return None
-        cid = str(row["indflow_cliente_id"] or "").strip()
-        if cid and _count_active_management_users(cid) >= MAX_MANAGEMENT_USERS:
-            return (
-                "Limite do plano atingido: 1 Administrador principal + 2 Gestores.",
-                403,
-            )
-    except Exception:
-        return None
-    return None
-
-
 @operacao_bp.before_app_request
 def _global_access_policy():
     path = request.path or ""
@@ -780,38 +569,6 @@ def _global_access_policy():
             if not db_machine or db_machine.casefold() != selected.casefold():
                 session.pop("operator_machine_id", None)
                 return jsonify({"ok": False, "error": "Sessão do operador mudou de máquina."}), 401
-
-    if path == "/admin/usuarios" and request.method == "GET" and _role() in ("admin", "superadmin"):
-        ctx = _management_users_context()
-        return render_template(
-            "usuarios_gestao.html",
-            usuarios=ctx["usuarios"],
-            clientes=ctx["clientes"],
-            is_superadmin=_is_superadmin_session(),
-            max_active=MAX_MANAGEMENT_USERS,
-            message=(request.args.get("msg") or "").strip() or None,
-            error=(request.args.get("err") or "").strip() or None,
-        )
-
-    if path == "/admin/usuarios/create" and request.method == "POST" and _role() in ("admin", "superadmin"):
-        err = _validate_management_create()
-        if err:
-            return redirect(url_for("admin.usuarios_home", err=err))
-
-    if path == "/admin/usuarios/toggle" and request.method == "POST" and _role() in ("admin", "superadmin"):
-        err = _validate_management_toggle()
-        if err:
-            return redirect(url_for("admin.usuarios_home", err=err))
-
-    if path == "/admin/usuarios/role" and request.method == "POST" and _role() in ("admin", "superadmin"):
-        err = _validate_management_role()
-        if err:
-            return redirect(url_for("admin.usuarios_home", err=err))
-
-    if path == "/admin/sso/gestflow" and request.method == "GET":
-        response = _sso_new_user_limit_response()
-        if response is not None:
-            return response
 
     return None
 
@@ -867,7 +624,7 @@ def home():
 @operacao_bp.get("/operadores")
 @admin_required
 def operadores_admin():
-    cid = _management_cliente_id()
+    cid = _operator_admin_cliente_id()
     machines = list_operational_machines(cid) if cid else []
     return render_template(
         "operadores_admin.html",
@@ -885,7 +642,7 @@ def operadores_admin():
 @operacao_bp.post("/operadores/criar")
 @admin_required
 def operadores_criar():
-    cid = _management_cliente_id()
+    cid = _operator_admin_cliente_id()
     nome = str(request.form.get("nome") or "").strip()
     pin = str(request.form.get("pin") or "").strip()
     machine_ids = request.form.getlist("machine_ids")
@@ -935,7 +692,7 @@ def operadores_criar():
 @operacao_bp.post("/operadores/maquinas")
 @admin_required
 def operadores_maquinas():
-    cid = _management_cliente_id()
+    cid = _operator_admin_cliente_id()
     oid = str(request.form.get("operator_id") or "").strip()
     row = _operator_record(oid)
     if not row or str(row.get("cliente_id") or "") != cid:
@@ -977,7 +734,7 @@ def operadores_maquinas():
 @operacao_bp.post("/operadores/pin")
 @admin_required
 def operadores_pin():
-    cid = _management_cliente_id()
+    cid = _operator_admin_cliente_id()
     oid = str(request.form.get("operator_id") or "").strip()
     pin = str(request.form.get("pin") or "").strip()
     row = _operator_record(oid)
@@ -1002,7 +759,7 @@ def operadores_pin():
 @operacao_bp.post("/operadores/status")
 @admin_required
 def operadores_status():
-    cid = _management_cliente_id()
+    cid = _operator_admin_cliente_id()
     oid = str(request.form.get("operator_id") or "").strip()
     row = _operator_record(oid)
     if not row or str(row.get("cliente_id") or "") != cid:
@@ -1038,7 +795,7 @@ def operadores_status():
 @operacao_bp.get("/acesso-operador")
 @admin_required
 def acesso_operador():
-    cid = _management_cliente_id()
+    cid = _operator_admin_cliente_id()
     token = _operator_access_token(cid)
     return redirect(url_for("operacao.operador_pin", token=token))
 
