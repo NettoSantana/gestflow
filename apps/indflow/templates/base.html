@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\templates\base.html
-Último recode: 2026-09-01 18:38 (America/Bahia)
-Motivo: Remover saídas próprias do IndFlow e manter somente o retorno ao GestFlow, inclusive para o perfil OPERADOR.
+Último recode: 2026-09-01 20:36 (America/Bahia)
+Motivo: Padronizar a sidebar com o GestFlow: compacta por padrão, expansão por hover e opção de fixar aberta no desktop.
 #}
 
 <!DOCTYPE html>
@@ -14,14 +14,124 @@ Motivo: Remover saídas próprias do IndFlow e manter somente o retorno ao GestF
   <link rel="stylesheet" href="/static/style.css?v=20260811">
   <style>
     .sidebar-desktop-hover-zone { display: none; }
+
     @media (min-width: 981px) {
+      :root {
+        --indflow-sidebar-compact: 76px;
+        --indflow-sidebar-expanded: 272px;
+      }
+
       .industrial-dashboard-shell .industrial-container { width:100%; max-width:none; }
       .industrial-dashboard-shell .industrial-topbar { min-height:56px; padding-top:8px; padding-bottom:8px; }
       .industrial-dashboard-shell .industrial-content { padding-top:18px; }
-      .industrial-shell .industrial-main { width:100% !important; max-width:none !important; margin-left:0 !important; }
-      .industrial-shell .industrial-sidebar { position:fixed; top:0; bottom:0; left:0; z-index:1002; transform:translateX(-100%); transition:transform .18s ease; box-shadow:8px 0 24px rgba(15,23,42,.14); }
-      body.industrial-sidebar-hover-open .industrial-shell .industrial-sidebar { transform:translateX(0); }
-      .industrial-shell .sidebar-desktop-hover-zone { display:block; position:fixed; top:0; bottom:0; left:0; width:12px; z-index:1001; }
+
+      .industrial-shell .industrial-main {
+        width:calc(100% - var(--indflow-sidebar-compact)) !important;
+        max-width:none !important;
+        margin-left:var(--indflow-sidebar-compact) !important;
+        transition:margin-left .2s ease, width .2s ease;
+      }
+
+      body.industrial-sidebar-pinned .industrial-shell .industrial-main {
+        width:calc(100% - var(--indflow-sidebar-expanded)) !important;
+        margin-left:var(--indflow-sidebar-expanded) !important;
+      }
+
+      .industrial-shell .industrial-sidebar {
+        position:fixed;
+        top:0;
+        bottom:0;
+        left:0;
+        z-index:1002;
+        width:var(--indflow-sidebar-compact) !important;
+        transform:none !important;
+        overflow-x:hidden;
+        transition:width .2s ease, box-shadow .2s ease;
+        box-shadow:none;
+      }
+
+      body.industrial-sidebar-hover-open .industrial-shell .industrial-sidebar,
+      body.industrial-sidebar-pinned .industrial-shell .industrial-sidebar {
+        width:var(--indflow-sidebar-expanded) !important;
+        box-shadow:8px 0 24px rgba(15,23,42,.14);
+      }
+
+      .industrial-shell .sidebar-desktop-hover-zone {
+        display:none;
+      }
+
+      .industrial-sidebar-pin {
+        width:30px;
+        height:30px;
+        flex:0 0 30px;
+        border:1px solid rgba(255,255,255,.18);
+        border-radius:9px;
+        background:rgba(255,255,255,.08);
+        color:#fff;
+        cursor:pointer;
+        opacity:0;
+        pointer-events:none;
+        transition:opacity .15s ease, background .15s ease;
+      }
+
+      body.industrial-sidebar-hover-open .industrial-sidebar-pin,
+      body.industrial-sidebar-pinned .industrial-sidebar-pin {
+        opacity:1;
+        pointer-events:auto;
+      }
+
+      .industrial-sidebar-pin:hover,
+      body.industrial-sidebar-pinned .industrial-sidebar-pin {
+        background:rgba(255,255,255,.16);
+      }
+
+      body:not(.industrial-sidebar-hover-open):not(.industrial-sidebar-pinned) .industrial-brand {
+        justify-content:center;
+        padding-left:8px;
+        padding-right:8px;
+      }
+
+      body:not(.industrial-sidebar-hover-open):not(.industrial-sidebar-pinned) .industrial-brand-link {
+        justify-content:center;
+        width:100%;
+        min-width:0;
+      }
+
+      body:not(.industrial-sidebar-hover-open):not(.industrial-sidebar-pinned) .industrial-brand-logo {
+        width:44px;
+        max-width:44px;
+        object-fit:contain;
+      }
+
+      body:not(.industrial-sidebar-hover-open):not(.industrial-sidebar-pinned) .industrial-brand-text,
+      body:not(.industrial-sidebar-hover-open):not(.industrial-sidebar-pinned) .industrial-nav-label,
+      body:not(.industrial-sidebar-hover-open):not(.industrial-sidebar-pinned) .industrial-nav-item > span:not(.industrial-nav-icon),
+      body:not(.industrial-sidebar-hover-open):not(.industrial-sidebar-pinned) .industrial-version {
+        display:none !important;
+      }
+
+      body:not(.industrial-sidebar-hover-open):not(.industrial-sidebar-pinned) .industrial-nav-item {
+        justify-content:center;
+        padding-left:0;
+        padding-right:0;
+        gap:0;
+      }
+
+      body:not(.industrial-sidebar-hover-open):not(.industrial-sidebar-pinned) .industrial-nav-icon {
+        width:36px;
+        min-width:36px;
+        font-size:18px;
+        justify-content:center;
+      }
+
+      body:not(.industrial-sidebar-hover-open):not(.industrial-sidebar-pinned) .industrial-nav-section {
+        padding-left:8px;
+        padding-right:8px;
+      }
+
+      .sidebar-mobile-close {
+        display:none;
+      }
     }
   </style>
   {% block head %}{% endblock %}
@@ -43,6 +153,7 @@ Motivo: Remover saídas próprias do IndFlow e manter somente o retorno ao GestF
             <span>Operação Industrial</span>
           </div>
         </a>
+        <button class="industrial-sidebar-pin" id="industrialSidebarPin" type="button" aria-label="Fixar menu lateral aberto" aria-pressed="false" title="Fixar menu aberto">⌖</button>
         <button class="sidebar-mobile-close" id="sidebarMobileClose" type="button" aria-label="Fechar menu">×</button>
       </div>
 
@@ -184,9 +295,27 @@ Motivo: Remover saídas próprias do IndFlow e manter somente o retorno ao GestF
       const toggle = document.getElementById('sidebarMobileToggle');
       const hoverZone = document.getElementById('sidebarDesktopHoverZone');
       const sidebar = document.getElementById('industrialSidebar');
+      const pin = document.getElementById('industrialSidebarPin');
       const close = document.getElementById('sidebarMobileClose');
       const backdrop = document.getElementById('industrialSidebarBackdrop');
       let hoverCloseTimer = null;
+      const pinStorageKey = 'indflow_sidebar_pinned';
+
+      function applyPinnedState(pinned){
+        body.classList.toggle('industrial-sidebar-pinned', pinned);
+        if (!pin) return;
+        pin.setAttribute('aria-pressed', pinned ? 'true' : 'false');
+        pin.setAttribute('aria-label', pinned ? 'Desafixar menu lateral' : 'Fixar menu lateral aberto');
+        pin.title = pinned ? 'Desafixar menu' : 'Fixar menu aberto';
+      }
+
+      let pinned = false;
+      try {
+        pinned = window.localStorage.getItem(pinStorageKey) === '1';
+      } catch (error) {
+        pinned = false;
+      }
+      applyPinnedState(pinned);
 
       function openSidebar(){ body.classList.add('industrial-sidebar-open'); }
       function closeSidebar(){ body.classList.remove('industrial-sidebar-open'); }
@@ -204,6 +333,17 @@ Motivo: Remover saídas próprias do IndFlow e manter somente o retorno ao GestF
       }
 
       if (toggle) toggle.addEventListener('click', openSidebar);
+      if (pin) pin.addEventListener('click', function(event){
+        event.preventDefault();
+        event.stopPropagation();
+        pinned = !body.classList.contains('industrial-sidebar-pinned');
+        applyPinnedState(pinned);
+        try {
+          window.localStorage.setItem(pinStorageKey, pinned ? '1' : '0');
+        } catch (error) {
+          return;
+        }
+      });
       if (hoverZone) hoverZone.addEventListener('pointerenter', showDesktopSidebar);
       if (sidebar) {
         sidebar.addEventListener('pointerenter', showDesktopSidebar);
