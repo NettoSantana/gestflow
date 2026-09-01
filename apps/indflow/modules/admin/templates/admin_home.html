@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\admin\templates\admin_home.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-08-31 21:09 (America/Bahia)
+Motivo: Remover a gestão de usuários do IndFlow e manter a Administração apenas para recursos técnicos.
 #}
 
 {% extends "base.html" %}
@@ -12,7 +12,7 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
   <div class="page-heading">
     <div class="page-eyebrow">Acesso técnico</div>
     <h1 class="page-title">Administração Técnica</h1>
-    <p class="page-description">Área de suporte do IndFlow. Empresas, equipamentos e usuários de negócio devem ser administrados pelo GestFlow.</p>
+    <p class="page-description">Área de suporte do IndFlow. Empresas e usuários de gestão são administrados pelo GestFlow; operadores são administrados na área Operadores do IndFlow.</p>
   </div>
   <div class="page-actions"><a class="btn btn-primary" href="/">Painel Industrial</a></div>
 </div>
@@ -24,15 +24,10 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
   </section>
 
   <section class="section-shell">
-    <div class="section-shell-header"><div><h2>Usuários técnicos</h2><p>Consulta de usuários internos do IndFlow para suporte e compatibilidade. O login operacional é feito pelo GestFlow/SSO.</p></div></div>
-    <a class="btn btn-secondary" href="/admin/usuarios">Consultar usuários técnicos</a>
-  </section>
-
-  <section class="section-shell">
     <div class="section-shell-header"><div><h2>Dados de teste</h2><p>Crie TESTE01 para validar barras RUN/STOP, classificação de paradas e indicadores sem apontar o ESP novo.</p></div></div>
     <a class="btn btn-secondary" href="/teste/">Abrir ambiente de teste</a>
   </section>
 </div>
 
-<div class="page-note" style="margin-top:14px;">Role técnico atual: <strong>{{ (session.get("role") or "viewer")|upper }}</strong>. Cadastros de clientes não são exibidos no menu principal do IndFlow para evitar redundância com o GestFlow.</div>
+<div class="page-note" style="margin-top:14px;">Role técnico atual: <strong>{{ (session.get("role") or "viewer")|upper }}</strong>. Usuários de gestão ficam centralizados no GestFlow; o IndFlow mantém somente os vínculos internos necessários ao SSO.</div>
 {% endblock %}
