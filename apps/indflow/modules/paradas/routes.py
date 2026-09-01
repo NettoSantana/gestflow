@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\paradas\routes.py
-# Último recode: 2026-08-21 06:43 (America/Bahia)
-# Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+# Último recode: 2026-09-01 11:48 (America/Bahia)
+# Motivo: Agrupar pequenas paradas abaixo do limite configurado e impedir classificação antes do tempo mínimo.
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from datetime import date, datetime, timedelta
 from flask import Blueprint, jsonify, render_template, request, session
 
 from modules.admin.routes import admin_required, login_required
+from modules.db_indflow import get_db
 from modules.paradas.services import (
     classify_occurrence,
     ensure_catalog_seed,
@@ -24,6 +25,142 @@ from modules.paradas.services import (
 )
 
 paradas_bp = Blueprint("paradas", __name__, template_folder="templates")
+
+DEFAULT_CLASSIFICATION_THRESHOLD_SEC = 180
+
+
+def _classification_threshold_sec(cliente_id: str, machine_id: str) -> int:
+    cid = str(cliente_id or "").strip()
+    mid = normalize_machine_id(machine_id, cid)
+    if not cid or not mid:
+        return DEFAULT_CLASSIFICATION_THRESHOLD_SEC
+
+    conn = get_db()
+    try:
+        exists = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='operacao_parada_config' LIMIT 1"
+        ).fetchone()
+        if not exists:
+            return DEFAULT_CLASSIFICATION_THRESHOLD_SEC
+
+        row = conn.execute(
+            """
+            SELECT tempo_obrigatorio_min
+            FROM operacao_parada_config
+            WHERE cliente_id=? AND lower(machine_id)=lower(?)
+            LIMIT 1
+            """,
+            (cid, mid),
+        ).fetchone()
+        if not row:
+            return DEFAULT_CLASSIFICATION_THRESHOLD_SEC
+
+        try:
+            minutes = int(row[0] or 0)
+        except Exception:
+            minutes = 0
+        if minutes <= 0:
+            return DEFAULT_CLASSIFICATION_THRESHOLD_SEC
+        return max(60, min(7200, minutes * 60))
+    finally:
+        conn.close()
+
+
+def _prepare_occurrences(cliente_id: str, rows: list[dict], only_unclassified: bool = False) -> dict:
+    cid = str(cliente_id or "").strip()
+    threshold_cache: dict[str, int] = {}
+    regular_rows: list[dict] = []
+    small_by_machine: dict[str, dict] = {}
+
+    total_duration_sec = 0
+    visible_duration_sec = 0
+    classifiable_total = 0
+    classifiable_unclassified = 0
+    classifiable_classified = 0
+
+    for source in rows:
+        row = dict(source)
+        mid = normalize_machine_id(row.get("machine_id") or "", cid)
+        row["machine_id"] = mid or str(row.get("machine_id") or "")
+        key = (mid or "").casefold()
+
+        if key not in threshold_cache:
+            threshold_cache[key] = _classification_threshold_sec(cid, mid)
+        threshold_sec = int(threshold_cache[key])
+
+        duration_sec = max(0, int(row.get("duration_sec") or 0))
+        total_duration_sec += duration_sec
+        is_closed = row.get("ended_at_ms") not in (None, "")
+        is_small = bool(is_closed and duration_sec < threshold_sec)
+        classified = bool(row.get("classificada"))
+        can_classify = bool(duration_sec >= threshold_sec)
+
+        row["classification_threshold_sec"] = threshold_sec
+        row["small_stop"] = is_small
+        row["can_classify"] = can_classify
+
+        if is_small:
+            if not only_unclassified:
+                group = small_by_machine.setdefault(
+                    key,
+                    {
+                        "machine_id": mid,
+                        "count": 0,
+                        "duration_sec": 0,
+                        "first_started_at_ms": None,
+                        "last_started_at_ms": None,
+                        "classification_threshold_sec": threshold_sec,
+                    },
+                )
+                started_at_ms = int(row.get("started_at_ms") or 0)
+                group["count"] += 1
+                group["duration_sec"] += duration_sec
+                if group["first_started_at_ms"] is None or started_at_ms < group["first_started_at_ms"]:
+                    group["first_started_at_ms"] = started_at_ms
+                if group["last_started_at_ms"] is None or started_at_ms > group["last_started_at_ms"]:
+                    group["last_started_at_ms"] = started_at_ms
+            continue
+
+        if can_classify:
+            classifiable_total += 1
+            if classified:
+                classifiable_classified += 1
+            else:
+                classifiable_unclassified += 1
+
+        if only_unclassified and (classified or not can_classify):
+            continue
+
+        regular_rows.append(row)
+        visible_duration_sec += duration_sec
+
+    small_stops = sorted(
+        small_by_machine.values(),
+        key=lambda item: int(item.get("last_started_at_ms") or 0),
+        reverse=True,
+    )
+    small_stop_count = sum(int(item.get("count") or 0) for item in small_stops)
+    small_stop_duration_sec = sum(int(item.get("duration_sec") or 0) for item in small_stops)
+
+    classified_pct = (
+        round((classifiable_classified / classifiable_total) * 100)
+        if classifiable_total > 0
+        else 100
+    )
+
+    return {
+        "rows": regular_rows,
+        "small_stops": small_stops,
+        "stats": {
+            "detected_count": len(regular_rows) if only_unclassified else len(rows),
+            "unclassified_count": classifiable_unclassified,
+            "duration_sec": visible_duration_sec if only_unclassified else total_duration_sec,
+            "classified_pct": classified_pct,
+            "classifiable_count": classifiable_total,
+            "small_stop_count": small_stop_count,
+            "small_stop_duration_sec": small_stop_duration_sec,
+        },
+    }
 
 
 def _cliente_id() -> str:
@@ -151,7 +288,17 @@ def api_occurrences():
             rows.extend(list_occurrences(cid, mid, start, end, sync=False, only_unclassified=only_unclassified))
         rows.sort(key=lambda x: int(x.get("started_at_ms") or 0), reverse=True)
 
-    return jsonify({"ok": True, "inicio": start.isoformat(), "fim": end.isoformat(), "rows": rows})
+    prepared = _prepare_occurrences(cid, rows, only_unclassified=only_unclassified)
+    return jsonify(
+        {
+            "ok": True,
+            "inicio": start.isoformat(),
+            "fim": end.isoformat(),
+            "rows": prepared["rows"],
+            "small_stops": prepared["small_stops"],
+            "stats": prepared["stats"],
+        }
+    )
 
 
 @paradas_bp.post("/api/ocorrencias/garantir")
@@ -188,6 +335,44 @@ def api_classify_occurrence():
         motivo_id = 0
     if occurrence_id <= 0 or motivo_id <= 0:
         return jsonify({"ok": False, "error": "Parada e motivo são obrigatórios."}), 400
+
+    conn = get_db()
+    try:
+        occurrence = conn.execute(
+            """
+            SELECT machine_id, started_at_ms, ended_at_ms
+            FROM parada_ocorrencias
+            WHERE id=? AND cliente_id=?
+            LIMIT 1
+            """,
+            (occurrence_id, cid),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if not occurrence:
+        return jsonify({"ok": False, "error": "Parada não encontrada."}), 400
+
+    machine_id = normalize_machine_id(occurrence["machine_id"], cid)
+    threshold_sec = _classification_threshold_sec(cid, machine_id)
+    finish_ms = (
+        int(occurrence["ended_at_ms"])
+        if occurrence["ended_at_ms"] not in (None, "")
+        else int(now_local().timestamp() * 1000)
+    )
+    duration_sec = max(0, int((finish_ms - int(occurrence["started_at_ms"] or 0)) / 1000))
+    if duration_sec < threshold_sec:
+        threshold_min = max(1, int(threshold_sec / 60))
+        return (
+            jsonify(
+                {
+                    "ok": False,
+                    "error": f"Pequenas paradas abaixo de {threshold_min} min não exigem classificação.",
+                }
+            ),
+            400,
+        )
+
     try:
         result = classify_occurrence(
             cid,

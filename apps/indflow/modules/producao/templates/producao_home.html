@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\producao\templates\producao_home.html
-Último recode: 2026-08-31 15:53 (America/Bahia)
-Motivo: Carregar máquinas da Produção exclusivamente pelo Devices do tenant, sem fonte local ou fallback MAQUINA01.
+Último recode: 2026-09-01 11:48 (America/Bahia)
+Motivo: Padronizar o indicador Atingimento do turno como Progresso da meta.
 #}
 
 {% extends 'base.html' %}
@@ -89,7 +89,7 @@ Motivo: Carregar máquinas da Produção exclusivamente pelo Devices do tenant, 
           <div class="production-metric"><span>Parado</span><strong>${stopped} min</strong></div>
         </div>
         <div class="production-progress">
-          <div class="production-progress-head"><span>Atingimento do turno</span><strong>${Math.round(pct)}%</strong></div>
+          <div class="production-progress-head"><span>Progresso da meta</span><strong>${Math.round(pct)}%</strong></div>
           <div class="production-progress-track"><div class="production-progress-fill" style="width:${pctSafe}%"></div></div>
         </div>
         <div class="production-actions">

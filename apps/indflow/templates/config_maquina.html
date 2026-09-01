@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\templates\config_maquina.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-09-01 11:48 (America/Bahia)
+Motivo: Padronizar o indicador Atingimento como Progresso da meta no Detalhe Operacional.
 #}
 
 {% extends "base.html" %}
@@ -303,7 +303,7 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
   <div class="machine-detail-kpi"><span>Status atual</span><div id="detail-status" class="detail-status is-stopped">AGUARDANDO</div></div>
   <div class="machine-detail-kpi"><span>Produção do turno</span><strong id="detail-prod">0</strong></div>
   <div class="machine-detail-kpi"><span>Meta do turno</span><strong id="detail-meta">0</strong></div>
-  <div class="machine-detail-kpi"><span>Atingimento / parada</span><strong><span id="detail-pct" style="display:inline;color:#0f172a;font-size:20px;">0%</span> · <span id="detail-stop" style="display:inline;color:#64748b;font-size:13px;">0 min</span></strong></div>
+  <div class="machine-detail-kpi"><span>Progresso da meta / parada</span><strong><span id="detail-pct" style="display:inline;color:#0f172a;font-size:20px;">0%</span> · <span id="detail-stop" style="display:inline;color:#64748b;font-size:13px;">0 min</span></strong></div>
 </div>
 
 <div class="cards-grid">
