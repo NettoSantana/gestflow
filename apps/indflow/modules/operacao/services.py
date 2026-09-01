@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\operacao\services.py
-# Último recode: 2026-08-31 19:39 (America/Bahia)
-# Motivo: Garantir motivo fixo OUTROS na Tela Operacional e manter sua posição ao final da lista de paradas.
+# Último recode: 2026-09-01 11:10 (America/Bahia)
+# Motivo: Fazer o cronometro e a classificacao da Tela Operacional seguirem a transicao STOP real por tenant e maquina, sem depender de meta/turno.
 
 from __future__ import annotations
 
@@ -276,6 +276,90 @@ def get_active_order(cliente_id: str, machine_id: str) -> dict | None:
         conn.close()
 
 
+def _sync_operational_stop_from_state_events(cliente_id: str, machine_id: str) -> None:
+    """
+    Mantem o cronometro/classificacao da Tela Operacional independente de meta/turno.
+
+    Fonte: ultima transicao real em machine_state_event, sempre isolada por
+    cliente_id + machine_id. STOP abre/atualiza uma ocorrencia operacional;
+    qualquer outro estado fecha apenas ocorrencias telemetricas ainda abertas.
+
+    Isso nao altera a regra de indicadores/historico em paradas.services.
+    """
+    cid = str(cliente_id or "").strip()
+    mid = normalize_machine_id(machine_id, cid)
+    if not cid or not mid:
+        return
+
+    scoped_mid = f"{cid}::{mid}"
+    conn = get_db()
+    try:
+        if not _table_exists(conn, "machine_state_event") or not _table_exists(conn, "parada_ocorrencias"):
+            return
+
+        row = conn.execute(
+            """
+            SELECT id, ts_ms, state
+            FROM machine_state_event
+            WHERE cliente_id=?
+              AND (
+                    lower(machine_id)=lower(?)
+                 OR lower(effective_machine_id)=lower(?)
+                 OR lower(effective_machine_id)=lower(?)
+              )
+            ORDER BY ts_ms DESC, id DESC
+            LIMIT 1
+            """,
+            (cid, mid, mid, scoped_mid),
+        ).fetchone()
+        if not row:
+            return
+
+        state = str(row["state"] or "").strip().upper()
+        transition_ms = _safe_int(row["ts_ms"], 0)
+        if transition_ms <= 0:
+            return
+
+        now_ms = int(now_local().timestamp() * 1000)
+        stamp = now_local().isoformat()
+
+        if state == "STOP":
+            duration_sec = max(0, int((now_ms - transition_ms) / 1000))
+            conn.execute(
+                """
+                INSERT INTO parada_ocorrencias
+                (cliente_id, machine_id, started_at_ms, ended_at_ms, duration_sec, source, status, created_at, updated_at)
+                VALUES (?, ?, ?, NULL, ?, 'operacao_telemetria', 'ABERTA', ?, ?)
+                ON CONFLICT(cliente_id, machine_id, started_at_ms) DO UPDATE SET
+                    ended_at_ms=NULL,
+                    duration_sec=excluded.duration_sec,
+                    status='ABERTA',
+                    updated_at=excluded.updated_at
+                """,
+                (cid, mid, transition_ms, duration_sec, stamp, stamp),
+            )
+            conn.commit()
+            return
+
+        conn.execute(
+            """
+            UPDATE parada_ocorrencias
+            SET ended_at_ms=?,
+                duration_sec=MAX(0, CAST((? - started_at_ms) / 1000 AS INTEGER)),
+                status='FECHADA',
+                updated_at=?
+            WHERE cliente_id=?
+              AND lower(machine_id)=lower(?)
+              AND ended_at_ms IS NULL
+              AND source IN ('operacao_telemetria', 'telemetria')
+            """,
+            (transition_ms, transition_ms, stamp, cid, mid),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def get_operational_state(cliente_id: str, machine_id: str) -> dict:
     cid = str(cliente_id or "").strip()
     mid = normalize_machine_id(machine_id, cid)
@@ -286,6 +370,7 @@ def get_operational_state(cliente_id: str, machine_id: str) -> dict:
     today = now_local().date()
     start_day = today - timedelta(days=1)
     sync_detected_stops(cid, mid, start_day, today)
+    _sync_operational_stop_from_state_events(cid, mid)
     rows = list_occurrences(cid, mid, start_day, today, sync=False)
 
     threshold_sec = int(config["tempo_obrigatorio_min"]) * 60
