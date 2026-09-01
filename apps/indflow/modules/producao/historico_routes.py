@@ -1,11 +1,11 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\producao\historico_routes.py
-# Último recode: 2026-08-21 06:43 (America/Bahia)
-# Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+# Último recode: 2026-09-01 10:04 (America/Bahia)
+# Motivo: Redesenhar o Histórico Operacional com seleção "Todos", período, resumo consolidado e histórico por dia, preservando isolamento por cliente e detalhe hora a hora.
 
 from __future__ import annotations
 
-import os
 import json
+import os
 import sqlite3
 import traceback
 from datetime import date, datetime, timedelta
@@ -24,36 +24,8 @@ try:
 except Exception:
     get_machine = None
 
+
 TZ_BAHIA = ZoneInfo("America/Bahia")
-
-def _to_sql_dt(dt: datetime) -> str:
-    return dt.strftime("%Y-%m-%d %H:%M:%S")
-
-def _parse_ts_any(value: str | None) -> datetime | None:
-    if not value:
-        return None
-    s = str(value).strip()
-    if not s:
-        return None
-    if s.endswith("Z"):
-        s = s[:-1] + "+00:00"
-    try:
-        dt = datetime.fromisoformat(s)
-    except Exception:
-        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
-            try:
-                dt = datetime.strptime(s, fmt)
-                break
-            except Exception:
-                dt = None
-        if dt is None:
-            return None
-    if getattr(dt, "tzinfo", None) is not None:
-        try:
-            dt = dt.astimezone(TZ_BAHIA).replace(tzinfo=None)
-        except Exception:
-            dt = dt.replace(tzinfo=None)
-    return dt
 
 historico_bp = Blueprint(
     "historico_bp",
@@ -61,16 +33,22 @@ historico_bp = Blueprint(
     template_folder="templates",
 )
 
+
 def _sqlite_connect(db_path: str) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
 
+
 def _get_conn() -> sqlite3.Connection:
     if callable(get_db):
         return get_db()
 
-    db_path = os.environ.get("INDFLOW_DB_PATH") or os.environ.get("DB_PATH") or "/data/indflow.db"
+    db_path = (
+        os.environ.get("INDFLOW_DB_PATH")
+        or os.environ.get("DB_PATH")
+        or "/data/indflow.db"
+    )
     return _sqlite_connect(db_path)
 
 
@@ -78,1563 +56,1352 @@ def _cliente_id_sessao() -> str:
     return str(session.get("cliente_id") or "").strip()
 
 
-def _tenant_machine_candidates(cliente_id: str, machine_id: str, effective_machine_id: str | None = None) -> list[str]:
-    cid = str(cliente_id or "").strip()
-    out: list[str] = []
-
-    def _add(value: str | None) -> None:
-        s = str(value or "").strip()
-        if s and s not in out:
-            out.append(s)
-
-    for value in (effective_machine_id, machine_id):
-        s = str(value or "").strip()
-        if not s:
-            continue
-        _add(s)
-        if cid and s.startswith(f"{cid}::"):
-            _add(s.split("::", 1)[1])
-        elif "::" in s:
-            _add(s.split("::", 1)[0])
-        elif cid:
-            _add(f"{cid}::{s}")
-    return out
-
-
-def _hhmmss_to_sec(s: str) -> int:
+def _safe_int(value, default: int = 0) -> int:
     try:
-        parts = (s or "").split(":")
-        if len(parts) != 3:
-            return 0
-        h = int(parts[0])
-        m = int(parts[1])
-        sec = int(parts[2])
-        return h * 3600 + m * 60 + sec
-    except Exception:
-        return 0
-
-
-def _sec_to_hhmmss(total_sec: int) -> str:
-    try:
-        total_sec = int(total_sec)
-    except Exception:
-        total_sec = 0
-    if total_sec < 0:
-        total_sec = 0
-    h = total_sec // 3600
-    m = (total_sec % 3600) // 60
-    s = total_sec % 60
-    return f"{h:02d}:{m:02d}:{s:02d}"
-
-def _dt_naive_to_day_sec(dt: datetime) -> int:
-    try:
-        return (dt.hour * 3600) + (dt.minute * 60) + int(dt.second)
-    except Exception:
-        return 0
-
-def _ms_to_naive_bahia(ms: int) -> datetime | None:
-    try:
-        return datetime.fromtimestamp(ms / 1000.0, tz=TZ_BAHIA).replace(tzinfo=None)
-    except Exception:
-        return None
-
-
-def _naive_bahia_to_ms(dt_naive: datetime) -> int:
-    """Converte datetime naive (assumido TZ_BAHIA) para epoch ms."""
-    try:
-        dt = dt_naive.replace(tzinfo=TZ_BAHIA)
-        return int(dt.timestamp() * 1000)
-    except Exception:
-        return 0
-
-def _count_pulses_producao_evento(
-    conn: sqlite3.Connection,
-    machine_id: str,
-    effective_machine_id: str,
-    start_ms: int,
-    end_ms: int,
-) -> int:
-    """Conta pulsos (linhas) em producao_evento no intervalo [start_ms, end_ms).
-    Usa effective_machine_id primeiro e faz fallback para machine_id original quando necessario.
-    """
-    if start_ms <= 0 or end_ms <= 0 or end_ms <= start_ms:
-        return 0
-    if not _table_exists(conn, "producao_evento"):
-        return 0
-    sql = "SELECT COUNT(1) AS c FROM producao_evento WHERE machine_id = ? AND ts_ms >= ? AND ts_ms < ?"
-    def _count(mid: str) -> int:
-        try:
-            row = conn.execute(sql, (mid, int(start_ms), int(end_ms))).fetchone()
-            if not row:
-                return 0
-            return _safe_int(row[0] if not isinstance(row, sqlite3.Row) else row["c"], 0)
-        except Exception:
-            return 0
-    # prefer effective (scoped) quando existe
-    c = _count(effective_machine_id) if effective_machine_id else 0
-    if c == 0 and machine_id and machine_id != effective_machine_id:
-        c = _count(machine_id)
-    return int(c) if c and c > 0 else 0
-
-
-def _sum_delta_producao_evento(
-    conn: sqlite3.Connection,
-    machine_id: str,
-    effective_machine_id: str,
-    start_ms: int,
-    end_ms: int,
-    cliente_id: str | None = None,
-) -> int:
-    """Soma delta no intervalo sem atravessar o cliente da sessao."""
-    if start_ms <= 0 or end_ms <= 0 or end_ms <= start_ms:
-        return 0
-    if not _table_exists(conn, "producao_evento"):
-        return 0
-
-    cid = str(cliente_id or "").strip()
-    cols = _get_columns(conn, "producao_evento")
-    if cid and "cliente_id" not in cols:
-        return 0
-
-    candidates = _tenant_machine_candidates(cid, machine_id, effective_machine_id)
-    for mid in candidates:
-        try:
-            if cid:
-                row = conn.execute(
-                    "SELECT COUNT(1) AS c, COALESCE(SUM(delta),0) AS s FROM producao_evento "
-                    "WHERE cliente_id=? AND machine_id=? AND ts_ms>=? AND ts_ms<?",
-                    (cid, mid, int(start_ms), int(end_ms)),
-                ).fetchone()
-            else:
-                row = conn.execute(
-                    "SELECT COUNT(1) AS c, COALESCE(SUM(delta),0) AS s FROM producao_evento "
-                    "WHERE machine_id=? AND ts_ms>=? AND ts_ms<?",
-                    (mid, int(start_ms), int(end_ms)),
-                ).fetchone()
-            if row and _safe_int(row["c"] if isinstance(row, sqlite3.Row) else row[0], 0) > 0:
-                return max(0, _safe_int(row["s"] if isinstance(row, sqlite3.Row) else row[1], 0))
-        except Exception:
-            continue
-    return 0
-
-
-
-def _extract_esp_counter(machine_state: dict | None) -> int | None:
-    """Extrai o contador absoluto do ESP a partir do estado da maquina (best-effort)."""
-    if not isinstance(machine_state, dict):
-        return None
-    keys = (
-        "esp_abs",
-        "esp_last",
-        "esp",
-        "contador",
-        "counter",
-        "count_abs",
-    )
-    for k in keys:
-        if k in machine_state and machine_state.get(k) is not None:
-            try:
-                v = int(float(machine_state.get(k)))
-                if v >= 0:
-                    return v
-            except Exception:
-                continue
-    return None
-
-
-def _apply_current_stop_to_segments(
-    segs: list[dict],
-    stop_start_naive: datetime,
-    hour_start: datetime,
-    hour_end_calc: datetime,
-) -> list[dict]:
-    """
-    Forca STOP no intervalo [max(stop_start, hour_start), hour_end_calc] na hora atual.
-
-    - Preserva partes anteriores a stop_start.
-    - Trunca o segmento que cruza stop_start.
-    - Substitui todo o restante por um unico STOP ate hour_end_calc.
-    """
-    if not segs:
-        return segs
-    if hour_end_calc <= hour_start:
-        return segs
-
-    stop_sec = _dt_naive_to_day_sec(stop_start_naive)
-    hs_sec = _dt_naive_to_day_sec(hour_start)
-    he_sec = _dt_naive_to_day_sec(hour_end_calc)
-
-    if stop_sec < hs_sec:
-        stop_sec = hs_sec
-    if stop_sec > he_sec:
-        stop_sec = he_sec
-
-    new_segs: list[dict] = []
-    for s in segs:
-        st = s.get("state")
-        a = _hhmmss_to_sec(s.get("start", "00:00:00"))
-        b = _hhmmss_to_sec(s.get("end", "00:00:00"))
-        if b <= stop_sec:
-            new_segs.append({"start": _sec_to_hhmmss(a), "end": _sec_to_hhmmss(b), "state": st})
-            continue
-        if a < stop_sec:
-            # Mantem parte ate stop_sec
-            new_segs.append({"start": _sec_to_hhmmss(a), "end": _sec_to_hhmmss(stop_sec), "state": st})
-        # descarta partes depois de stop_sec (serao substituidas por STOP)
-
-    if he_sec > stop_sec:
-        # Evita duplicar STOP se ultimo ja for STOP e encostar
-        if new_segs and new_segs[-1].get("state") == "STOP" and _hhmmss_to_sec(new_segs[-1].get("end", "00:00:00")) == stop_sec:
-            new_segs[-1]["end"] = _sec_to_hhmmss(he_sec)
-        else:
-            new_segs.append({"start": _sec_to_hhmmss(stop_sec), "end": _sec_to_hhmmss(he_sec), "state": "STOP"})
-
-    return new_segs
-
-
-def _calc_seg_metrics(segs: list[dict]) -> tuple[int, int, int]:
-    # Regra unica (mesma da barra):
-    # - RUN soma em tempo_produzindo_sec
-    # - STOP soma em tempo_parado_sec
-    # - NP nao soma
-    #
-    # Paradas (cumulativas na hora):
-    # - Conta 1 parada a cada inicio de segmento STOP com duracao > 0,
-    #   inclusive se a hora ja comecar em STOP (sem exigir RUN->STOP).
-    tempo_produzindo_sec = 0
-    tempo_parado_sec = 0
-    qtd_paradas = 0
-
-    last_state = None
-    for s in segs or []:
-        st = s.get("state")
-        a = _hhmmss_to_sec(s.get("start", "00:00:00"))
-        b = _hhmmss_to_sec(s.get("end", "00:00:00"))
-        dur = max(0, b - a)
-
-        if st == "RUN":
-            tempo_produzindo_sec += dur
-
-        elif st == "STOP":
-            tempo_parado_sec += dur
-            # Parada = inicio de STOP com duracao
-            if dur > 0 and last_state != "STOP":
-                qtd_paradas += 1
-
-        last_state = st
-
-    return tempo_produzindo_sec, tempo_parado_sec, qtd_paradas
-
-def _safe_int(v, default: int = 0) -> int:
-    try:
-        if v is None:
+        if value is None:
             return default
-        return int(v)
+        return int(float(value))
     except Exception:
         return default
 
-def _fetch_one(conn: sqlite3.Connection, sql: str, params: tuple):
-    cur = conn.execute(sql, params)
-    return cur.fetchone()
-
-def _fetch_scalar(conn: sqlite3.Connection, sql: str, params: tuple, default=0):
-    row = _fetch_one(conn, sql, params)
-    if not row:
-        return default
-    try:
-        val = row[0]
-    except Exception:
-        return default
-    return default if val is None else val
-
-def _has_coluna(conn: sqlite3.Connection, table: str, col: str) -> bool:
-    try:
-        rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
-        for r in rows:
-            if str(r[1]).lower() == col.lower():
-                return True
-    except Exception:
-        return False
-    return False
-
-def _resolve_data_col(conn: sqlite3.Connection, table: str) -> str:
-    if _has_coluna(conn, table, "data_ref"):
-        return "data_ref"
-    if _has_coluna(conn, table, "dia_ref"):
-        return "dia_ref"
-    if _has_coluna(conn, table, "data"):
-        return "data"
-    return "data_ref"
-
-def _resolve_effective_machine_id(
-    conn: sqlite3.Connection,
-    machine_id: str,
-    data_ref: str,
-    cliente_id: str | None = None,
-) -> str:
-    """Resolve a representacao gravada da maquina somente dentro do cliente."""
-    mid = (machine_id or "").strip()
-    cid = str(cliente_id or "").strip()
-    if not mid:
-        return mid
-    if cid and not _has_coluna(conn, "producao_diaria", "cliente_id"):
-        return mid
-    if "::" in mid:
-        if cid and mid.startswith(f"{cid}::"):
-            return mid.split("::", 1)[1] or mid
-        return mid
-
-    col = _resolve_data_col(conn, "producao_diaria")
-    like_suffix = f"%::{mid}"
-    like_prefix = f"{mid}::%"
-    try:
-        if cid:
-            row = _fetch_one(
-                conn,
-                f"SELECT machine_id FROM producao_diaria WHERE cliente_id=? AND {col}=? "
-                "AND (machine_id=? OR machine_id LIKE ? OR machine_id LIKE ?) "
-                "ORDER BY produzido DESC, id DESC LIMIT 1",
-                (cid, data_ref, mid, like_suffix, like_prefix),
-            )
-        else:
-            row = _fetch_one(
-                conn,
-                f"SELECT machine_id FROM producao_diaria WHERE {col}=? "
-                "AND (machine_id=? OR machine_id LIKE ? OR machine_id LIKE ?) "
-                "ORDER BY produzido DESC, id DESC LIMIT 1",
-                (data_ref, mid, like_suffix, like_prefix),
-            )
-        if row and row["machine_id"]:
-            resolved = str(row["machine_id"] or "").strip()
-            if cid and resolved.startswith(f"{cid}::"):
-                return resolved.split("::", 1)[1] or mid
-            return resolved or mid
-    except Exception:
-        pass
-    return mid
-
-
-def _resolve_state_event_machine_ids(
-    conn: sqlite3.Connection,
-    machine_id: str,
-    effective_machine_id: str,
-    data_ref: date,
-    cliente_id: str | None = None,
-) -> list[str]:
-    """
-    Resolve candidatas de machine_id para leitura retroativa em machine_state_event.
-
-    Ordem de prioridade:
-    1) effective_machine_id resolvido para o dia
-    2) machine_id original (legacy)
-    3) quaisquer ids gravados no proprio dia que casem com legacy/scoped
-       pelos formatos: <cliente>::<maquina> ou <maquina>::<ctx>
-
-    Isso permite ler historicos antigos onde a mesma maquina foi gravada
-    em chaves diferentes ao longo do tempo.
-    """
-    out: list[str] = []
-
-    def _add(v: str | None) -> None:
-        s = (v or '').strip()
-        if s and s not in out:
-            out.append(s)
-
-    base_mid = (machine_id or '').strip()
-    eff_mid = (effective_machine_id or '').strip()
-
-    _add(eff_mid)
-    _add(base_mid)
-
-    if not _table_exists(conn, 'machine_state_event'):
-        return out
-
-    cols = _get_columns(conn, 'machine_state_event')
-    cid = str(cliente_id or "").strip()
-    if cid and "cliente_id" not in cols:
-        return []
-    id_col = 'effective_machine_id' if 'effective_machine_id' in cols else ('machine_id' if 'machine_id' in cols else None)
-    if not id_col:
-        return out
-
-    date_col = 'data_ref' if 'data_ref' in cols else _resolve_data_col(conn, 'machine_state_event')
-    if not date_col:
-        return out
-
-    # Descobre o nome base da maquina para procurar formatos antigos/novos.
-    probe_mid = base_mid
-    if not probe_mid and eff_mid:
-        if '::' in eff_mid:
-            left, right = eff_mid.split('::', 1)
-            probe_mid = right or left or eff_mid
-        else:
-            probe_mid = eff_mid
-    elif '::' in probe_mid:
-        probe_mid = probe_mid.split('::', 1)[-1] or probe_mid
-
-    probe_mid = (probe_mid or '').strip()
-    if not probe_mid:
-        return out
-
-    if cid:
-        sql = (
-            f'SELECT DISTINCT {id_col} AS mid FROM machine_state_event '
-            f'WHERE cliente_id = ? AND {date_col} = ? AND ({id_col} = ? OR {id_col} LIKE ? OR {id_col} LIKE ?)'
-        )
-        params = (cid, data_ref.isoformat(), probe_mid, f'%::{probe_mid}', f'{probe_mid}::%')
-    else:
-        sql = (
-            f'SELECT DISTINCT {id_col} AS mid FROM machine_state_event '
-            f'WHERE {date_col} = ? AND ({id_col} = ? OR {id_col} LIKE ? OR {id_col} LIKE ?)'
-        )
-        params = (data_ref.isoformat(), probe_mid, f'%::{probe_mid}', f'{probe_mid}::%')
-
-    try:
-        for row in conn.execute(sql, params).fetchall():
-            try:
-                _add(row['mid'] if isinstance(row, sqlite3.Row) else row[0])
-            except Exception:
-                continue
-    except Exception:
-        pass
-
-    return out
-
-
-def _parse_date_any(s: str | None) -> date | None:
-    if not s:
-        return None
-    s = s.strip()
-    for fmt in ("%Y-%m-%d", "%d/%m/%Y"):
-        try:
-            return datetime.strptime(s, fmt).date()
-        except Exception:
-            pass
-    return None
 
 def _table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
     try:
-        row = _fetch_one(
-            conn,
+        row = conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
             (table_name,),
-        )
+        ).fetchone()
         return bool(row)
     except Exception:
         return False
 
+
 def _get_columns(conn: sqlite3.Connection, table_name: str) -> set[str]:
+    if not _table_exists(conn, table_name):
+        return set()
+
     try:
-        cur = conn.execute(f"PRAGMA table_info({table_name})")
-        cols = set()
-        for r in cur.fetchall():
-            try:
-                cols.add(str(r[1]))
-            except Exception:
-                pass
-        return cols
+        rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+        return {str(row[1]) for row in rows}
     except Exception:
         return set()
 
-def _resolve_ts_col(conn: sqlite3.Connection, table_name: str) -> str | None:
-    """Descobre coluna de timestamp (schema pode variar)."""
+
+def _resolve_data_col(conn: sqlite3.Connection, table_name: str) -> str | None:
     cols = _get_columns(conn, table_name)
-    preferred = (
-        "timestamp",
-        "ts",
-        "created_at",
-        "data_hora",
-        "datahora",
-        "datetime",
-        "dt",
-        "data_ref",
-        "data",
-    )
-    for c in preferred:
-        if c in cols:
-            return c
-    for c in cols:
-        lc = c.lower()
-        if "time" in lc or "data" in lc or "date" in lc:
-            return c
+    for name in ("data_ref", "dia_ref", "data", "date"):
+        if name in cols:
+            return name
     return None
-def _load_machine_config_json(
-    conn: sqlite3.Connection,
-    machine_id: str,
-    cliente_id: str | None = None,
-) -> dict:
+
+
+def _parse_date_any(value: str | None) -> date | None:
+    value = str(value or "").strip()
+    if not value:
+        return None
+
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(value, fmt).date()
+        except Exception:
+            continue
+    return None
+
+
+def _canonical_machine_id(raw: str | None, cliente_id: str | None = None) -> str:
+    value = str(raw or "").strip()
     cid = str(cliente_id or "").strip()
-    candidates = _tenant_machine_candidates(cid, machine_id)
 
-    def _decode(row) -> dict:
-        if not row:
-            return {}
-        try:
-            raw = row["config_json"] if isinstance(row, sqlite3.Row) else row[0]
-            return json.loads(raw) if raw else {}
-        except Exception:
-            return {}
+    if not value:
+        return ""
 
-    if cid and _table_exists(conn, "machine_config_tenant"):
-        for mid in candidates:
-            try:
-                cfg = _decode(_fetch_one(
-                    conn,
-                    "SELECT config_json FROM machine_config_tenant WHERE cliente_id=? AND machine_id=? LIMIT 1",
-                    (cid, mid),
-                ))
-                if cfg:
-                    return cfg
-            except Exception:
-                continue
+    if cid and value.startswith(f"{cid}::"):
+        value = value.split("::", 1)[1].strip()
 
-        # Se a maquina ja tem dono tenant, nao usar configuracao legada de outra empresa.
-        try:
-            placeholders = ",".join(["?"] * len(candidates))
-            row = _fetch_one(
-                conn,
-                f"SELECT COUNT(1) AS c FROM machine_config_tenant WHERE machine_id IN ({placeholders})",
-                tuple(candidates),
-            )
-            if row and _safe_int(row["c"] if isinstance(row, sqlite3.Row) else row[0], 0) > 0:
-                return {}
-        except Exception:
-            pass
-
-    if not _table_exists(conn, "machine_config"):
-        return {}
-    for mid in candidates:
-        try:
-            cfg = _decode(_fetch_one(conn, "SELECT config_json FROM machine_config WHERE machine_id=? LIMIT 1", (mid,)))
-            if cfg:
-                return cfg
-        except Exception:
-            continue
-    return {}
-
-
-
-
-def _build_meta_24_from_machine_state(machine_state: dict | None) -> list[int] | None:
-    """Monta meta[24] a partir do estado/config da maquina.
-
-    Esperado no machine_state:
-    - turno_inicio: "HH:MM"
-    - meta_por_hora: lista (tipicamente do tamanho do turno, ex. 8 itens)
-
-    Regra:
-    - meta_por_hora[i] aplica na hora do relogio (turno_inicio + i) modulo 24
-    - demais horas ficam 0
-    """
-    if not isinstance(machine_state, dict):
-        return None
-
-    mph = machine_state.get("meta_por_hora")
-    if not isinstance(mph, list) or not mph:
-        return None
-
-    turno_inicio = str(machine_state.get("turno_inicio") or "").strip()
-    if not turno_inicio:
-        return None
-
-    try:
-        hh = int(turno_inicio.split(":")[0])
-    except Exception:
-        return None
-
-    meta24 = [0] * 24
-    for i, v in enumerate(mph):
-        h = (hh + i) % 24
-        meta24[h] = _safe_int(v, 0)
-
-    return meta24
-
-def _parse_hhmm_to_min(hhmm: str) -> int | None:
-    s = (hhmm or '').strip()
-    if not s or ':' not in s:
-        return None
-    try:
-        hh = int(s.split(':')[0])
-        mm = int(s.split(':')[1])
-        if hh < 0 or hh > 23 or mm < 0 or mm > 59:
-            return None
-        return hh * 60 + mm
-    except Exception:
-        return None
-
-def _intervals_intersect(a_s: int, a_e: int, b_s: int, b_e: int) -> bool:
-    return (a_s < b_e) and (b_s < a_e)
-
-def _build_meta_24_from_config_v2(cfg: dict | None, data_ref: date) -> list[int] | None:
-    """Monta meta[24] a partir do config_v2 (shifts + breaks).
-
-    Fonte da verdade: cfg['config_v2'].
-    Regras:
-    - Se active_days existir e data_ref nao estiver ativa: meta 0 para 24h
-    - Para cada shift: horas dentro do shift e fora dos breaks recebem meta constante (meta_pcs / horas_planejadas)
-    - Horas dentro de breaks recebem 0
-    - Turnos que cruzam meia-noite sao suportados (ex.: 22:00-06:00)
-    """
-    if not isinstance(cfg, dict):
-        return None
-
-    cv2 = cfg.get('config_v2') if isinstance(cfg.get('config_v2'), dict) else None
-    if cv2 is None:
-        # compat: algumas bases podem armazenar shifts no root
-        cv2 = cfg if isinstance(cfg.get('shifts'), list) else None
-    if cv2 is None:
-        return None
-
-    active_days = cv2.get('active_days')
-    if isinstance(active_days, list) and active_days:
-        try:
-            dow = int(data_ref.isoweekday())
-            if dow not in [int(x) for x in active_days if isinstance(x, (int, float, str)) and str(x).strip() != '']:
-                return [0] * 24
-        except Exception:
-            pass
-
-    shifts = cv2.get('shifts')
-    if not isinstance(shifts, list) or not shifts:
-        return None
-
-    meta24 = [0] * 24
-
-    for sh in shifts:
-        if not isinstance(sh, dict):
-            continue
-        s_min = _parse_hhmm_to_min(str(sh.get('start') or ''))
-        e_min = _parse_hhmm_to_min(str(sh.get('end') or ''))
-        if s_min is None or e_min is None:
-            continue
-        if e_min <= s_min:
-            e_min += 1440  # vira o dia
-
-        # breaks (mapear para o mesmo timeline do shift)
-        br_intervals: list[tuple[int, int]] = []
-        brs = sh.get('breaks')
-        if isinstance(brs, list):
-            for br in brs:
-                if not isinstance(br, dict):
-                    continue
-                bs = _parse_hhmm_to_min(str(br.get('start') or ''))
-                be = _parse_hhmm_to_min(str(br.get('end') or ''))
-                if bs is None or be is None:
-                    continue
-                if be <= bs:
-                    be += 1440
-                # se o break estiver antes do inicio e o shift virar, joga pro dia seguinte
-                if bs < s_min and e_min > 1440:
-                    bs += 1440
-                    be += 1440
-                br_intervals.append((bs, be))
-
-        meta_pcs = _safe_int(sh.get('meta_pcs'), 0)
-        planned_min = None
-        calc = sh.get('calc')
-        if isinstance(calc, dict):
-            planned_min = _safe_int(calc.get('planned_min'), 0)
-        if planned_min is None or planned_min <= 0:
-            # fallback: duracao - breaks
-            dur = e_min - s_min
-            br_total = 0
-            for bs, be in br_intervals:
-                br_total += max(0, be - bs)
-            planned_min = max(0, dur - br_total)
-
-        planned_hours = planned_min / 60.0 if planned_min else 0.0
-        if meta_pcs <= 0 or planned_hours <= 0:
-            meta_h = 0
+    if "::" in value:
+        left, right = value.split("::", 1)
+        if cid and left == cid:
+            value = right.strip()
         else:
-            # manter o mesmo comportamento da tela 24h: meta constante arredondada
-            try:
-                meta_h = int(round(float(meta_pcs) / float(planned_hours)))
-            except Exception:
-                meta_h = int(round(meta_pcs / max(planned_hours, 1.0)))
+            value = left.strip()
 
-        # aplicar nas 24 horas do relogio (considerar timeline dia0 e dia1)
-        for hh in range(24):
-            h0_s = hh * 60
-            h0_e = (hh + 1) * 60
-            h1_s = h0_s + 1440
-            h1_e = h0_e + 1440
-
-            inside = _intervals_intersect(h0_s, h0_e, s_min, e_min) or _intervals_intersect(h1_s, h1_e, s_min, e_min)
-            if not inside:
-                continue
-
-            in_break = False
-            for bs, be in br_intervals:
-                if _intervals_intersect(h0_s, h0_e, bs, be) or _intervals_intersect(h1_s, h1_e, bs, be):
-                    in_break = True
-                    break
-
-            if in_break:
-                # se outro turno ja colocou meta positiva, nao derruba; mas break do turno atual zera a hora dele
-                # como os turnos nao deveriam se sobrepor, podemos zerar direto
-                meta24[hh] = 0
-            else:
-                if meta_h > meta24[hh]:
-                    meta24[hh] = meta_h
-
-    return meta24
+    return value
 
 
-def _merge_intervals(intervals: list[tuple[datetime, datetime]]) -> list[tuple[datetime, datetime]]:
-    if not intervals:
-        return []
-    intervals = sorted(intervals, key=lambda x: x[0])
-    merged: list[tuple[datetime, datetime]] = []
-    cur_s, cur_e = intervals[0]
-    for s, e in intervals[1:]:
-        if s <= cur_e:
-            if e > cur_e:
-                cur_e = e
+def _machine_sort_key(value: str) -> tuple:
+    text = str(value or "").strip()
+    parts = re_split_numbers(text)
+    return tuple(parts)
+
+
+def re_split_numbers(value: str) -> list:
+    import re
+
+    parts = re.split(r"(\d+)", value.casefold())
+    out = []
+    for part in parts:
+        if part.isdigit():
+            out.append((0, int(part)))
         else:
-            merged.append((cur_s, cur_e))
-            cur_s, cur_e = s, e
-    merged.append((cur_s, cur_e))
-    return merged
-
-def _compute_run_intervals(event_times: list[datetime], stop_sec: int) -> list[tuple[datetime, datetime]]:
-    intervals: list[tuple[datetime, datetime]] = []
-    if stop_sec <= 0:
-        stop_sec = 120
-    delta = timedelta(seconds=stop_sec)
-    for t in event_times:
-        intervals.append((t, t + delta))
-    return _merge_intervals(intervals)
-
-def _intersect(a_s: datetime, a_e: datetime, b_s: datetime, b_e: datetime) -> tuple[datetime, datetime] | None:
-    s = max(a_s, b_s)
-    e = min(a_e, b_e)
-    if e <= s:
-        return None
-    return (s, e)
-
-def _build_segments_for_hour(
-    hour_start: datetime,
-    hour_end: datetime,
-    is_np: bool,
-    run_intervals: list[tuple[datetime, datetime]],
-) -> list[dict]:
-    if is_np:
-        return [
-            {
-                "start": hour_start.strftime("%H:%M:%S"),
-                "end": hour_end.strftime("%H:%M:%S"),
-                "state": "NP",
-            }
-        ]
-
-    intersections: list[tuple[datetime, datetime]] = []
-    for rs, re_ in run_intervals:
-        inter = _intersect(hour_start, hour_end, rs, re_)
-        if inter:
-            intersections.append(inter)
-    intersections = _merge_intervals(intersections)
-
-    segs: list[dict] = []
-    cursor = hour_start
-    for rs, re_ in intersections:
-        if rs > cursor:
-            segs.append(
-                {
-                    "start": cursor.strftime("%H:%M:%S"),
-                    "end": rs.strftime("%H:%M:%S"),
-                    "state": "STOP",
-                }
-            )
-        segs.append(
-            {
-                "start": rs.strftime("%H:%M:%S"),
-                "end": re_.strftime("%H:%M:%S"),
-                "state": "RUN",
-            }
-        )
-        cursor = re_
-    if cursor < hour_end:
-        segs.append(
-            {
-                "start": cursor.strftime("%H:%M:%S"),
-                "end": hour_end.strftime("%H:%M:%S"),
-                "state": "STOP",
-            }
-        )
-    return segs
-
-
-
-
-def _merge_state_segments(segs: list[tuple[datetime, datetime, str]]) -> list[tuple[datetime, datetime, str]]:
-    if not segs:
-        return []
-    segs = sorted(segs, key=lambda x: x[0])
-    out: list[tuple[datetime, datetime, str]] = []
-    cur_s, cur_e, cur_st = segs[0]
-    for s, e, st in segs[1:]:
-        if e <= s:
-            continue
-        if st == cur_st and s <= cur_e:
-            if e > cur_e:
-                cur_e = e
-            continue
-        if s <= cur_e:
-            # sobreposicao com estado diferente: corta o anterior
-            if s > cur_s:
-                out.append((cur_s, s, cur_st))
-            cur_s, cur_e, cur_st = s, e, st
-            continue
-        out.append((cur_s, cur_e, cur_st))
-        cur_s, cur_e, cur_st = s, e, st
-    out.append((cur_s, cur_e, cur_st))
+            out.append((1, part))
     return out
 
 
-def _fetch_state_segments_from_state_events(
+def _matching_machine_ids(
     conn: sqlite3.Connection,
-    effective_machine_id: str,
-    data_ref: date,
-    machine_id: str | None = None,
-    cliente_id: str | None = None,
-) -> list[tuple[datetime, datetime, str]]:
-    """
-    Monta segmentos de estado (RUN/STOP/IDLE/NP) para o dia, baseados EXCLUSIVAMENTE em machine_state_event.
+    table_name: str,
+    cliente_id: str,
+    machine_id: str,
+    id_col: str = "machine_id",
+) -> list[str]:
+    cols = _get_columns(conn, table_name)
+    if id_col not in cols:
+        return []
 
-    Regra:
-    - Mantem o ultimo estado ate surgir um novo evento.
-    - Se nao houver evento anterior para definir o estado inicial do dia, inicia como IDLE.
-    - Segmentos sao retornados como datetime naive (TZ_BAHIA assumido) no intervalo [day_start, hard_end].
+    cid = str(cliente_id or "").strip()
+    mid = _canonical_machine_id(machine_id, cid)
+    if not mid:
+        return []
 
-    Observacoes:
-    - Implementacao defensiva: detecta nomes de colunas (id, data, ts, state) para suportar schemas antigos.
-    - Para o dia atual, hard_end = agora (nao preenche futuro).
-    """
+    params: list = []
+    where = []
+
+    if cid:
+        if "cliente_id" in cols:
+            where.append("cliente_id=?")
+            params.append(cid)
+        else:
+            # Em tabela sem tenant explícito, só aceita chave claramente scoped.
+            where.append(f"{id_col} LIKE ?")
+            params.append(f"{cid}::%")
+
+    where.append(
+        f"({id_col}=? OR {id_col}=? OR {id_col} LIKE ? OR {id_col} LIKE ?)"
+    )
+    params.extend(
+        [
+            mid,
+            f"{cid}::{mid}" if cid else mid,
+            f"{mid}::%",
+            f"%::{mid}",
+        ]
+    )
+
+    sql = (
+        f"SELECT DISTINCT {id_col} AS mid FROM {table_name} "
+        f"WHERE {' AND '.join(where)}"
+    )
+
+    found: list[str] = []
     try:
-        if not _table_exists(conn, "machine_state_event"):
-            return []
+        for row in conn.execute(sql, tuple(params)).fetchall():
+            value = str(row["mid"] if isinstance(row, sqlite3.Row) else row[0] or "").strip()
+            if value and value not in found:
+                found.append(value)
     except Exception:
         return []
 
-    cols = _get_columns(conn, "machine_state_event")
+    preferred = []
+    scoped = f"{cid}::{mid}" if cid else ""
+    for candidate in (scoped, mid):
+        if candidate and candidate in found and candidate not in preferred:
+            preferred.append(candidate)
+
+    for value in found:
+        if value not in preferred:
+            preferred.append(value)
+
+    return preferred
+
+
+def _list_tenant_machines(conn: sqlite3.Connection, cliente_id: str) -> list[str]:
     cid = str(cliente_id or "").strip()
-    if cid and "cliente_id" not in cols:
-        return []
+    machines: set[str] = set()
 
-    id_col = None
-    if "effective_machine_id" in cols:
-        id_col = "effective_machine_id"
-    elif "machine_id" in cols:
-        id_col = "machine_id"
-    else:
-        return []
+    sources = (
+        ("machine_config_tenant", "machine_id"),
+        ("producao_diaria", "machine_id"),
+        ("producao_evento", "machine_id"),
+        ("machine_state_event", "effective_machine_id"),
+        ("machine_state_event", "machine_id"),
+        ("ordens_producao", "machine_id"),
+    )
 
-    date_col = None
-    if "data_ref" in cols:
-        date_col = "data_ref"
-    else:
+    for table_name, id_col in sources:
+        cols = _get_columns(conn, table_name)
+        if id_col not in cols:
+            continue
+
         try:
-            date_col = _resolve_data_col(conn, "machine_state_event")
+            if cid and "cliente_id" in cols:
+                rows = conn.execute(
+                    f"SELECT DISTINCT {id_col} AS mid FROM {table_name} WHERE cliente_id=?",
+                    (cid,),
+                ).fetchall()
+            elif cid and table_name == "machine_config_tenant":
+                continue
+            elif cid:
+                # Sem cliente_id, somente chaves explicitamente scoped.
+                rows = conn.execute(
+                    f"SELECT DISTINCT {id_col} AS mid FROM {table_name} WHERE {id_col} LIKE ?",
+                    (f"{cid}::%",),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    f"SELECT DISTINCT {id_col} AS mid FROM {table_name}"
+                ).fetchall()
+
+            for row in rows:
+                raw = row["mid"] if isinstance(row, sqlite3.Row) else row[0]
+                mid = _canonical_machine_id(raw, cid)
+                if mid:
+                    machines.add(mid)
         except Exception:
-            date_col = None
-    if not date_col:
+            continue
+
+    return sorted(machines, key=_machine_sort_key)
+
+
+def _machine_allowed(
+    conn: sqlite3.Connection,
+    cliente_id: str,
+    machine_id: str,
+) -> bool:
+    mid = _canonical_machine_id(machine_id, cliente_id)
+    if not mid:
+        return False
+
+    machines = _list_tenant_machines(conn, cliente_id)
+    return mid in machines
+
+
+def _day_bounds_ms(day: date) -> tuple[int, int]:
+    start = datetime(day.year, day.month, day.day, tzinfo=TZ_BAHIA)
+    end = start + timedelta(days=1)
+    return int(start.timestamp() * 1000), int(end.timestamp() * 1000)
+
+
+def _production_from_events(
+    conn: sqlite3.Connection,
+    cliente_id: str,
+    machine_id: str,
+    start_ms: int,
+    end_ms: int,
+) -> tuple[bool, int]:
+    table = "producao_evento"
+    cols = _get_columns(conn, table)
+    if not {"machine_id", "ts_ms", "delta"}.issubset(cols):
+        return False, 0
+
+    if cliente_id and "cliente_id" not in cols:
+        return False, 0
+
+    candidates = _matching_machine_ids(
+        conn,
+        table,
+        cliente_id,
+        machine_id,
+        "machine_id",
+    )
+
+    for candidate in candidates:
+        try:
+            if cliente_id:
+                row = conn.execute(
+                    "SELECT COUNT(1) AS c, COALESCE(SUM(delta),0) AS total "
+                    "FROM producao_evento "
+                    "WHERE cliente_id=? AND machine_id=? AND ts_ms>=? AND ts_ms<?",
+                    (cliente_id, candidate, int(start_ms), int(end_ms)),
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    "SELECT COUNT(1) AS c, COALESCE(SUM(delta),0) AS total "
+                    "FROM producao_evento "
+                    "WHERE machine_id=? AND ts_ms>=? AND ts_ms<?",
+                    (candidate, int(start_ms), int(end_ms)),
+                ).fetchone()
+
+            count = _safe_int(row["c"] if row else 0, 0)
+            if count > 0:
+                return True, max(0, _safe_int(row["total"], 0))
+        except Exception:
+            continue
+
+    return False, 0
+
+
+def _daily_production_fallback(
+    conn: sqlite3.Connection,
+    cliente_id: str,
+    machine_id: str,
+    data_ref: str,
+) -> dict:
+    table = "producao_diaria"
+    cols = _get_columns(conn, table)
+    data_col = _resolve_data_col(conn, table)
+
+    if not data_col or "machine_id" not in cols or "produzido" not in cols:
+        return {"produzido": 0, "meta": 0, "percentual": 0}
+
+    if cliente_id and "cliente_id" not in cols:
+        return {"produzido": 0, "meta": 0, "percentual": 0}
+
+    candidates = _matching_machine_ids(
+        conn,
+        table,
+        cliente_id,
+        machine_id,
+        "machine_id",
+    )
+    if not candidates:
+        return {"produzido": 0, "meta": 0, "percentual": 0}
+
+    select_cols = ["machine_id", "produzido"]
+    if "meta" in cols:
+        select_cols.append("meta")
+    if "percentual" in cols:
+        select_cols.append("percentual")
+
+    rows_all = []
+    for candidate in candidates:
+        try:
+            if cliente_id:
+                rows = conn.execute(
+                    f"SELECT {', '.join(select_cols)} FROM {table} "
+                    f"WHERE cliente_id=? AND machine_id=? AND {data_col}=?",
+                    (cliente_id, candidate, data_ref),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    f"SELECT {', '.join(select_cols)} FROM {table} "
+                    f"WHERE machine_id=? AND {data_col}=?",
+                    (candidate, data_ref),
+                ).fetchall()
+            rows_all.extend(rows)
+        except Exception:
+            continue
+
+    if not rows_all:
+        return {"produzido": 0, "meta": 0, "percentual": 0}
+
+    # Evita somar registros duplicados/legados do mesmo dia.
+    chosen = max(
+        rows_all,
+        key=lambda row: _safe_int(row["produzido"], 0),
+    )
+
+    produzido = max(0, _safe_int(chosen["produzido"], 0))
+    meta = max(0, _safe_int(chosen["meta"], 0)) if "meta" in chosen.keys() else 0
+    percentual = (
+        _safe_int(chosen["percentual"], 0)
+        if "percentual" in chosen.keys()
+        else (int(round((produzido / meta) * 100)) if meta > 0 else 0)
+    )
+
+    return {
+        "produzido": produzido,
+        "meta": meta,
+        "percentual": percentual,
+    }
+
+
+def _production_for_day(
+    conn: sqlite3.Connection,
+    cliente_id: str,
+    machine_id: str,
+    day: date,
+) -> dict:
+    start_ms, end_ms = _day_bounds_ms(day)
+    found, total = _production_from_events(
+        conn,
+        cliente_id,
+        machine_id,
+        start_ms,
+        end_ms,
+    )
+
+    fallback = _daily_production_fallback(
+        conn,
+        cliente_id,
+        machine_id,
+        day.isoformat(),
+    )
+
+    if found:
+        meta = _safe_int(fallback.get("meta"), 0)
+        percentual = int(round((total / meta) * 100)) if meta > 0 else 0
+        return {
+            "produzido": max(0, total),
+            "meta": meta,
+            "percentual": percentual,
+        }
+
+    return fallback
+
+
+def _refugo_for_day(
+    conn: sqlite3.Connection,
+    cliente_id: str,
+    machine_id: str,
+    day: date,
+) -> int:
+    table = "refugo_horaria"
+    cols = _get_columns(conn, table)
+    data_col = _resolve_data_col(conn, table)
+
+    if not data_col or "machine_id" not in cols:
+        return 0
+    if cliente_id and "cliente_id" not in cols:
+        return 0
+
+    ref_col = next(
+        (name for name in ("refugo", "qtd", "quantidade", "valor") if name in cols),
+        None,
+    )
+    if not ref_col:
+        return 0
+
+    candidates = _matching_machine_ids(
+        conn,
+        table,
+        cliente_id,
+        machine_id,
+        "machine_id",
+    )
+
+    for candidate in candidates:
+        try:
+            if cliente_id:
+                row = conn.execute(
+                    f"SELECT COUNT(1) AS c, COALESCE(SUM({ref_col}),0) AS total "
+                    f"FROM {table} WHERE cliente_id=? AND machine_id=? AND {data_col}=?",
+                    (cliente_id, candidate, day.isoformat()),
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    f"SELECT COUNT(1) AS c, COALESCE(SUM({ref_col}),0) AS total "
+                    f"FROM {table} WHERE machine_id=? AND {data_col}=?",
+                    (candidate, day.isoformat()),
+                ).fetchone()
+
+            if row and _safe_int(row["c"], 0) > 0:
+                return max(0, _safe_int(row["total"], 0))
+        except Exception:
+            continue
+
+    return 0
+
+
+def _ops_for_day(
+    conn: sqlite3.Connection,
+    cliente_id: str,
+    machine_id: str,
+    day: date,
+) -> list[dict]:
+    table = "ordens_producao"
+    cols = _get_columns(conn, table)
+
+    if "machine_id" not in cols:
         return []
 
-    ts_col = None
-    for c in ("ts_ms", "ts", "timestamp_ms"):
-        if c in cols:
-            ts_col = c
-            break
-    if not ts_col:
-        return []
-
-    state_col = None
-    for c in ("state", "status"):
-        if c in cols:
-            state_col = c
-            break
-    if not state_col:
-        return []
-
-    day_start = datetime(data_ref.year, data_ref.month, data_ref.day, 0, 0, 0)
-    day_end = day_start + timedelta(days=1)
-
-    now_dt = datetime.now(TZ_BAHIA).replace(tzinfo=None)
-    if day_start.date() == now_dt.date():
-        hard_end = min(day_end, now_dt)
+    if cliente_id and "cliente_id" not in cols:
+        # Só permite tabela legada quando a própria machine_id estiver scoped.
+        candidates = [
+            value
+            for value in _matching_machine_ids(
+                conn,
+                table,
+                cliente_id,
+                machine_id,
+                "machine_id",
+            )
+            if value.startswith(f"{cliente_id}::")
+        ]
     else:
-        hard_end = day_end
+        candidates = _matching_machine_ids(
+            conn,
+            table,
+            cliente_id,
+            machine_id,
+            "machine_id",
+        )
+
+    if not candidates:
+        return []
+
+    date_fields = [
+        name
+        for name in (
+            "ativada_at",
+            "activated_at",
+            "started_at",
+            "inicio_iso",
+            "created_at",
+        )
+        if name in cols
+    ]
+    if not date_fields:
+        return []
+
+    date_exprs = [f"datetime(replace({name}, 'T', ' '))" for name in date_fields]
+    ref_expr = (
+        date_exprs[0]
+        if len(date_exprs) == 1
+        else f"COALESCE({', '.join(date_exprs)})"
+    )
+
+    desired = [
+        "id",
+        "op_id",
+        "op",
+        "os",
+        "lote",
+        "operador",
+        "inicio_iso",
+        "fim_iso",
+        "status",
+        "ativada_at",
+        "activated_at",
+        "started_at",
+        "created_at",
+        "observacoes",
+    ]
+    select_cols = [name for name in desired if name in cols]
+    if not select_cols:
+        return []
+
+    day_start = datetime(day.year, day.month, day.day)
+    day_end = day_start + timedelta(days=1)
+    start_sql = day_start.strftime("%Y-%m-%d %H:%M:%S")
+    end_sql = day_end.strftime("%Y-%m-%d %H:%M:%S")
+
+    out: list[dict] = []
+    seen = set()
+
+    for candidate in candidates:
+        params: list = []
+        where = []
+
+        if cliente_id and "cliente_id" in cols:
+            where.append("cliente_id=?")
+            params.append(cliente_id)
+
+        where.append("machine_id=?")
+        params.append(candidate)
+        where.append(f"{ref_expr}>=datetime(?)")
+        params.append(start_sql)
+        where.append(f"{ref_expr}<datetime(?)")
+        params.append(end_sql)
+
+        sql = (
+            f"SELECT {', '.join(select_cols)}, {ref_expr} AS data_pertencimento "
+            f"FROM {table} WHERE {' AND '.join(where)} ORDER BY {ref_expr} ASC"
+        )
+
+        try:
+            rows = conn.execute(sql, tuple(params)).fetchall()
+        except Exception:
+            continue
+
+        for row in rows:
+            op_id = None
+            for key in ("id", "op_id"):
+                if key in row.keys() and row[key] is not None:
+                    op_id = row[key]
+                    break
+
+            op_value = row["op"] if "op" in row.keys() else None
+            os_value = row["os"] if "os" in row.keys() else None
+            lote = row["lote"] if "lote" in row.keys() else None
+            operador = row["operador"] if "operador" in row.keys() else None
+            status = row["status"] if "status" in row.keys() else None
+            data_pertencimento = row["data_pertencimento"]
+
+            signature = (
+                str(op_id or ""),
+                str(op_value or ""),
+                str(os_value or ""),
+                str(lote or ""),
+                str(operador or ""),
+                str(data_pertencimento or ""),
+            )
+            if signature in seen:
+                continue
+            seen.add(signature)
+
+            item = {
+                "op_id": op_id,
+                "op": op_value,
+                "os": os_value,
+                "lote": lote,
+                "operador": operador,
+                "status": status,
+                "machine_id": _canonical_machine_id(candidate, cliente_id),
+                "data_pertencimento": data_pertencimento,
+            }
+
+            for name in (
+                "inicio_iso",
+                "fim_iso",
+                "ativada_at",
+                "activated_at",
+                "started_at",
+                "created_at",
+                "observacoes",
+            ):
+                if name in row.keys():
+                    item[name] = row[name]
+
+            out.append(item)
+
+    return out
+
+
+def _state_columns(conn: sqlite3.Connection) -> dict:
+    table = "machine_state_event"
+    cols = _get_columns(conn, table)
+    if not cols:
+        return {}
+
+    id_col = (
+        "effective_machine_id"
+        if "effective_machine_id" in cols
+        else ("machine_id" if "machine_id" in cols else None)
+    )
+    data_col = (
+        "data_ref"
+        if "data_ref" in cols
+        else _resolve_data_col(conn, table)
+    )
+    ts_col = next(
+        (name for name in ("ts_ms", "timestamp_ms", "ts") if name in cols),
+        None,
+    )
+    state_col = next(
+        (name for name in ("state", "status") if name in cols),
+        None,
+    )
+
+    if not id_col or not data_col or not ts_col or not state_col:
+        return {}
+
+    return {
+        "id_col": id_col,
+        "data_col": data_col,
+        "ts_col": ts_col,
+        "state_col": state_col,
+        "cols": cols,
+    }
+
+
+def _state_segments_for_day(
+    conn: sqlite3.Connection,
+    cliente_id: str,
+    machine_id: str,
+    day: date,
+) -> list[tuple[datetime, datetime, str]]:
+    info = _state_columns(conn)
+    if not info:
+        return []
+
+    table = "machine_state_event"
+    cols = info["cols"]
+    id_col = info["id_col"]
+    data_col = info["data_col"]
+    ts_col = info["ts_col"]
+    state_col = info["state_col"]
+
+    if cliente_id and "cliente_id" not in cols:
+        candidates = [
+            value
+            for value in _matching_machine_ids(
+                conn,
+                table,
+                cliente_id,
+                machine_id,
+                id_col,
+            )
+            if value.startswith(f"{cliente_id}::")
+        ]
+    else:
+        candidates = _matching_machine_ids(
+            conn,
+            table,
+            cliente_id,
+            machine_id,
+            id_col,
+        )
+
+    if not candidates:
+        return []
+
+    day_start = datetime(day.year, day.month, day.day)
+    day_end = day_start + timedelta(days=1)
+    now_local = datetime.now(TZ_BAHIA).replace(tzinfo=None)
+    hard_end = min(day_end, now_local) if day == now_local.date() else day_end
 
     if hard_end <= day_start:
         return []
 
     day_start_ms = int(day_start.replace(tzinfo=TZ_BAHIA).timestamp() * 1000)
+    allowed = {"RUN", "STOP", "IDLE", "NP"}
 
-    allowed = ("RUN", "STOP", "IDLE", "NP")
+    initial: tuple[str, int] | None = None
 
-    # estado inicial: ultimo evento antes de 00:00
-    state0 = None
-    try:
-        sql0 = (
-            "SELECT {state_col}, {ts_col} FROM machine_state_event "
-            "WHERE {id_col}=? AND {ts_col} < ? "
-            "ORDER BY {ts_col} DESC LIMIT 1"
-        ).format(state_col=state_col, ts_col=ts_col, id_col=id_col)
-        candidate_ids = _resolve_state_event_machine_ids(conn, (machine_id or effective_machine_id), effective_machine_id, data_ref, cid or None)
-        best_r0 = None
-        for candidate_mid in candidate_ids:
-            if cid:
-                r0 = conn.execute(sql0.replace("WHERE ", "WHERE cliente_id=? AND ", 1), (cid, candidate_mid, day_start_ms)).fetchone()
-            else:
-                r0 = conn.execute(sql0, (candidate_mid, day_start_ms)).fetchone()
-            if not r0:
+    for candidate in candidates:
+        try:
+            params = []
+            where = []
+
+            if cliente_id and "cliente_id" in cols:
+                where.append("cliente_id=?")
+                params.append(cliente_id)
+
+            where.append(f"{id_col}=?")
+            params.append(candidate)
+            where.append(f"{ts_col}<?")
+            params.append(day_start_ms)
+
+            row = conn.execute(
+                f"SELECT {state_col} AS st, {ts_col} AS ts "
+                f"FROM {table} WHERE {' AND '.join(where)} "
+                f"ORDER BY {ts_col} DESC LIMIT 1",
+                tuple(params),
+            ).fetchone()
+
+            if not row:
                 continue
+
+            state = str(row["st"] or "").upper()
+            ts_ms = _safe_int(row["ts"], -1)
+            if state not in allowed or ts_ms < 0:
+                continue
+
+            if initial is None or ts_ms > initial[1]:
+                initial = (state, ts_ms)
+        except Exception:
+            continue
+
+    # Não herda estado muito antigo.
+    state0 = "IDLE"
+    if initial is not None:
+        state, ts_ms = initial
+        if day_start_ms - ts_ms <= 6 * 60 * 60 * 1000:
+            state0 = state
+
+    events: list[tuple[datetime, str]] = []
+    seen = set()
+
+    for candidate in candidates:
+        try:
+            params = []
+            where = []
+
+            if cliente_id and "cliente_id" in cols:
+                where.append("cliente_id=?")
+                params.append(cliente_id)
+
+            where.append(f"{id_col}=?")
+            params.append(candidate)
+            where.append(f"{data_col}=?")
+            params.append(day.isoformat())
+
+            rows = conn.execute(
+                f"SELECT {ts_col} AS ts, {state_col} AS st "
+                f"FROM {table} WHERE {' AND '.join(where)} "
+                f"ORDER BY {ts_col} ASC",
+                tuple(params),
+            ).fetchall()
+
+            for row in rows:
+                ts_ms = _safe_int(row["ts"], -1)
+                state = str(row["st"] or "").upper()
+                if ts_ms < 0 or state not in allowed:
+                    continue
+
+                signature = (ts_ms, state)
+                if signature in seen:
+                    continue
+                seen.add(signature)
+
+                try:
+                    dt = datetime.fromtimestamp(
+                        ts_ms / 1000.0,
+                        tz=TZ_BAHIA,
+                    ).replace(tzinfo=None)
+                except Exception:
+                    continue
+
+                if day_start <= dt <= hard_end:
+                    events.append((dt, state))
+        except Exception:
+            continue
+
+    events.sort(key=lambda item: item[0])
+
+    segments: list[tuple[datetime, datetime, str]] = []
+    current_state = state0
+    cursor = day_start
+
+    for event_dt, state in events:
+        if event_dt <= cursor:
+            current_state = state
+            cursor = event_dt
+            continue
+
+        segments.append((cursor, event_dt, current_state))
+        cursor = event_dt
+        current_state = state
+
+    if cursor < hard_end:
+        segments.append((cursor, hard_end, current_state))
+
+    merged: list[tuple[datetime, datetime, str]] = []
+    for start, end, state in segments:
+        if end <= start:
+            continue
+
+        if merged and merged[-1][2] == state and merged[-1][1] == start:
+            prev_start, _, prev_state = merged[-1]
+            merged[-1] = (prev_start, end, prev_state)
+        else:
+            merged.append((start, end, state))
+
+    return merged
+
+
+def _state_metrics(
+    segments: list[tuple[datetime, datetime, str]],
+) -> dict:
+    run_sec = 0
+    stop_sec = 0
+    stops = 0
+    previous_state = None
+
+    for start, end, state in segments:
+        duration = max(0, int((end - start).total_seconds()))
+
+        if state == "RUN":
+            run_sec += duration
+        elif state == "STOP":
+            stop_sec += duration
+            if duration > 0 and previous_state != "STOP":
+                stops += 1
+
+        previous_state = state
+
+    return {
+        "tempo_produzindo_sec": run_sec,
+        "tempo_parado_sec": stop_sec,
+        "paradas": stops,
+    }
+
+
+def _load_machine_config(
+    conn: sqlite3.Connection,
+    cliente_id: str,
+    machine_id: str,
+) -> dict:
+    cid = str(cliente_id or "").strip()
+    mid = _canonical_machine_id(machine_id, cid)
+
+    table = "machine_config_tenant"
+    cols = _get_columns(conn, table)
+
+    if {"cliente_id", "machine_id", "config_json"}.issubset(cols):
+        candidates = _matching_machine_ids(
+            conn,
+            table,
+            cid,
+            mid,
+            "machine_id",
+        )
+        for candidate in candidates:
             try:
-                cand_state = str(r0[0] or "").upper()
-                cand_ts_ms = int(r0[1]) if r0[1] is not None else None
+                row = conn.execute(
+                    "SELECT config_json FROM machine_config_tenant "
+                    "WHERE cliente_id=? AND machine_id=? LIMIT 1",
+                    (cid, candidate),
+                ).fetchone()
+                if row and row["config_json"]:
+                    return json.loads(row["config_json"])
             except Exception:
                 continue
-            if cand_state not in allowed or cand_ts_ms is None:
+
+    # Fallback legado somente se não houver tenant explícito para a máquina.
+    legacy = "machine_config"
+    legacy_cols = _get_columns(conn, legacy)
+    if "machine_id" in legacy_cols and "config_json" in legacy_cols:
+        for candidate in (mid, f"{cid}::{mid}" if cid else mid):
+            try:
+                row = conn.execute(
+                    "SELECT config_json FROM machine_config "
+                    "WHERE machine_id=? LIMIT 1",
+                    (candidate,),
+                ).fetchone()
+                if row and row["config_json"]:
+                    return json.loads(row["config_json"])
+            except Exception:
                 continue
-            if best_r0 is None or cand_ts_ms > best_r0[1]:
-                best_r0 = (cand_state, cand_ts_ms)
 
-        if best_r0:
-            r0_state, r0_ts_ms = best_r0
+    return {}
 
-            # tolerancia anti-heranca "muito antiga"
-            stale_ms = 6 * 60 * 60 * 1000
-            if (
-                r0_state in allowed
-                and r0_ts_ms is not None
-                and (day_start_ms - r0_ts_ms) <= stale_ms
-            ):
-                state0 = r0_state
-    except Exception:
-        state0 = None
 
-    # eventos do dia
-    evs: list[tuple[datetime, str]] = []
+def _parse_hhmm(value: str | None) -> int | None:
+    value = str(value or "").strip()
+    if ":" not in value:
+        return None
+
     try:
-        sql = (
-            "SELECT {ts_col}, {state_col} FROM machine_state_event "
-            "WHERE {id_col}=? AND {date_col}=? "
-            "ORDER BY {ts_col} ASC"
-        ).format(ts_col=ts_col, state_col=state_col, id_col=id_col, date_col=date_col)
-        seen = set()
-        candidate_ids = _resolve_state_event_machine_ids(conn, (machine_id or effective_machine_id), effective_machine_id, data_ref, cid or None)
-        for candidate_mid in candidate_ids:
-            if cid:
-                rows = conn.execute(sql.replace("WHERE ", "WHERE cliente_id=? AND ", 1), (cid, candidate_mid, data_ref.isoformat())).fetchall()
-            else:
-                rows = conn.execute(sql, (candidate_mid, data_ref.isoformat())).fetchall()
-            for r in rows:
-                try:
-                    ts_ms = int(r[0])
-                except Exception:
-                    continue
-                st = str(r[1] or "").upper()
-                if st not in allowed:
-                    continue
-                sig = (ts_ms, st)
-                if sig in seen:
-                    continue
-                seen.add(sig)
-                try:
-                    t = datetime.fromtimestamp(ts_ms / 1000.0, tz=TZ_BAHIA).replace(tzinfo=None)
-                except Exception:
-                    continue
-                if t < day_start:
-                    continue
-                if t > hard_end:
-                    continue
-                evs.append((t, st))
-        evs.sort(key=lambda x: x[0])
+        hour, minute = value.split(":", 1)
+        hour_i = int(hour)
+        minute_i = int(minute)
+        if not (0 <= hour_i <= 23 and 0 <= minute_i <= 59):
+            return None
+        return hour_i * 60 + minute_i
     except Exception:
-        evs = []
+        return None
 
-    cur_state = state0 if state0 in allowed else "IDLE"
-    cur_t = day_start
 
-    segs: list[tuple[datetime, datetime, str]] = []
+def _interval_intersects(
+    a_start: int,
+    a_end: int,
+    b_start: int,
+    b_end: int,
+) -> bool:
+    return a_start < b_end and b_start < a_end
 
-    for t, st in evs:
-        if t <= cur_t:
-            cur_state = st
-            cur_t = t
+
+def _meta_24_from_config(config: dict, day: date) -> list[int] | None:
+    if not isinstance(config, dict):
+        return None
+
+    cv2 = config.get("config_v2")
+    if not isinstance(cv2, dict):
+        cv2 = config if isinstance(config.get("shifts"), list) else None
+    if not isinstance(cv2, dict):
+        return None
+
+    active_days = cv2.get("active_days")
+    if isinstance(active_days, list) and active_days:
+        normalized = set()
+        for value in active_days:
+            try:
+                day_value = int(value)
+                if day_value == 0:
+                    day_value = 7
+                normalized.add(day_value)
+            except Exception:
+                continue
+
+        if normalized and day.isoweekday() not in normalized:
+            return [0] * 24
+
+    shifts = cv2.get("shifts")
+    if not isinstance(shifts, list) or not shifts:
+        return None
+
+    meta24 = [0] * 24
+
+    for shift in shifts:
+        if not isinstance(shift, dict):
             continue
-        segs.append((cur_t, t, cur_state))
-        cur_state = st
-        cur_t = t
 
-    if hard_end > cur_t:
-        segs.append((cur_t, hard_end, cur_state))
+        start_min = _parse_hhmm(shift.get("start"))
+        end_min = _parse_hhmm(shift.get("end"))
+        if start_min is None or end_min is None:
+            continue
 
-    # merge adjacentes do mesmo estado
-    return _merge_state_segments(segs)
+        if end_min <= start_min:
+            end_min += 1440
+
+        breaks = []
+        for br in shift.get("breaks") or []:
+            if not isinstance(br, dict):
+                continue
+            br_start = _parse_hhmm(br.get("start"))
+            br_end = _parse_hhmm(br.get("end"))
+            if br_start is None or br_end is None:
+                continue
+            if br_end <= br_start:
+                br_end += 1440
+            if br_start < start_min and end_min > 1440:
+                br_start += 1440
+                br_end += 1440
+            breaks.append((br_start, br_end))
+
+        meta_pcs = max(0, _safe_int(shift.get("meta_pcs"), 0))
+        calc = shift.get("calc") if isinstance(shift.get("calc"), dict) else {}
+        planned_min = max(0, _safe_int(calc.get("planned_min"), 0))
+
+        if planned_min <= 0:
+            planned_min = max(
+                0,
+                (end_min - start_min)
+                - sum(max(0, end - start) for start, end in breaks),
+            )
+
+        planned_hours = planned_min / 60.0 if planned_min > 0 else 0.0
+        meta_h = (
+            int(round(meta_pcs / planned_hours))
+            if meta_pcs > 0 and planned_hours > 0
+            else 0
+        )
+
+        for hour in range(24):
+            h0s = hour * 60
+            h0e = (hour + 1) * 60
+            h1s = h0s + 1440
+            h1e = h0e + 1440
+
+            inside = (
+                _interval_intersects(h0s, h0e, start_min, end_min)
+                or _interval_intersects(h1s, h1e, start_min, end_min)
+            )
+            if not inside:
+                continue
+
+            in_break = any(
+                _interval_intersects(h0s, h0e, bs, be)
+                or _interval_intersects(h1s, h1e, bs, be)
+                for bs, be in breaks
+            )
+
+            if not in_break:
+                meta24[hour] = max(meta24[hour], meta_h)
+
+    return meta24
 
 
-def _build_segments_for_hour_from_day_segments(
-    hour_start: datetime,
-    hour_end: datetime,
-    is_np: bool,
-    day_segments: list[tuple[datetime, datetime, str]],
+def _hourly_fallback(
+    conn: sqlite3.Connection,
+    cliente_id: str,
+    machine_id: str,
+    day: date,
+    hour: int,
+) -> int:
+    table = "producao_horaria"
+    cols = _get_columns(conn, table)
+    data_col = _resolve_data_col(conn, table)
+    hour_col = next(
+        (name for name in ("hora_dia", "hora_idx", "hora", "hora_int") if name in cols),
+        None,
+    )
+    prod_col = next(
+        (name for name in ("produzido", "producao", "count", "qtd") if name in cols),
+        None,
+    )
+
+    if not data_col or not hour_col or not prod_col or "machine_id" not in cols:
+        return 0
+    if cliente_id and "cliente_id" not in cols:
+        return 0
+
+    candidates = _matching_machine_ids(
+        conn,
+        table,
+        cliente_id,
+        machine_id,
+        "machine_id",
+    )
+
+    for candidate in candidates:
+        try:
+            if cliente_id:
+                row = conn.execute(
+                    f"SELECT COUNT(1) AS c, COALESCE(MAX({prod_col}),0) AS total "
+                    f"FROM {table} WHERE cliente_id=? AND machine_id=? "
+                    f"AND {data_col}=? AND {hour_col}=?",
+                    (cliente_id, candidate, day.isoformat(), int(hour)),
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    f"SELECT COUNT(1) AS c, COALESCE(MAX({prod_col}),0) AS total "
+                    f"FROM {table} WHERE machine_id=? "
+                    f"AND {data_col}=? AND {hour_col}=?",
+                    (candidate, day.isoformat(), int(hour)),
+                ).fetchone()
+
+            if row and _safe_int(row["c"], 0) > 0:
+                return max(0, _safe_int(row["total"], 0))
+        except Exception:
+            continue
+
+    return 0
+
+
+def _hourly_refugo(
+    conn: sqlite3.Connection,
+    cliente_id: str,
+    machine_id: str,
+    day: date,
+    hour: int,
+) -> int:
+    table = "refugo_horaria"
+    cols = _get_columns(conn, table)
+    data_col = _resolve_data_col(conn, table)
+    hour_col = next(
+        (name for name in ("hora_dia", "hora_idx", "hora", "hora_int") if name in cols),
+        None,
+    )
+    ref_col = next(
+        (name for name in ("refugo", "qtd", "quantidade", "valor") if name in cols),
+        None,
+    )
+
+    if not data_col or not hour_col or not ref_col or "machine_id" not in cols:
+        return 0
+    if cliente_id and "cliente_id" not in cols:
+        return 0
+
+    candidates = _matching_machine_ids(
+        conn,
+        table,
+        cliente_id,
+        machine_id,
+        "machine_id",
+    )
+
+    for candidate in candidates:
+        try:
+            if cliente_id:
+                row = conn.execute(
+                    f"SELECT COUNT(1) AS c, COALESCE(SUM({ref_col}),0) AS total "
+                    f"FROM {table} WHERE cliente_id=? AND machine_id=? "
+                    f"AND {data_col}=? AND {hour_col}=?",
+                    (cliente_id, candidate, day.isoformat(), int(hour)),
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    f"SELECT COUNT(1) AS c, COALESCE(SUM({ref_col}),0) AS total "
+                    f"FROM {table} WHERE machine_id=? "
+                    f"AND {data_col}=? AND {hour_col}=?",
+                    (candidate, day.isoformat(), int(hour)),
+                ).fetchone()
+
+            if row and _safe_int(row["c"], 0) > 0:
+                return max(0, _safe_int(row["total"], 0))
+        except Exception:
+            continue
+
+    return 0
+
+
+def _clip_state_segments(
+    segments: list[tuple[datetime, datetime, str]],
+    start: datetime,
+    end: datetime,
+    force_np: bool,
 ) -> list[dict]:
-    if is_np:
+    if end <= start:
         return [
             {
-                "start": hour_start.strftime("%H:%M:%S"),
-                "end": hour_end.strftime("%H:%M:%S"),
+                "start": start.strftime("%H:%M:%S"),
+                "end": start.strftime("%H:%M:%S"),
+                "state": "NP" if force_np else "IDLE",
+            }
+        ]
+
+    if force_np:
+        return [
+            {
+                "start": start.strftime("%H:%M:%S"),
+                "end": end.strftime("%H:%M:%S"),
                 "state": "NP",
             }
         ]
 
-    if hour_end <= hour_start:
-        return [
-            {
-                "start": hour_start.strftime("%H:%M:%S"),
-                "end": hour_start.strftime("%H:%M:%S"),
-                "state": "IDLE",
-            }
-        ]
-
-    segs: list[dict] = []
-
-    cursor = hour_start
+    out = []
+    cursor = start
     last_state = None
 
-    for ds, de, st in day_segments or []:
-        inter = _intersect(hour_start, hour_end, ds, de)
-        if not inter:
+    for seg_start, seg_end, state in segments:
+        clip_start = max(start, seg_start)
+        clip_end = min(end, seg_end)
+
+        if clip_end <= clip_start:
             continue
-        a, b = inter
 
-        if a > cursor:
-            # buraco: mantem o ultimo estado conhecido; se nao houver, IDLE
-            fill_state = last_state if last_state in ("RUN", "STOP", "IDLE", "NP") else "IDLE"
-            segs.append({"start": cursor.strftime("%H:%M:%S"), "end": a.strftime("%H:%M:%S"), "state": fill_state})
-            cursor = a
+        if clip_start > cursor:
+            fill_state = last_state if last_state else "IDLE"
+            out.append(
+                {
+                    "start": cursor.strftime("%H:%M:%S"),
+                    "end": clip_start.strftime("%H:%M:%S"),
+                    "state": fill_state,
+                }
+            )
 
-        segs.append({"start": a.strftime("%H:%M:%S"), "end": b.strftime("%H:%M:%S"), "state": st})
-        last_state = st
-        cursor = b
+        out.append(
+            {
+                "start": clip_start.strftime("%H:%M:%S"),
+                "end": clip_end.strftime("%H:%M:%S"),
+                "state": state,
+            }
+        )
+        cursor = clip_end
+        last_state = state
 
-    if cursor < hour_end:
-        fill_state = last_state if last_state in ("RUN", "STOP", "IDLE", "NP") else "IDLE"
-        segs.append({"start": cursor.strftime("%H:%M:%S"), "end": hour_end.strftime("%H:%M:%S"), "state": fill_state})
+    if cursor < end:
+        out.append(
+            {
+                "start": cursor.strftime("%H:%M:%S"),
+                "end": end.strftime("%H:%M:%S"),
+                "state": last_state or "IDLE",
+            }
+        )
 
-    # merge adjacentes iguais
-    merged: list[dict] = []
-    for s in segs:
-        if not merged:
-            merged.append(s)
-            continue
-        if merged[-1]["state"] == s["state"] and merged[-1]["end"] == s["start"]:
-            merged[-1]["end"] = s["end"]
+    if not out:
+        out.append(
+            {
+                "start": start.strftime("%H:%M:%S"),
+                "end": end.strftime("%H:%M:%S"),
+                "state": "IDLE",
+            }
+        )
+
+    merged = []
+    for item in out:
+        if (
+            merged
+            and merged[-1]["state"] == item["state"]
+            and merged[-1]["end"] == item["start"]
+        ):
+            merged[-1]["end"] = item["end"]
         else:
-            merged.append(s)
+            merged.append(item)
 
     return merged
 
-def _fetch_run_intervals_from_state_events(
-    conn: sqlite3.Connection,
-    effective_machine_id: str,
-    data_ref: date,
-) -> list[tuple[datetime, datetime]]:
-    """
-    Converte machine_state_event (transicoes RUN/STOP/NP) em intervalos RUN para o dia.
 
-    Regra da barra: somente RUN/STOP/NP vindos de machine_state_event.
-    Nao deduz RUN por producao, meta, ritmo ou qualquer heuristica.
+def _segment_dict_metrics(segments: list[dict]) -> dict:
+    run_sec = 0
+    stop_sec = 0
+    stops = 0
+    previous = None
 
-    Observacoes:
-    - Implementacao defensiva: detecta nomes de colunas (id, data, ts, state) para suportar schemas antigos.
-    - Usa datetimes naive (sem tzinfo) internamente, para nao misturar naive vs aware.
-    - Para dia atual, corta intervalo aberto em "agora" para nao preencher futuro.
-    - Se a tabela nao existir ou nao tiver colunas minimas, retorna [].
-    """
-    try:
-        if not _table_exists(conn, "machine_state_event"):
-            return []
-    except Exception:
-        return []
-
-    cols = _get_columns(conn, "machine_state_event")
-
-    # coluna de id da maquina (preferencia: effective_machine_id, fallback: machine_id)
-    id_col = None
-    if "effective_machine_id" in cols:
-        id_col = "effective_machine_id"
-    elif "machine_id" in cols:
-        id_col = "machine_id"
-    else:
-        return []
-
-    # coluna de data do evento (preferencia: data_ref, fallback: resolver como nas demais tabelas)
-    date_col = None
-    if "data_ref" in cols:
-        date_col = "data_ref"
-    else:
+    for item in segments:
         try:
-            date_col = _resolve_data_col(conn, "machine_state_event")
+            start_h, start_m, start_s = map(int, item["start"].split(":"))
+            end_h, end_m, end_s = map(int, item["end"].split(":"))
+            start_sec = start_h * 3600 + start_m * 60 + start_s
+            end_sec = end_h * 3600 + end_m * 60 + end_s
+            duration = max(0, end_sec - start_sec)
         except Exception:
-            date_col = None
-    if not date_col:
-        return []
+            duration = 0
 
-    # coluna do timestamp em ms
-    ts_col = None
-    for c in ("ts_ms", "ts", "timestamp_ms"):
-        if c in cols:
-            ts_col = c
-            break
-    if not ts_col:
-        return []
+        state = item.get("state")
+        if state == "RUN":
+            run_sec += duration
+        elif state == "STOP":
+            stop_sec += duration
+            if duration > 0 and previous != "STOP":
+                stops += 1
 
-    # coluna do estado
-    state_col = None
-    for c in ("state", "status"):
-        if c in cols:
-            state_col = c
-            break
-    if not state_col:
-        return []
-
-    # IMPORTANTE: o restante do Historico usa datetimes naive (sem tzinfo).
-    day_start = datetime(data_ref.year, data_ref.month, data_ref.day, 0, 0, 0)
-    day_end = day_start + timedelta(days=1)
-
-    now_dt = datetime.now(TZ_BAHIA).replace(tzinfo=None)
-    if day_start.date() == now_dt.date():
-        hard_end = min(day_end, now_dt)
-    else:
-        hard_end = day_end
-
-    # day_start_ms deve respeitar o fuso America/Bahia; calcula via aware apenas para timestamp.
-    day_start_ms = int(day_start.replace(tzinfo=TZ_BAHIA).timestamp() * 1000)
-
-    # Estado inicial: ultimo evento antes do dia
-    state0 = None
-    try:
-        sql0 = (
-            "SELECT {state_col}, {ts_col} FROM machine_state_event "
-            "WHERE {id_col}=? AND {ts_col} < ? "
-            "ORDER BY {ts_col} DESC LIMIT 1"
-        ).format(state_col=state_col, ts_col=ts_col, id_col=id_col)
-        r0 = conn.execute(sql0, (effective_machine_id, day_start_ms)).fetchone()
-        if r0:
-            try:
-                r0_state = str(r0[0] or "").upper()
-                r0_ts_ms = int(r0[1]) if r0[1] is not None else None
-            except Exception:
-                r0_state = ""
-                r0_ts_ms = None
-
-            # tolerancia: se o ultimo evento for mais antigo que 6h antes de 00:00, ignora.
-            stale_ms = 6 * 60 * 60 * 1000
-            if (
-                r0_state in ("RUN", "STOP", "NP")
-                and r0_ts_ms is not None
-                and (day_start_ms - r0_ts_ms) <= stale_ms
-            ):
-                state0 = r0_state
-            else:
-                state0 = None
-    except Exception:
-        state0 = None
-
-    # Eventos do dia
-    evs: list[tuple[int, str]] = []
-    try:
-        sql = (
-            "SELECT {ts_col}, {state_col} FROM machine_state_event "
-            "WHERE {id_col}=? AND {date_col}=? "
-            "ORDER BY {ts_col} ASC"
-        ).format(ts_col=ts_col, state_col=state_col, id_col=id_col, date_col=date_col)
-        for r in conn.execute(sql, (effective_machine_id, data_ref.isoformat())).fetchall():
-            try:
-                ts_ms = int(r[0])
-            except Exception:
-                continue
-            st = str(r[1] or "").upper()
-            if st not in ("RUN", "STOP", "NP"):
-                continue
-            evs.append((ts_ms, st))
-    except Exception:
-        return []
-
-    # Monta intervalos RUN
-    intervals: list[tuple[datetime, datetime]] = []
-    cur_state = state0 if state0 in ("RUN", "STOP", "NP") else "STOP"
-    cur_t = day_start
-
-    def _push_run(a: datetime, b: datetime) -> None:
-        if b <= a:
-            return
-        aa = max(a, day_start)
-        bb = min(b, hard_end)
-        if bb > aa:
-            intervals.append((aa, bb))
-
-    for ts_ms, st in evs:
-        try:
-            t = datetime.fromtimestamp(ts_ms / 1000.0, tz=TZ_BAHIA).replace(tzinfo=None)
-        except Exception:
-            continue
-        if t < day_start:
-            continue
-        if t > hard_end:
-            break
-
-        if cur_state == "RUN":
-            _push_run(cur_t, t)
-
-        cur_state = st
-        cur_t = t
-
-    if cur_state == "RUN":
-        _push_run(cur_t, hard_end)
-
-    return _merge_intervals(intervals)
-
-
-
-
-def _fetch_horaria(conn: sqlite3.Connection, machine_id: str, data_ref: date, cliente_id: str | None = None) -> dict[int, dict]:
-    out: dict[int, dict] = {h: {"meta": 0, "produzido": 0, "refugo": 0, "baseline_esp": 0, "esp_last": 0} for h in range(24)}
-    cid = str(cliente_id or "").strip()
-
-    # producao_horaria: tenta meta + produzido
-    if _table_exists(conn, "producao_horaria"):
-        cols = _get_columns(conn, "producao_horaria")
-        data_col = _resolve_data_col(conn, "producao_horaria")
-        hora_col = (
-            "hora_dia" if "hora_dia" in cols else (
-                "hora_idx" if "hora_idx" in cols else (
-                    "hora" if "hora" in cols else ("hora_int" if "hora_int" in cols else None)
-                )
-            )
-        )
-        prod_col = None
-        for c in ("produzido", "producao", "count", "qtd"):
-            if c in cols:
-                prod_col = c
-                break
-        meta_col = None
-        for c in ("meta_hora", "meta", "meta_pcs"):
-            if c in cols:
-                meta_col = c
-                break
-
-        esp_col = None
-        for c in ("esp_last", "esp_abs", "esp", "contador", "counter"):
-            if c in cols:
-                esp_col = c
-                break
-        base_col = "baseline_esp" if "baseline_esp" in cols else None
-
-        if data_col and hora_col:
-            sel_cols = [hora_col]
-            if prod_col:
-                sel_cols.append(prod_col)
-            if meta_col:
-                sel_cols.append(meta_col)
-            if base_col:
-                sel_cols.append(base_col)
-            if esp_col:
-                sel_cols.append(esp_col)
-            sql = f"SELECT {', '.join(sel_cols)} FROM producao_horaria WHERE machine_id=? AND {data_col}=?"
-            try:
-                if cid:
-                    if "cliente_id" not in cols:
-                        rows_horaria = []
-                    else:
-                        rows_horaria = conn.execute(sql.replace("WHERE ", "WHERE cliente_id=? AND ", 1), (cid, machine_id, data_ref.isoformat())).fetchall()
-                else:
-                    rows_horaria = conn.execute(sql, (machine_id, data_ref.isoformat())).fetchall()
-                for r in rows_horaria:
-                    try:
-                        h = int(r[hora_col]) if isinstance(r, sqlite3.Row) else int(r[0])
-                    except Exception:
-                        continue
-                    if h < 0 or h > 23:
-                        continue
-                    if prod_col:
-                        try:
-                            out[h]["produzido"] = _safe_int(r[prod_col] if isinstance(r, sqlite3.Row) else r[sel_cols.index(prod_col)], 0)
-                        except Exception:
-                            pass
-                    if meta_col:
-                        try:
-                            out[h]["meta"] = _safe_int(r[meta_col] if isinstance(r, sqlite3.Row) else r[sel_cols.index(meta_col)], 0)
-                        except Exception:
-                            pass
-                    if base_col:
-                        try:
-                            out[h]["baseline_esp"] = _safe_int(r[base_col] if isinstance(r, sqlite3.Row) else r[sel_cols.index(base_col)], 0)
-                        except Exception:
-                            pass
-                    if esp_col:
-                        try:
-                            out[h]["esp_last"] = _safe_int(r[esp_col] if isinstance(r, sqlite3.Row) else r[sel_cols.index(esp_col)], 0)
-                        except Exception:
-                            pass
-            except Exception:
-                pass
-
-    # refugo_horaria
-    if _table_exists(conn, "refugo_horaria"):
-        cols = _get_columns(conn, "refugo_horaria")
-        data_col = _resolve_data_col(conn, "refugo_horaria")
-        hora_col = (
-            "hora_dia" if "hora_dia" in cols else (
-                "hora_idx" if "hora_idx" in cols else (
-                    "hora" if "hora" in cols else ("hora_int" if "hora_int" in cols else None)
-                )
-            )
-        )
-        ref_col = None
-        for c in ("refugo", "qtd", "valor"):
-            if c in cols:
-                ref_col = c
-                break
-        if data_col and hora_col and ref_col:
-            sql = f"SELECT {hora_col} as hora, {ref_col} as refugo FROM refugo_horaria WHERE machine_id=? AND {data_col}=?"
-            try:
-                if cid:
-                    if "cliente_id" not in cols:
-                        rows_refugo = []
-                    else:
-                        rows_refugo = conn.execute(sql.replace("WHERE ", "WHERE cliente_id=? AND ", 1), (cid, machine_id, data_ref.isoformat())).fetchall()
-                else:
-                    rows_refugo = conn.execute(sql, (machine_id, data_ref.isoformat())).fetchall()
-                for r in rows_refugo:
-                    try:
-                        h = int(r["hora"])
-                    except Exception:
-                        continue
-                    if h < 0 or h > 23:
-                        continue
-                    out[h]["refugo"] = _safe_int(r["refugo"], 0)
-            except Exception:
-                pass
-
-    return out
-
-def _refugo_do_dia(conn: sqlite3.Connection, machine_id: str, data_ref: str) -> int:
-    col = _resolve_data_col(conn, "refugo_horaria")
-    tentativas = [
-        (f"SELECT COALESCE(SUM(refugo), 0) FROM refugo_horaria WHERE machine_id = ? AND {col} = ?", (machine_id, data_ref)),
-        (f"SELECT COALESCE(SUM(qtd), 0) FROM refugo_horaria WHERE machine_id = ? AND {col} = ?", (machine_id, data_ref)),
-        (f"SELECT COALESCE(SUM(quantidade), 0) FROM refugo_horaria WHERE machine_id = ? AND {col} = ?", (machine_id, data_ref)),
-    ]
-    for sql, params in tentativas:
-        try:
-            return _safe_int(_fetch_scalar(conn, sql, params, default=0), default=0)
-        except Exception:
-            continue
-    return 0
-
-def _diaria_do_dia(conn: sqlite3.Connection, machine_id: str, data_ref: str) -> dict:
-    col = _resolve_data_col(conn, "producao_diaria")
-    eff_mid = _resolve_effective_machine_id(conn, machine_id, data_ref)
-
-    # Coleta candidatos do dia para evitar dobrar quando existem registros duplicados
-    # (ex.: legado + scoped, ou gravacao repetida).
-    mid_raw = (machine_id or "").strip()
-    mid_uns = mid_raw.split("::", 1)[1] if "::" in mid_raw else mid_raw
-
-    mids = set()
-    if eff_mid:
-        mids.add(str(eff_mid))
-    if mid_raw:
-        mids.add(str(mid_raw))
-
-    # Quando o request vem sem scope, considere tambem possiveis variacoes no banco.
-    like_scoped = None
-    like_legacy = None
-    if "::" not in mid_raw and mid_uns:
-        like_scoped = f"%::{mid_uns.lower()}"
-        like_legacy = f"%:{mid_uns.lower()}"
-
-    where = [f"{col} = ?"]
-    params = [data_ref]
-
-    if mids:
-        where.append("machine_id IN ({})".format(",".join(["?"] * len(mids))))
-        params.extend(list(mids))
-
-    if like_scoped:
-        where.append("machine_id LIKE ?")
-        params.append(like_scoped)
-    if like_legacy:
-        where.append("machine_id LIKE ?")
-        params.append(like_legacy)
-
-    sql = (
-        "SELECT machine_id, produzido, meta, percentual "
-        "FROM producao_diaria "
-        "WHERE " + " AND ".join(where)
-    )
-
-    try:
-        rows = conn.execute(sql, tuple(params)).fetchall()
-    except Exception:
-        rows = []
-
-    if not rows:
-        return {"produzido": 0, "meta": None, "percentual": None, "_mid": eff_mid}
-
-    vals = []
-    for r in rows:
-        try:
-            vals.append(int(r["produzido"] or 0))
-        except Exception:
-            vals.append(0)
-
-    chosen_row = None
-
-    uniq_all = sorted(set([v for v in vals if v is not None]))
-    uniq_pos = [v for v in uniq_all if v > 0]
-
-    # Heuristica anti-dobro:
-    # - Se existir valor positivo maximo "X" e tambem existir "X/2" no dataset, assume que X foi duplicado (ex.: por join/OPs) e usa X/2.
-    # - Caso contrario, usa o maior valor positivo disponivel.
-    chosen = max(uniq_all) if uniq_all else 0
-    if uniq_pos:
-        max_pos = max(uniq_pos)
-        if (max_pos % 2 == 0) and ((max_pos // 2) in uniq_pos):
-            chosen = max_pos // 2
-        else:
-            chosen = max_pos
-
-    # Preferir linha "maquina::op" quando existir
-    for r in rows:
-        try:
-            if int(r["produzido"] or 0) == chosen and "::" in str(r["machine_id"] or ""):
-                chosen_row = r
-                break
-        except Exception:
-            continue
-
-    if not chosen_row:
-        for r in rows:
-            try:
-                if int(r["produzido"] or 0) == chosen:
-                    chosen_row = r
-                    break
-            except Exception:
-                continue
-
-    if not chosen_row:
-        chosen_row = rows[0]
+        previous = state
 
     return {
-        "produzido": _safe_int(chosen_row["produzido"], 0),
-        "meta": _safe_int(chosen_row["meta"], 0) if chosen_row["meta"] is not None else None,
-        "percentual": _safe_int(chosen_row["percentual"], 0) if chosen_row["percentual"] is not None else None,
-        "_mid": str(chosen_row["machine_id"] or eff_mid),
+        "tempo_produzindo_sec": run_sec,
+        "tempo_parado_sec": stop_sec,
+        "qtd_paradas": stops,
     }
 
-def _op_contexto(conn: sqlite3.Connection, machine_id: str, data_ref: str) -> list[dict]:
-    """
-    Regra oficial:
-    - A OP nasce no dia da abertura, mas depois da ativacao ela passa a pertencer ao dia da ATIVACAO.
-    - Atravessar a virada do dia (ou encerrar em outro dia) NAO cria segunda ocorrencia no historico.
 
-    Implementacao:
-    - Prioridade da data de pertencimento: ativada_at -> started_at -> inicio_iso.
-    - Filtra por janela [data_ref 00:01, proximo_dia 00:01) usando a melhor data disponivel.
-    - Comparacao feita via datetime() do SQLite para evitar erro de comparacao textual e formatos ISO diferentes.
-    - Deduplica registros repetidos do banco para nao exibir a mesma OP duas vezes no mesmo dia.
-    """
-    eff_mid = _resolve_effective_machine_id(conn, machine_id, data_ref)
+def _history_machine_day(
+    conn: sqlite3.Connection,
+    cliente_id: str,
+    machine_id: str,
+    day: date,
+) -> dict:
+    production = _production_for_day(
+        conn,
+        cliente_id,
+        machine_id,
+        day,
+    )
+    refugo = _refugo_for_day(
+        conn,
+        cliente_id,
+        machine_id,
+        day,
+    )
+    ops = _ops_for_day(
+        conn,
+        cliente_id,
+        machine_id,
+        day,
+    )
+    state_segments = _state_segments_for_day(
+        conn,
+        cliente_id,
+        machine_id,
+        day,
+    )
+    metrics = _state_metrics(state_segments)
 
-    try:
-        d0 = date.fromisoformat(str(data_ref))
-    except Exception:
-        return []
+    produzido = max(0, _safe_int(production.get("produzido"), 0))
+    meta = max(0, _safe_int(production.get("meta"), 0))
+    percentual = (
+        int(round((produzido / meta) * 100))
+        if meta > 0
+        else _safe_int(production.get("percentual"), 0)
+    )
 
-    d1 = d0 + timedelta(days=1)
-    start_dt = f"{d0.isoformat()} 00:01:00"
-    end_dt = f"{d1.isoformat()} 00:01:00"
+    return {
+        "machine_id": _canonical_machine_id(machine_id, cliente_id),
+        "data": day.isoformat(),
+        "produzido": produzido,
+        "pecas_boas": max(0, produzido - refugo),
+        "refugo": max(0, refugo),
+        "meta": meta,
+        "percentual": percentual,
+        "tempo_produzindo_sec": metrics["tempo_produzindo_sec"],
+        "tempo_parado_sec": metrics["tempo_parado_sec"],
+        "paradas": metrics["paradas"],
+        "ops_count": len(ops),
+        "ops": ops,
+    }
 
-    cols = _get_columns(conn, "ordens_producao")
-    if not cols:
-        return []
 
-    select_cols = ["op", "lote", "operador", "inicio_iso", "fim_iso", "status"]
-    ref_candidates = []
-    if "ativada_at" in cols:
-        select_cols.append("ativada_at")
-        ref_candidates.append("datetime(replace(ativada_at, 'T', ' '))")
-    else:
-        select_cols.append("NULL AS ativada_at")
-    if "started_at" in cols:
-        select_cols.append("started_at")
-        ref_candidates.append("datetime(replace(started_at, 'T', ' '))")
-    else:
-        select_cols.append("NULL AS started_at")
-    ref_candidates.append("datetime(replace(inicio_iso, 'T', ' '))")
-    ref_expr = f"COALESCE({', '.join(ref_candidates)})"
-
-    sql = f"""
-        SELECT {', '.join(select_cols)}, {ref_expr} AS data_pertencimento
-          FROM ordens_producao
-         WHERE machine_id = ?
-           AND {ref_expr} >= datetime(?)
-           AND {ref_expr} < datetime(?)
-         ORDER BY {ref_expr} ASC, datetime(replace(inicio_iso, 'T', ' ')) ASC
-    """
-
-    try:
-        rows = conn.execute(sql, (eff_mid, start_dt, end_dt)).fetchall()
-    except Exception:
-        try:
-            rows = conn.execute(sql, (machine_id, start_dt, end_dt)).fetchall()
-        except Exception:
-            return []
-
-    itens = []
-    seen = set()
-
-    for r in rows:
-        opv = r["op"]
-        lote = r["lote"]
-        operador = r["operador"]
-        inicio_iso = r["inicio_iso"]
-        fim_iso = r["fim_iso"]
-        status = r["status"]
-        ativada_at = r["ativada_at"]
-        started_at = r["started_at"]
-        data_pertencimento = r["data_pertencimento"]
-
-        key = (
-            str(opv or ""),
-            str(lote or ""),
-            str(operador or ""),
-            str(inicio_iso or ""),
-            str(ativada_at or started_at or data_pertencimento or ""),
+def _has_activity(item: dict) -> bool:
+    return any(
+        _safe_int(item.get(key), 0) > 0
+        for key in (
+            "produzido",
+            "refugo",
+            "tempo_produzindo_sec",
+            "tempo_parado_sec",
+            "paradas",
+            "ops_count",
         )
-        if key in seen:
-            continue
-        seen.add(key)
+    )
 
-        itens.append(
-            {
-                "op": opv,
-                "lote": lote,
-                "operador": operador,
-                "inicio_iso": inicio_iso,
-                "fim_iso": fim_iso,
-                "status": status,
-                "ativada_at": ativada_at,
-                "started_at": started_at,
-                "data_pertencimento": data_pertencimento,
-            }
-        )
 
-    return itens
+def _resolve_period() -> tuple[date, date]:
+    today = datetime.now(TZ_BAHIA).date()
+
+    date_from = _parse_date_any(request.args.get("date_from"))
+    date_to = _parse_date_any(request.args.get("date_to"))
+
+    if date_from or date_to:
+        if date_from is None:
+            date_from = date_to
+        if date_to is None:
+            date_to = date_from
+
+        if date_from > date_to:
+            date_from, date_to = date_to, date_from
+
+        # Limite defensivo: 60 dias.
+        if (date_to - date_from).days > 59:
+            date_from = date_to - timedelta(days=59)
+
+        return date_from, date_to
+
+    days = _safe_int(request.args.get("days"), 7)
+    days = max(1, min(days, 60))
+    return today - timedelta(days=days - 1), today
+
 
 if callable(init_db):
     try:
@@ -1642,589 +1409,616 @@ if callable(init_db):
     except Exception:
         pass
 
+
 @historico_bp.route("/api/producao/historico", methods=["GET"])
 def api_producao_historico():
-    machine_id = (request.args.get("machine_id") or "").strip()
-    days = _safe_int(request.args.get("days"), 10)
-    days = max(1, min(days, 60))
+    cliente_id = _cliente_id_sessao()
+    if not cliente_id:
+        return jsonify(
+            {
+                "ok": False,
+                "error": "Cliente da sessao nao identificado",
+            }
+        ), 403
 
-    if not machine_id:
-        return jsonify({"ok": False, "error": "machine_id obrigatorio"}), 400
+    requested_machine = str(
+        request.args.get("machine_id")
+        or request.args.get("machine")
+        or "all"
+    ).strip()
+    requested_machine_lower = requested_machine.casefold()
 
-    hoje = datetime.now(TZ_BAHIA).date()
-    inicio = hoje - timedelta(days=days - 1)
+    date_from, date_to = _resolve_period()
 
     conn = _get_conn()
     try:
-        dados = []
+        machines = _list_tenant_machines(conn, cliente_id)
 
-        for i in range(days):
-            dia: date = inicio + timedelta(days=i)
-            data_ref = dia.isoformat()
+        if requested_machine_lower in ("", "all", "todos", "*"):
+            selected_machines = machines[:]
+            selected_machine = "all"
+        else:
+            selected_machine = _canonical_machine_id(
+                requested_machine,
+                cliente_id,
+            )
+            if selected_machine not in machines:
+                return jsonify(
+                    {
+                        "ok": False,
+                        "error": "Maquina nao encontrada para este cliente",
+                    }
+                ), 404
+            selected_machines = [selected_machine]
 
-            diaria = _diaria_do_dia(conn, machine_id, data_ref)
-            refugo = _refugo_do_dia(conn, machine_id, data_ref)
-            produzido = _safe_int(diaria.get("produzido"), 0)
-            pecas_boas = max(produzido - refugo, 0)
+        summary = {
+            "produzido": 0,
+            "tempo_produzindo_sec": 0,
+            "tempo_parado_sec": 0,
+            "ops": 0,
+            "paradas": 0,
+            "refugo": 0,
+            "maquinas": len(selected_machines),
+        }
 
-            item = {
-                "data": data_ref,
-                "produzido": produzido,
-                "pecas_boas": pecas_boas,
-                "refugo": refugo,
-                "meta": diaria.get("meta"),
-                "percentual": diaria.get("percentual"),
-                "ops": _op_contexto(conn, machine_id, data_ref),
+        days_out = []
+        cursor = date_to
+
+        while cursor >= date_from:
+            machine_rows = []
+
+            for machine_id in selected_machines:
+                row = _history_machine_day(
+                    conn,
+                    cliente_id,
+                    machine_id,
+                    cursor,
+                )
+
+                if selected_machine != "all" or _has_activity(row):
+                    machine_rows.append(row)
+
+            day_item = {
+                "data": cursor.isoformat(),
+                "produzido": sum(
+                    _safe_int(row.get("produzido"), 0)
+                    for row in machine_rows
+                ),
+                "pecas_boas": sum(
+                    _safe_int(row.get("pecas_boas"), 0)
+                    for row in machine_rows
+                ),
+                "refugo": sum(
+                    _safe_int(row.get("refugo"), 0)
+                    for row in machine_rows
+                ),
+                "tempo_produzindo_sec": sum(
+                    _safe_int(row.get("tempo_produzindo_sec"), 0)
+                    for row in machine_rows
+                ),
+                "tempo_parado_sec": sum(
+                    _safe_int(row.get("tempo_parado_sec"), 0)
+                    for row in machine_rows
+                ),
+                "ops_count": sum(
+                    _safe_int(row.get("ops_count"), 0)
+                    for row in machine_rows
+                ),
+                "paradas": sum(
+                    _safe_int(row.get("paradas"), 0)
+                    for row in machine_rows
+                ),
+                "maquinas_count": len(
+                    [row for row in machine_rows if _has_activity(row)]
+                ),
+                "machines": machine_rows,
             }
-            dados.append(item)
 
-        if (request.args.get("wrap") or "").strip() == "1":
-            return jsonify({"ok": True, "machine_id": machine_id, "dados": dados})
-        return jsonify(dados)
+            if selected_machine != "all":
+                single = machine_rows[0] if machine_rows else None
+                if single:
+                    day_item["meta"] = single.get("meta", 0)
+                    day_item["percentual"] = single.get("percentual", 0)
+                    day_item["ops"] = single.get("ops", [])
+                    day_item["maquinas_count"] = 1
+
+            if _has_activity(day_item):
+                days_out.append(day_item)
+
+                summary["produzido"] += day_item["produzido"]
+                summary["tempo_produzindo_sec"] += day_item["tempo_produzindo_sec"]
+                summary["tempo_parado_sec"] += day_item["tempo_parado_sec"]
+                summary["ops"] += day_item["ops_count"]
+                summary["paradas"] += day_item["paradas"]
+                summary["refugo"] += day_item["refugo"]
+
+            cursor -= timedelta(days=1)
+
+        payload = {
+            "ok": True,
+            "machine_id": selected_machine,
+            "machines": machines,
+            "selected_machines": selected_machines,
+            "date_from": date_from.isoformat(),
+            "date_to": date_to.isoformat(),
+            "summary": summary,
+            "days": days_out,
+            "dados": days_out,
+        }
+
+        # Compatibilidade com o front antigo: sem wrap e máquina única,
+        # mantém retorno como lista de dias.
+        wrap = str(request.args.get("wrap") or "").strip() == "1"
+        if not wrap and selected_machine != "all":
+            legacy = []
+            for day_item in reversed(days_out):
+                legacy.append(
+                    {
+                        "data": day_item["data"],
+                        "produzido": day_item["produzido"],
+                        "pecas_boas": day_item["pecas_boas"],
+                        "refugo": day_item["refugo"],
+                        "meta": day_item.get("meta", 0),
+                        "percentual": day_item.get("percentual", 0),
+                        "ops": day_item.get("ops", []),
+                        "tempo_produzindo_sec": day_item["tempo_produzindo_sec"],
+                        "tempo_parado_sec": day_item["tempo_parado_sec"],
+                        "paradas": day_item["paradas"],
+                    }
+                )
+            return jsonify(legacy)
+
+        return jsonify(payload)
+    except Exception as exc:
+        try:
+            print(
+                "ERROR historico operacional:\n" + traceback.format_exc(),
+                flush=True,
+            )
+        except Exception:
+            pass
+
+        return jsonify(
+            {
+                "ok": False,
+                "error": "Falha ao carregar historico operacional",
+                "details": str(exc),
+            }
+        ), 500
     finally:
         if not callable(get_db):
             try:
                 conn.close()
             except Exception:
                 pass
+
 
 @historico_bp.route("/api/producao/detalhe-dia", methods=["GET"])
 def api_producao_detalhe_dia():
     cliente_id = _cliente_id_sessao()
     if not cliente_id:
-        return jsonify({"ok": False, "error": "Cliente da sessao nao identificado"}), 403
+        return jsonify(
+            {
+                "ok": False,
+                "error": "Cliente da sessao nao identificado",
+            }
+        ), 403
 
-    machine_id = (request.args.get("machine_id") or "").strip()
-    date_str = (request.args.get("date") or request.args.get("data") or "").strip()
+    machine_id = _canonical_machine_id(
+        request.args.get("machine_id"),
+        cliente_id,
+    )
+    data_ref = _parse_date_any(
+        request.args.get("date")
+        or request.args.get("data")
+    )
 
     if not machine_id:
-        return jsonify({"ok": False, "error": "machine_id obrigatorio"}), 400
+        return jsonify(
+            {
+                "ok": False,
+                "error": "machine_id obrigatorio",
+            }
+        ), 400
 
-    data_ref = _parse_date_any(date_str) or datetime.now(TZ_BAHIA).date()
+    if data_ref is None:
+        data_ref = datetime.now(TZ_BAHIA).date()
 
-
-    # Hora atual (naive, TZ_BAHIA) para cortar a hora em andamento e nao preencher futuro
-    now_naive = None
-    try:
-        now_dt = datetime.now(TZ_BAHIA).replace(tzinfo=None)
-        if data_ref == now_dt.date():
-            now_naive = now_dt.replace(tzinfo=None)
-    except Exception:
-        now_naive = None
     conn = _get_conn()
     try:
-        try:
-            # Resolve machine_id efetivo (scoped) para evitar "horas zeradas" quando o dia foi gravado como <cliente>::<maquina>.
-            eff_mid = _resolve_effective_machine_id(conn, machine_id, data_ref.isoformat(), cliente_id)
-
-            # Carrega config (tenta primeiro pelo machine_id recebido; se nao existir, tenta pelo efetivo).
-            cfg = _load_machine_config_json(conn, machine_id, cliente_id)
-            if (not cfg) and eff_mid and eff_mid != machine_id:
-                cfg = _load_machine_config_json(conn, eff_mid, cliente_id)
-
-            # stop_sec e dias ativos (se existir)
-            stop_sec = _safe_int(
-                ((cfg.get("oee") or {}).get("no_count_stop_sec") if isinstance(cfg.get("oee"), dict) else None),
-                120,
-            )
-
-            machine_state = None
-            stop_start_naive = None
-            run_now_flag = None
-            if now_naive is not None and callable(get_machine):
-                try:
-                    try:
-                        machine_state = get_machine(machine_id, cliente_id)
-                    except TypeError:
-                        machine_state = get_machine(f"{cliente_id}::{machine_id}")
-                    if isinstance(machine_state, dict):
-                        stopped_ms = machine_state.get("stopped_since_ms") or machine_state.get("stopped_since")
-                        status_ui = str(machine_state.get("status_ui") or "").strip().upper()
-                        run_flag = machine_state.get("run")
-                        is_stopped = False
-                        if status_ui in ("PARADA", "PARADO", "STOP", "STOPPED"):
-                            is_stopped = True
-                        else:
-                            try:
-                                if run_flag is not None and int(run_flag) == 0:
-                                    is_stopped = True
-                            except Exception:
-                                is_stopped = False
-
-                        # Flag unico para hora atual (True=RUN, False=STOP)
-                        try:
-                            run_now_flag = (not is_stopped)
-                        except Exception:
-                            run_now_flag = None
-
-                        if is_stopped and stopped_ms is not None:
-                            try:
-                                stop_start_naive = _ms_to_naive_bahia(int(stopped_ms))
-                            except Exception:
-                                stop_start_naive = None
-                except Exception:
-                    stop_start_naive = None
-
-
-            # Mapa hora(0-23) -> producao_por_hora (alinhada a horas_turno) para usar no historico
-            prod_turno_by_hour = None
-            if isinstance(machine_state, dict):
-                try:
-                    horas_turno = machine_state.get("horas_turno")
-                    prod_turno = machine_state.get("producao_por_hora")
-                    if isinstance(horas_turno, list) and isinstance(prod_turno, list) and len(horas_turno) == len(prod_turno):
-                        m = {}
-                        for i_slot, slot in enumerate(horas_turno):
-                            try:
-                                s = str(slot)
-                                # Ex.: "13:00 - 14:00" -> hour=13
-                                start = s.split("-", 1)[0].strip()
-                                hh = int(start.split(":", 1)[0].strip())
-                                val = prod_turno[i_slot]
-                                if val is None:
-                                    continue
-                                m[hh] = _safe_int(val, 0)
-                            except Exception:
-                                continue
-                        prod_turno_by_hour = m if m else None
-                except Exception:
-                    prod_turno_by_hour = None
-
-            # Segmentos RUN/STOP agora vem do rastro persistido em machine_state_event.
-            # Se nao houver eventos (ou tabela), cai para lista vazia (tudo STOP dentro de hora programada).
-            day_state_segments = _fetch_state_segments_from_state_events(
-                conn, eff_mid, data_ref, machine_id=machine_id, cliente_id=cliente_id
-            )
-            # Tabela horaria (meta/produzido/refugo)
-            hor = _fetch_horaria(conn, eff_mid, data_ref, cliente_id)
-
-            # ============================================================
-            # ============================================================
-            # Meta por Hora (fonte da verdade: config_v2.shifts)
-            # Regra:
-            # - Deriva meta[24] a partir de config_v2 (shifts + breaks + active_days)
-            # - Breaks zeram a meta na(s) hora(s) afetada(s)
-            # - Turnos que cruzam meia-noite sao suportados (ex.: 22:00-06:00)
-            # - Se config_v2 nao existir, cai para compatibilidade (meta_por_hora + turno_inicio no estado)
-            # ============================================================
-            try:
-                meta24 = _build_meta_24_from_config_v2(cfg, data_ref)
-                if meta24 is None:
-                    meta24 = _build_meta_24_from_machine_state(machine_state)
-                if meta24 is not None:
-                    for hh in range(24):
-                        hor[hh]["meta"] = _safe_int(meta24[hh], 0)
-            except Exception:
-                pass
-            # ============================================================
-            # Produzido por hora (fonte da verdade): SUM(delta) em producao_evento por janela local (America/Bahia)
-            # - Evita problemas de timezone e sobrescritas por estado/turno
-            # - producao_horaria vira apenas fallback (quando nao houver eventos)
-            # ============================================================
-
-            # Monta resposta hora a hora
-
-            horas = []
-            for h in range(24):
-                hs = datetime(data_ref.year, data_ref.month, data_ref.day, h, 0, 0)
-                he = hs + timedelta(hours=1)
-
-                # Para o dia atual: corta a hora em andamento no "agora" e nao preenche futuro.
-                he_calc = he
-                if now_naive is not None:
-                    if now_naive <= hs:
-                        he_calc = hs
-                    elif now_naive < he:
-                        he_calc = now_naive
-
-
-                meta = _safe_int(hor.get(h, {}).get("meta", 0), 0)
-                produzido = _safe_int(hor.get(h, {}).get("produzido", 0), 0)
-                refugo = _safe_int(hor.get(h, {}).get("refugo", 0), 0)
-
-
-                # Produzido por hora via eventos (ts_ms em UTC, janela calculada em hora local)
-                try:
-                    start_ms = _naive_bahia_to_ms(hs)
-                    end_ms = _naive_bahia_to_ms(he_calc)
-                    if end_ms > start_ms:
-                        prod_evt = _sum_delta_producao_evento(
-                            conn, machine_id, eff_mid, start_ms, end_ms, cliente_id
-                        )
-                        if prod_evt is not None:
-                            produzido = _safe_int(prod_evt, 0)
-                except Exception:
-                    pass
-
-
-
-                is_np = meta <= 0
-
-                # Se he_calc == hs (hora futura no dia atual), nao inventar 60 min.
-                if he_calc == hs:
-                    zstate = "NP" if is_np else "STOP"
-                    segs = [{
-                        "start": hs.strftime("%H:%M:%S"),
-                        "end": hs.strftime("%H:%M:%S"),
-                        "state": zstate,
-                    }]
-                    tempo_produzindo_sec, tempo_parado_sec, qtd_paradas = 0, 0, 0
-                    horas.append(
-                        {
-                            "hour": h,
-                            "slot": f"{h:02d}:00-{(h+1)%24:02d}:00",
-                            "meta": meta,
-                            "produzido": produzido,
-                            "refugo": refugo,
-                            "segments": segs,
-                            "tempo_produzindo_sec": tempo_produzindo_sec,
-                            "tempo_parado_sec": tempo_parado_sec,
-                            "qtd_paradas": qtd_paradas,
-                        }
-                    )
-                    continue
-
-
-                # Fallback: se nao houver rastro em machine_state_event para o dia,
-                # NAO invente STOP pela ausencia de eventos (isso deixa tudo vermelho).
-                # Regra:
-                # - Hora atual (do dia atual): usa o status atual (run) para marcar RUN/STOP.
-                # - Demais horas sem eventos: marca como IDLE (vira cinza no front).
-                segs = _build_segments_for_hour_from_day_segments(hs, he_calc, is_np, day_state_segments)
-                if (not is_np) and now_naive is not None and stop_start_naive is not None:
-                    try:
-                        if hs <= now_naive < he and stop_start_naive <= he_calc:
-                            segs = _apply_current_stop_to_segments(segs, stop_start_naive, hs, he_calc)
-                    except Exception:
-                        pass
-
-                tempo_produzindo_sec, tempo_parado_sec, qtd_paradas = _calc_seg_metrics(segs)
-
-                horas.append(
-                    {
-                        "hour": h,
-                        "slot": f"{h:02d}:00-{(h+1)%24:02d}:00",
-                        "meta": meta,
-                        "produzido": produzido,
-                        "refugo": refugo,
-                        "segments": segs,
-                        "tempo_produzindo_sec": tempo_produzindo_sec,
-                        "tempo_parado_sec": tempo_parado_sec,
-                        "qtd_paradas": qtd_paradas,
-                    }
-                )
-
-
-
+        if not _machine_allowed(conn, cliente_id, machine_id):
             return jsonify(
                 {
-                    "ok": True,
-                    "machine_id": machine_id,
-                    "effective_machine_id": eff_mid,
-                    "date": data_ref.isoformat(),
-                    "stop_sec": stop_sec,
-                    "hours": horas,
+                    "ok": False,
+                    "error": "Maquina nao encontrada para este cliente",
+                }
+            ), 404
+
+        config = _load_machine_config(
+            conn,
+            cliente_id,
+            machine_id,
+        )
+        meta24 = _meta_24_from_config(config, data_ref)
+
+        state_segments = _state_segments_for_day(
+            conn,
+            cliente_id,
+            machine_id,
+            data_ref,
+        )
+
+        now_local = datetime.now(TZ_BAHIA).replace(tzinfo=None)
+        hours = []
+
+        for hour in range(24):
+            start = datetime(
+                data_ref.year,
+                data_ref.month,
+                data_ref.day,
+                hour,
+                0,
+                0,
+            )
+            end = start + timedelta(hours=1)
+
+            end_calc = end
+            if data_ref == now_local.date():
+                if now_local <= start:
+                    end_calc = start
+                elif now_local < end:
+                    end_calc = now_local
+
+            start_ms = int(
+                start.replace(tzinfo=TZ_BAHIA).timestamp() * 1000
+            )
+            end_ms = int(
+                end_calc.replace(tzinfo=TZ_BAHIA).timestamp() * 1000
+            )
+
+            produced_found = False
+            produced = 0
+
+            if end_ms > start_ms:
+                produced_found, produced = _production_from_events(
+                    conn,
+                    cliente_id,
+                    machine_id,
+                    start_ms,
+                    end_ms,
+                )
+
+            if not produced_found:
+                produced = _hourly_fallback(
+                    conn,
+                    cliente_id,
+                    machine_id,
+                    data_ref,
+                    hour,
+                )
+
+            refugo = _hourly_refugo(
+                conn,
+                cliente_id,
+                machine_id,
+                data_ref,
+                hour,
+            )
+
+            meta = (
+                max(0, _safe_int(meta24[hour], 0))
+                if isinstance(meta24, list) and len(meta24) == 24
+                else 0
+            )
+            force_np = (
+                isinstance(meta24, list)
+                and len(meta24) == 24
+                and meta <= 0
+            )
+
+            segments = _clip_state_segments(
+                state_segments,
+                start,
+                end_calc,
+                force_np,
+            )
+            metrics = _segment_dict_metrics(segments)
+
+            hours.append(
+                {
+                    "hour": hour,
+                    "slot": f"{hour:02d}:00-{(hour + 1) % 24:02d}:00",
+                    "meta": meta,
+                    "produzido": max(0, produced),
+                    "refugo": max(0, refugo),
+                    "segments": segments,
+                    "tempo_produzindo_sec": metrics["tempo_produzindo_sec"],
+                    "tempo_parado_sec": metrics["tempo_parado_sec"],
+                    "qtd_paradas": metrics["qtd_paradas"],
                 }
             )
-        except Exception as e:
-            tb = traceback.format_exc()
-            try:
-                print("ERROR detalhe-dia:\n" + tb, flush=True)
-            except Exception:
-                pass
-            return jsonify({"ok": False, "error": "erro no detalhe-dia", "details": str(e)}), 500
-    finally:
-        if not callable(get_db):
-            try:
-                conn.close()
-            except Exception:
-                pass
-
-
-
-def _distribute_int_total(total: int, weights: list[int] | None = None, n: int = 24) -> list[int]:
-    if n <= 0:
-        return []
-    total = _safe_int(total, 0)
-    if total <= 0:
-        return [0] * n
-
-    if not weights or len(weights) != n:
-        base = total // n
-        rem = total - (base * n)
-        out = [base] * n
-        for i in range(rem):
-            out[i] += 1
-        return out
-
-    w = [max(_safe_int(x, 0), 0) for x in weights]
-    s = sum(w)
-    if s <= 0:
-        return _distribute_int_total(total, None, n)
-
-    raw = [(total * wi) / s for wi in w]
-    out = [int(x) for x in raw]
-    diff = total - sum(out)
-    if diff > 0:
-        # distribui o restante nas maiores frações
-        fracs = sorted([(raw[i] - out[i], i) for i in range(n)], reverse=True)
-        for k in range(diff):
-            out[fracs[k % n][1]] += 1
-    elif diff < 0:
-        # remove excedente nas menores frações, sem ficar negativo
-        fracs = sorted([(raw[i] - out[i], i) for i in range(n)])
-        k = 0
-        to_remove = -diff
-        while to_remove > 0 and k < len(fracs):
-            i = fracs[k][1]
-            if out[i] > 0:
-                out[i] -= 1
-                to_remove -= 1
-            else:
-                k += 1
-    return out
-
-
-def _backfill_horaria_for_day(conn: sqlite3.Connection, machine_id: str, data_ref: str) -> dict:
-    """
-    Gera 24 linhas em producao_horaria a partir de producao_diaria, quando nao existir horaria no dia.
-
-    - Usa _diaria_do_dia() para escolher a linha do dia e obter o machine_id efetivo gravado no diario.
-    - Distribui meta e produzido nas 24 horas (estimativa), apenas para destravar o detalhe-dia.
-    """
-    if not _table_exists(conn, "producao_horaria"):
-        return {"ok": False, "error": "tabela producao_horaria nao existe"}
-
-    diaria = _diaria_do_dia(conn, machine_id, data_ref)
-    produzido_dia = _safe_int(diaria.get("produzido"), 0)
-    meta_dia = _safe_int(diaria.get("meta"), 0)
-    target_mid = (diaria.get("_mid") or machine_id or "").strip()
-
-    if produzido_dia <= 0:
-        return {"ok": True, "skipped": True, "reason": "produzido_dia_zero", "machine_id": target_mid, "date": data_ref}
-
-    cols = _get_columns(conn, "producao_horaria")
-    data_col = _resolve_data_col(conn, "producao_horaria")
-    hour_col = "hora_idx" if "hora_idx" in cols else ("hora" if "hora" in cols else ("hora_int" if "hora_int" in cols else None))
-    if not hour_col or not data_col:
-        return {"ok": False, "error": "schema producao_horaria sem colunas de hora/data"}
-
-    # ja existe horaria?
-    try:
-        existing = _fetch_scalar(
-            conn,
-            f"SELECT COUNT(1) FROM producao_horaria WHERE machine_id=? AND {data_col}=?",
-            (target_mid, data_ref),
-            default=0,
-        )
-        if _safe_int(existing, 0) > 0:
-            return {"ok": True, "skipped": True, "reason": "ja_existe_horaria", "machine_id": target_mid, "date": data_ref}
-    except Exception:
-        pass
-
-    # meta por hora (uniforme)
-    meta_h = _distribute_int_total(meta_dia, None, 24) if meta_dia > 0 else [0] * 24
-
-    # produzido por hora (proporcional à meta quando houver)
-    if sum(meta_h) > 0:
-        prod_h = _distribute_int_total(produzido_dia, meta_h, 24)
-    else:
-        prod_h = _distribute_int_total(produzido_dia, None, 24)
-
-    now_sql = _to_sql_dt(datetime.now(TZ_BAHIA).replace(tzinfo=None))
-
-    # monta INSERT dinamico por colunas existentes
-    insert_cols = ["machine_id", data_col, hour_col]
-    if "baseline_esp" in cols:
-        insert_cols.append("baseline_esp")
-    if "esp_last" in cols:
-        insert_cols.append("esp_last")
-    if "produzido" in cols:
-        insert_cols.append("produzido")
-    if "meta" in cols:
-        insert_cols.append("meta")
-    if "percentual" in cols:
-        insert_cols.append("percentual")
-    if "updated_at" in cols:
-        insert_cols.append("updated_at")
-    if "cliente_id" in cols:
-        insert_cols.append("cliente_id")
-
-    placeholders = ",".join(["?"] * len(insert_cols))
-    sql = f"INSERT INTO producao_horaria ({', '.join(insert_cols)}) VALUES ({placeholders})"
-
-    inserted = 0
-    for h in range(24):
-        meta = _safe_int(meta_h[h], 0)
-        prod = _safe_int(prod_h[h], 0)
-        pct = 0
-        if meta > 0:
-            try:
-                pct = int(round((prod / meta) * 100))
-            except Exception:
-                pct = 0
-
-        vals = []
-        for c in insert_cols:
-            if c == "machine_id":
-                vals.append(target_mid)
-            elif c == data_col:
-                vals.append(data_ref)
-            elif c == hour_col:
-                vals.append(h)
-            elif c == "baseline_esp":
-                vals.append(0)
-            elif c == "esp_last":
-                vals.append(0)
-            elif c == "produzido":
-                vals.append(prod)
-            elif c == "meta":
-                vals.append(meta)
-            elif c == "percentual":
-                vals.append(pct)
-            elif c == "updated_at":
-                vals.append(now_sql)
-            elif c == "cliente_id":
-                vals.append(None)
-            else:
-                vals.append(None)
-
-        try:
-            conn.execute(sql, tuple(vals))
-            inserted += 1
-        except Exception:
-            # se der erro em uma hora, aborta o dia (roll back externo)
-            raise
-
-    return {"ok": True, "inserted_hours": inserted, "machine_id": target_mid, "date": data_ref, "produzido_dia": produzido_dia, "meta_dia": meta_dia}
-
-
-@historico_bp.route("/api/producao/backfill-horaria", methods=["POST"])
-def api_producao_backfill_horaria():
-    """
-    Endpoint manual para preencher producao_horaria usando producao_diaria.
-    Uso:
-      POST /producao/api/producao/backfill-horaria?machine_id=maquina005&days=60
-      POST /producao/api/producao/backfill-horaria?machine_id=maquina005&all=1
-      POST /producao/api/producao/backfill-horaria?machine_id=maquina005&date_from=2026-02-01&date_to=2026-02-23
-    """
-    machine_id = (request.args.get("machine_id") or "").strip()
-    if not machine_id:
-        return jsonify({"ok": False, "error": "machine_id obrigatorio"}), 400
-
-    all_flag = (request.args.get("all") or "").strip() == "1"
-    days = _safe_int(request.args.get("days"), 60)
-    days = max(1, min(days, 366))
-
-    d_from = _parse_date_any((request.args.get("date_from") or "").strip())
-    d_to = _parse_date_any((request.args.get("date_to") or "").strip())
-
-    hoje = datetime.now(TZ_BAHIA).date()
-
-    if d_to is None:
-        d_to = hoje
-    if d_from is None:
-        if all_flag:
-            # tenta achar o primeiro dia com produzido > 0 no diario (para este machine_id)
-            conn0 = _get_conn()
-            try:
-                if not _table_exists(conn0, "producao_diaria"):
-                    return jsonify({"ok": False, "error": "tabela producao_diaria nao existe"}), 400
-                col = _resolve_data_col(conn0, "producao_diaria")
-                mid_raw = (machine_id or "").strip()
-                mid_uns = mid_raw.split("::", 1)[1] if "::" in mid_raw else mid_raw
-                like_suffix = f"%::{mid_uns}"
-                like_prefix = f"{mid_uns}::%"
-
-                row = _fetch_one(
-                    conn0,
-                    f"""
-                    SELECT MIN({col}) as dmin
-                      FROM producao_diaria
-                     WHERE COALESCE(produzido,0) > 0
-                       AND (
-                            machine_id = ?
-                         OR machine_id LIKE ?
-                         OR machine_id LIKE ?
-                       )
-                    """,
-                    (mid_raw, like_suffix, like_prefix),
-                )
-                dmin = _parse_date_any(str(row["dmin"]) if row and row["dmin"] else None)
-                d_from = dmin or (hoje - timedelta(days=days - 1))
-            finally:
-                if not callable(get_db):
-                    try:
-                        conn0.close()
-                    except Exception:
-                        pass
-        else:
-            d_from = hoje - timedelta(days=days - 1)
-
-    if d_from > d_to:
-        d_from, d_to = d_to, d_from
-
-    conn = _get_conn()
-    try:
-        if not _table_exists(conn, "producao_diaria"):
-            return jsonify({"ok": False, "error": "tabela producao_diaria nao existe"}), 400
-        if not _table_exists(conn, "producao_horaria"):
-            return jsonify({"ok": False, "error": "tabela producao_horaria nao existe"}), 400
-
-        total_days = 0
-        backfilled_days = 0
-        inserted_rows = 0
-        detalhes: list[dict] = []
-
-        d = d_from
-        try:
-            conn.execute("BEGIN")
-        except Exception:
-            pass
-
-        while d <= d_to:
-            total_days += 1
-            data_ref = d.isoformat()
-            try:
-                res = _backfill_horaria_for_day(conn, machine_id, data_ref)
-                detalhes.append(res)
-                if res.get("ok") and (not res.get("skipped")):
-                    backfilled_days += 1
-                    inserted_rows += _safe_int(res.get("inserted_hours"), 0)
-            except Exception as e:
-                try:
-                    conn.execute("ROLLBACK")
-                except Exception:
-                    pass
-                return jsonify({"ok": False, "error": "falha no backfill", "date": data_ref, "details": str(e)}), 500
-            d = d + timedelta(days=1)
-
-        try:
-            conn.execute("COMMIT")
-        except Exception:
-            try:
-                conn.commit()
-            except Exception:
-                pass
 
         return jsonify(
             {
                 "ok": True,
                 "machine_id": machine_id,
-                "date_from": d_from.isoformat(),
-                "date_to": d_to.isoformat(),
-                "days_considered": total_days,
-                "days_backfilled": backfilled_days,
-                "rows_inserted": inserted_rows,
-                "details": detalhes,
+                "effective_machine_id": machine_id,
+                "date": data_ref.isoformat(),
+                "hours": hours,
             }
         )
+    except Exception as exc:
+        try:
+            print(
+                "ERROR detalhe-dia:\n" + traceback.format_exc(),
+                flush=True,
+            )
+        except Exception:
+            pass
+
+        return jsonify(
+            {
+                "ok": False,
+                "error": "erro no detalhe-dia",
+                "details": str(exc),
+            }
+        ), 500
     finally:
         if not callable(get_db):
             try:
                 conn.close()
             except Exception:
                 pass
+
+
+def _distribute_total(total: int, slots: int = 24) -> list[int]:
+    total = max(0, _safe_int(total, 0))
+    if slots <= 0:
+        return []
+
+    base = total // slots
+    remainder = total - base * slots
+    values = [base] * slots
+
+    for index in range(remainder):
+        values[index] += 1
+
+    return values
+
+
+@historico_bp.route("/api/producao/backfill-horaria", methods=["POST"])
+def api_producao_backfill_horaria():
+    """
+    Endpoint de compatibilidade para preencher producao_horaria
+    quando existe apenas o consolidado diario.
+    """
+    cliente_id = _cliente_id_sessao()
+    if not cliente_id:
+        return jsonify(
+            {
+                "ok": False,
+                "error": "Cliente da sessao nao identificado",
+            }
+        ), 403
+
+    machine_id = _canonical_machine_id(
+        request.args.get("machine_id"),
+        cliente_id,
+    )
+    if not machine_id:
+        return jsonify(
+            {
+                "ok": False,
+                "error": "machine_id obrigatorio",
+            }
+        ), 400
+
+    date_from = _parse_date_any(request.args.get("date_from"))
+    date_to = _parse_date_any(request.args.get("date_to"))
+    today = datetime.now(TZ_BAHIA).date()
+
+    days = max(1, min(_safe_int(request.args.get("days"), 60), 366))
+    if date_to is None:
+        date_to = today
+    if date_from is None:
+        date_from = date_to - timedelta(days=days - 1)
+    if date_from > date_to:
+        date_from, date_to = date_to, date_from
+
+    conn = _get_conn()
+    try:
+        if not _machine_allowed(conn, cliente_id, machine_id):
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": "Maquina nao encontrada para este cliente",
+                }
+            ), 404
+
+        table = "producao_horaria"
+        cols = _get_columns(conn, table)
+        data_col = _resolve_data_col(conn, table)
+        hour_col = next(
+            (
+                name
+                for name in ("hora_dia", "hora_idx", "hora", "hora_int")
+                if name in cols
+            ),
+            None,
+        )
+
+        if (
+            not data_col
+            or not hour_col
+            or "machine_id" not in cols
+            or "produzido" not in cols
+        ):
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": "schema producao_horaria incompleto",
+                }
+            ), 400
+
+        inserted_rows = 0
+        backfilled_days = 0
+        details = []
+        cursor = date_from
+
+        try:
+            conn.execute("BEGIN")
+        except Exception:
+            pass
+
+        while cursor <= date_to:
+            daily = _production_for_day(
+                conn,
+                cliente_id,
+                machine_id,
+                cursor,
+            )
+            total = max(0, _safe_int(daily.get("produzido"), 0))
+            meta_total = max(0, _safe_int(daily.get("meta"), 0))
+
+            existing = 0
+            try:
+                params = []
+                where = []
+
+                if cliente_id and "cliente_id" in cols:
+                    where.append("cliente_id=?")
+                    params.append(cliente_id)
+
+                where.append("machine_id=?")
+                params.append(machine_id)
+                where.append(f"{data_col}=?")
+                params.append(cursor.isoformat())
+
+                row = conn.execute(
+                    f"SELECT COUNT(1) AS c FROM {table} "
+                    f"WHERE {' AND '.join(where)}",
+                    tuple(params),
+                ).fetchone()
+                existing = _safe_int(row["c"] if row else 0, 0)
+            except Exception:
+                existing = 0
+
+            if total <= 0 or existing > 0:
+                details.append(
+                    {
+                        "date": cursor.isoformat(),
+                        "skipped": True,
+                        "reason": (
+                            "produzido_dia_zero"
+                            if total <= 0
+                            else "ja_existe_horaria"
+                        ),
+                    }
+                )
+                cursor += timedelta(days=1)
+                continue
+
+            production_hours = _distribute_total(total, 24)
+            meta_hours = _distribute_total(meta_total, 24)
+
+            insert_cols = ["machine_id", data_col, hour_col, "produzido"]
+            if "cliente_id" in cols:
+                insert_cols.append("cliente_id")
+            if "meta" in cols:
+                insert_cols.append("meta")
+            if "percentual" in cols:
+                insert_cols.append("percentual")
+            if "updated_at" in cols:
+                insert_cols.append("updated_at")
+
+            sql = (
+                f"INSERT INTO {table} ({', '.join(insert_cols)}) "
+                f"VALUES ({','.join(['?'] * len(insert_cols))})"
+            )
+
+            for hour in range(24):
+                values = []
+                prod_h = production_hours[hour]
+                meta_h = meta_hours[hour]
+                pct = (
+                    int(round((prod_h / meta_h) * 100))
+                    if meta_h > 0
+                    else 0
+                )
+
+                for column in insert_cols:
+                    if column == "machine_id":
+                        values.append(machine_id)
+                    elif column == data_col:
+                        values.append(cursor.isoformat())
+                    elif column == hour_col:
+                        values.append(hour)
+                    elif column == "produzido":
+                        values.append(prod_h)
+                    elif column == "cliente_id":
+                        values.append(cliente_id)
+                    elif column == "meta":
+                        values.append(meta_h)
+                    elif column == "percentual":
+                        values.append(pct)
+                    elif column == "updated_at":
+                        values.append(
+                            datetime.now(TZ_BAHIA)
+                            .replace(tzinfo=None)
+                            .strftime("%Y-%m-%d %H:%M:%S")
+                        )
+                    else:
+                        values.append(None)
+
+                conn.execute(sql, tuple(values))
+                inserted_rows += 1
+
+            backfilled_days += 1
+            details.append(
+                {
+                    "date": cursor.isoformat(),
+                    "skipped": False,
+                    "produzido": total,
+                }
+            )
+            cursor += timedelta(days=1)
+
+        try:
+            conn.execute("COMMIT")
+        except Exception:
+            conn.commit()
+
+        return jsonify(
+            {
+                "ok": True,
+                "machine_id": machine_id,
+                "date_from": date_from.isoformat(),
+                "date_to": date_to.isoformat(),
+                "days_backfilled": backfilled_days,
+                "rows_inserted": inserted_rows,
+                "details": details,
+            }
+        )
+    except Exception as exc:
+        try:
+            conn.execute("ROLLBACK")
+        except Exception:
+            pass
+
+        return jsonify(
+            {
+                "ok": False,
+                "error": "falha no backfill",
+                "details": str(exc),
+            }
+        ), 500
+    finally:
+        if not callable(get_db):
+            try:
+                conn.close()
+            except Exception:
+                pass
+
 
 @historico_bp.route("/historico", methods=["GET"])
 def historico_page():

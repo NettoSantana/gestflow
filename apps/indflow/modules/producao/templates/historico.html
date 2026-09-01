@@ -1,4024 +1,1371 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\producao\templates\historico.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-09-01 10:04 (America/Bahia)
+Motivo: Redesenhar o Histórico Operacional de forma didática, com "Todos" pré-selecionado, período, resumo consolidado, histórico por dia e remoção total do reset de produção.
 #}
 
 {% extends "base.html" %}
-{% block title %}Histórico — IndFlow{% endblock %}
+{% block title %}Histórico Operacional — IndFlow{% endblock %}
 {% block content %}
 
 <style>
-  /* Referência: producao_home.html */
-  .page{
+  .history-page{
     padding:24px;
+    display:flex;
+    flex-direction:column;
+    gap:16px;
   }
 
-  .header-row{
+  .history-header{
     display:flex;
-    justify-content:space-between;
     align-items:flex-end;
+    justify-content:space-between;
     gap:16px;
     flex-wrap:wrap;
-    margin-bottom:16px;
   }
 
-  .subtitle{
-    margin-top:6px;
+  .history-eyebrow{
+    color:#2563eb;
+    font-size:12px;
+    line-height:1;
+    font-weight:900;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    margin-bottom:8px;
+  }
+
+  .history-title{
+    margin:0;
+    color:#0f172a;
+    font-size:30px;
+    line-height:1.1;
+    font-weight:900;
+  }
+
+  .history-description{
+    margin:8px 0 0;
+    color:#64748b;
     font-size:14px;
-    font-weight:700;
-    color:#334155;
+    line-height:1.5;
+    max-width:760px;
   }
 
-  .card{
-    background:#ffffff;
-    border-radius:16px;
-    padding:16px;
-    box-shadow:0 4px 12px rgba(0,0,0,0.10);
-    border:1px solid #e8e8e8;
-  }
-
-  .filter-bar{
+  .history-actions{
     display:flex;
-    align-items:flex-end;
-    gap:12px;
+    gap:10px;
     flex-wrap:wrap;
+  }
+
+  .history-card{
+    background:#fff;
+    border:1px solid #e2e8f0;
+    border-radius:16px;
+    box-shadow:0 6px 18px rgba(15,23,42,.06);
+  }
+
+  .history-section{
+    padding:18px;
+  }
+
+  .history-step{
+    display:flex;
+    align-items:center;
+    gap:10px;
     margin-bottom:14px;
   }
-  .filter-row{
+
+  .history-step-number{
+    width:26px;
+    height:26px;
+    flex:0 0 26px;
     display:flex;
-    align-items:flex-end;
-    gap:14px;
-    flex-wrap:wrap;
-  }
-
-  .filter-group label{
-    display:block;
-    font-size:12px;
-    font-weight:800;
-    color:#475569;
-    text-transform:uppercase;
-    letter-spacing:0.03em;
-    margin-bottom:6px;
-  }
-
-  .filter-group input{
-    height:40px;
-    padding:8px 10px;
-    border:1px solid #cbd5e1;
-    border-radius:10px;
-    font-size:14px;
-    outline:none;
-    background:#fff;
-    min-width:220px;
-  }
-
-  .filter-group input:focus{
-    border-color:#2563eb;
-    box-shadow:0 0 0 2px rgba(37,99,235,0.18);
-  }
-
-  .hint{
-    font-size:12px;
-    color:#64748b;
-    padding-bottom:6px;
-    white-space:nowrap;
-  }
-
-  /* Tabela */
-  table{
-    width:100%;
-    border-collapse:collapse;
-    font-size:14px;
-  }
-
-  thead{
-    display:none;
-  }
-
-  thead th{
-    background:#f1f5f9;
-    color:#0f172a;
-    font-weight:800;
-    padding:12px 14px;
-    text-align:left;
-    border-bottom:1px solid #e8e8e8;
-  }
-
-  tbody td{
-    padding:10px 14px;
-    border-bottom:1px solid #e8e8e8;
-    color:#0f172a;
-  }
-
-  tbody tr:nth-child(odd){ background:#ffffff; }
-  tbody tr:nth-child(even){ background:#f8fbff; }
-
-  tbody tr:hover{
-    background:#eff6ff;
-  }
-
-  .r{ text-align:right; }
-  .text-right{ text-align:right; }
-  .text-center{ text-align:center; }
-
-  .loading td{
-    padding:14px;
-    text-align:center;
-    color:#64748b;
-  }
-
-  /* ===============================
-     OPs no historico
-     =============================== */
-  .op-row td{
-    background:#f8fafc;
-    color:#334155;
-    font-size:13px;
-    font-weight:700;
-    padding-top:4px;
-    padding-bottom:4px;
-    border-bottom:1px solid #94a3b8; /* mais escuro que o dia */
-  }
-
-  /* Status visual sem barra lateral */
-  .op-row.op-row-lista td{
-    background:#ffffff;
-  }
-
-  .op-row.op-row-ativa td{ background:#d9f0e1; }
-
-  .op-row.op-row-encerrada td{ background:#eeeeee; }
-
-  .op-row{
-    cursor:default;
-  }
-
-  .op-row:hover td{
-    filter:brightness(0.98);
-  }
-
-  /* Linha do DIA: cabeçalho industrial */
-  tr.day-row td{
-    padding:0;
-    background:#f3f4f6;
-    border-bottom:1px solid #d1d5db;
-  }
-
-  .day-summary{
-    min-height:50px;
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:16px;
-    padding:10px 16px;
-    background:#f3f4f6;
-  }
-
-  .day-date{
-    flex:0 0 auto;
-    font-size:14px;
-    font-weight:900;
-    color:#374151;
-    letter-spacing:0.01em;
-    text-transform:uppercase;
-  }
-
-  .day-metrics{
-    flex:1 1 auto;
-    display:flex;
-    align-items:center;
-    justify-content:flex-end;
-    gap:10px;
-    flex-wrap:wrap;
-  }
-
-  .day-metric{
-    display:flex;
-    align-items:center;
-    gap:6px;
-    color:#4b5563;
-    font-size:13px;
-    font-weight:800;
-    white-space:nowrap;
-  }
-
-  .day-metric-label{
-    color:#6b7280;
-    font-size:11px;
-    font-weight:900;
-    letter-spacing:0.04em;
-    text-transform:uppercase;
-  }
-
-  .day-divider{
-    width:1px;
-    height:18px;
-    background:#d1d5db;
-  }
-
-  /* Linha da OP mais curta visualmente */
-  td.op-cell{
-    padding-left:14px !important;
-    padding-right:0 !important;
-  }
-
-  .op-content{
-    display:inline-flex;
-    align-items:center;
-    max-width:640px;
-    width:100%;
-    min-height:28px;
-  }
-
-  td.op-actions{
-    width:132px;
-    padding-left:8px !important;
-  }
-
-  .op-pill{
-    display:inline-block;
-    padding:3px 8px;
-    border-radius:999px;
-    font-size:11px;
-    font-weight:900;
-    margin-right:8px;
-    vertical-align:middle;
-  }
-
-  .op-pill-ativa{
-    background:#dcfce7;
-    color:#166534;
-    border:1px solid #d9f0e1;
-  }
-
-  .op-pill-encerrada{
-    background:#e8e8e8;
-    color:#374151;
-    border:1px solid #d1d5db;
-  }
-
-  .op-pill-unk{
-    background:#f1f5f9;
-    color:#334155;
-    border:1px solid #e2e8f0;
-  }
-
-  /* Coluna Acoes (botoes a direita) */
-  td.op-actions{
-    text-align:right;
-    white-space:nowrap;
-  }
-
-  .op-action-btn{
-    display:inline-block;
-    border:1px solid #94a3b8;
-    background:#ffffff;
-    color:#0f172a;
-    border-radius:10px;
-    padding:5px 10px;
-    font-weight:800;
-    font-size:12px;
-    cursor:pointer;
-    margin-left:8px;
-  }
-
-  .op-action-btn:hover{
-    background:#f1f5f9;
-  }
-
-  .op-action-btn-danger{
-    border-color:#b91c1c;
-    color:#b91c1c;
-    background:#ffffff;
-  }
-
-  .op-action-btn-danger:hover{
-    background:#fee2e2;
-  }
-
-  /* Botao vermelho existente (reset por data) */
-  .actions {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
-  .btn-danger {
-    background: #dc3545;
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    padding: 10px 14px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .btn-danger:hover {
-    filter: brightness(0.95);
-  }
-  .btn-danger:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-/* ===============================
-     Modal OP (respeita layout)
-     =============================== */
-  .op-modal-backdrop{
-    position:fixed;
-    inset:0;
-    background:rgba(15,23,42,0.55);
-    display:none;
     align-items:center;
     justify-content:center;
-    padding:24px;
-    z-index:9999;
+    border-radius:50%;
+    background:#eaf2ff;
+    color:#2563eb;
+    font-size:12px;
+    font-weight:900;
   }
 
-  .op-modal{
-    width:100%;
-    max-width:1100px;
-    background:#ffffff;
-    border-radius:16px;
-    box-shadow:0 18px 60px rgba(0,0,0,0.30);
-    border:1px solid #e8e8e8;
-    overflow:hidden;
-
-    /* rolagem no conteudo do modal */
-    max-height:90vh;
-    display:flex;
-    flex-direction:column;
-  }
-
-  .op-modal-header{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    padding:14px 16px;
-    border-bottom:1px solid #e8e8e8;
-    background:#ffffff;
-  }
-
-  .op-modal-title{
+  .history-step-title{
+    margin:0;
+    color:#0f172a;
     font-size:16px;
     font-weight:900;
-    color:#0f172a;
   }
 
-  .op-modal-close{
-    border:1px solid #cbd5e1;
-    background:#ffffff;
-    width:36px;
-    height:36px;
-    border-radius:10px;
-    cursor:pointer;
-    font-size:18px;
-    line-height:1;
-  }
-
-  .op-modal-body{
-    padding:16px;
-
-    /* rolagem interna do modal (mantem header/footer fixos) */
-    flex:1;
-    overflow:auto;
-  }
-
-  .op-form-grid{
+  .history-filter-grid{
     display:grid;
-    grid-template-columns: repeat(12, 1fr);
+    grid-template-columns:minmax(220px,1.25fr) minmax(220px,1fr) auto;
     gap:12px;
+    align-items:end;
   }
 
-  .op-field{
-    display:flex;
-    flex-direction:column;
-    gap:6px;
-  }
-
-  .op-field label{
-    font-size:12px;
-    font-weight:800;
+  .history-field label{
+    display:block;
+    margin:0 0 6px;
     color:#475569;
-    text-transform:uppercase;
-    letter-spacing:0.03em;
-  }
-
-  .op-field input,
-  .op-field textarea{
-    border:1px solid #cbd5e1;
-    border-radius:10px;
-    padding:10px 10px;
-    font-size:14px;
-    outline:none;
-    background:#ffffff;
-    color:#0f172a;
-  }
-
-  .op-field textarea{
-    min-height:92px;
-    resize:vertical;
-  }
-
-  .op-field input:focus,
-  .op-field textarea:focus{
-    border-color:#2563eb;
-    box-shadow:0 0 0 2px rgba(37,99,235,0.18);
-  }
-
-  .op-ro input,
-  .op-ro textarea{
-    background:#eaf2ff;
-    border-color:#b6d2ff;
-  }
-
-  .op-ro input[readonly],
-  .op-ro textarea[readonly]{
-    color:#0f172a;
-  }
-
-  .op-edit input,
-  .op-edit textarea{
-    background:#fff7d6;
-    border-color:#f2d37a;
-  }
-
-  .op-modal-footer{
-    display:flex;
-    justify-content:flex-end;
-    gap:10px;
-    padding:12px 16px;
-    border-top:1px solid #e8e8e8;
-    background:#ffffff;
-  }
-
-  .btn-secondary{
-    background:#ffffff;
-    color:#0f172a;
-    border:1px solid #cbd5e1;
-    border-radius:10px;
-    padding:10px 14px;
-    font-weight:700;
-    cursor:pointer;
-  }
-
-  .btn-primary{
-    background:#2563eb;
-    color:#ffffff;
-    border:none;
-    border-radius:10px;
-    padding:10px 14px;
-    font-weight:800;
-    cursor:pointer;
-  }
-
-  .btn-primary:disabled{
-    opacity:0.6;
-    cursor:not-allowed;
-  }
-
-  .col-12{ grid-column: span 12; }
-  .col-6{ grid-column: span 6; }
-  .col-4{ grid-column: span 4; }
-  .col-3{ grid-column: span 3; }
-  .col-2{ grid-column: span 2; }
-
-  /* ===============================
-     Bobinas (fechamento por bobina)
-     =============================== */
-
-  .bobinas-m-wrap{
-    margin-top:12px;
-    padding:12px;
-    border:1px solid #e8e8e8;
-    border-radius:14px;
-    background:#ffffff;
-  }
-  .bobinas-m-header{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:12px;
-    margin-bottom:10px;
-  }
-  .bobinas-m-title{
-    font-size:12px;
+    font-size:11px;
     font-weight:900;
-    color:#0f172a;
+    letter-spacing:.06em;
     text-transform:uppercase;
-    letter-spacing:0.03em;
-  }
-  .bobinas-m-list{
-    display:flex;
-    flex-direction:column;
-    gap:10px;
-  }
-  .bobinas-m-row{
-    display:flex;
-    align-items:center;
-    gap:10px;
-  }
-  .bobinas-m-row input{
-    width:220px;
-    max-width:100%;
   }
 
-  .bobinas-wrap{
-    grid-column: span 12;
+  .history-field select,
+  .history-field input{
+    width:100%;
+    height:44px;
+    border:1px solid #cbd5e1;
+    border-radius:10px;
+    padding:0 12px;
+    background:#fff;
+    color:#0f172a;
+    font-size:14px;
+    font-weight:700;
+    outline:none;
+  }
+
+  .history-field select:focus,
+  .history-field input:focus{
+    border-color:#2563eb;
+    box-shadow:0 0 0 3px rgba(37,99,235,.12);
+  }
+
+  .history-query-button{
+    min-width:190px;
+    height:44px;
+    border:0;
+    border-radius:10px;
+    background:#2563eb;
+    color:#fff;
+    padding:0 18px;
+    font-size:14px;
+    font-weight:900;
+    cursor:pointer;
+  }
+
+  .history-query-button:hover{
+    filter:brightness(.97);
+  }
+
+  .history-query-button:disabled{
+    opacity:.65;
+    cursor:wait;
+  }
+
+  .history-helper{
+    margin:10px 0 0;
+    color:#64748b;
+    font-size:12px;
+    line-height:1.45;
+  }
+
+  .history-custom-dates{
+    display:none;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+    margin-top:12px;
+    max-width:600px;
+  }
+
+  .history-custom-dates.open{
+    display:grid;
+  }
+
+  .history-summary{
+    display:grid;
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    gap:12px;
+  }
+
+  .history-kpi{
+    min-height:104px;
+    padding:16px;
+    border:1px solid #e2e8f0;
+    border-radius:14px;
+    background:#fff;
+  }
+
+  .history-kpi-label{
+    color:#64748b;
+    font-size:11px;
+    font-weight:900;
+    letter-spacing:.05em;
+    text-transform:uppercase;
+  }
+
+  .history-kpi-value{
+    margin-top:10px;
+    color:#0f172a;
+    font-size:25px;
+    line-height:1;
+    font-weight:900;
+  }
+
+  .history-kpi-sub{
+    margin-top:8px;
+    color:#94a3b8;
+    font-size:11px;
+    font-weight:700;
+  }
+
+  .history-list{
     display:flex;
     flex-direction:column;
     gap:12px;
+  }
+
+  .history-day{
+    overflow:hidden;
+    border:1px solid #e2e8f0;
+    border-radius:14px;
+    background:#fff;
+  }
+
+  .history-day-main{
+    display:grid;
+    grid-template-columns:minmax(220px,1.25fr) minmax(460px,2.4fr) auto;
+    gap:16px;
+    align-items:center;
+    padding:16px;
+  }
+
+  .history-day-date{
+    color:#0f172a;
+    font-size:15px;
+    font-weight:900;
+  }
+
+  .history-day-sub{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
     margin-top:6px;
   }
 
-  .bobina-card{
-    border:1px solid #e8e8e8;
-    border-radius:14px;
-    padding:12px;
-    background:#ffffff;
+  .history-chip{
+    display:inline-flex;
+    align-items:center;
+    min-height:24px;
+    padding:3px 8px;
+    border-radius:999px;
+    background:#f1f5f9;
+    border:1px solid #e2e8f0;
+    color:#475569;
+    font-size:11px;
+    font-weight:800;
   }
 
-  .bobina-card.bobina-card-ativa{
-    background:#dcfce7;
-    border-color:#4C9F70;
+  .history-day-metrics{
+    display:grid;
+    grid-template-columns:repeat(5,minmax(90px,1fr));
+    gap:10px;
   }
 
-  .bobina-card.bobina-card-travada{
-    background:#e5e7eb;
-    border-color:#BFC5CC;
+  .history-day-metric{
+    padding-left:10px;
+    border-left:2px solid #e2e8f0;
   }
 
-  .bobina-card.bobina-card-futura{
+  .history-day-metric-label{
+    color:#94a3b8;
+    font-size:10px;
+    font-weight:900;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+  }
+
+  .history-day-metric-value{
+    margin-top:4px;
+    color:#0f172a;
+    font-size:14px;
+    font-weight:900;
+    white-space:nowrap;
+  }
+
+  .history-view-day{
+    min-width:96px;
+    height:38px;
+    border:1px solid #bfdbfe;
+    border-radius:9px;
+    background:#eff6ff;
+    color:#1d4ed8;
+    font-size:12px;
+    font-weight:900;
+    cursor:pointer;
+  }
+
+  .history-view-day:hover{
     background:#dbeafe;
-    border-color:#6A9FD4;
-    opacity:0.92;
   }
 
-  .bobina-card.bobina-card-pendente{
-    background:#fef3c7;
-    border-color:#f59e0b;
-    animation:bobina-pendente-pulse 1.15s ease-in-out infinite;
+  .history-machine-panel{
+    display:none;
+    border-top:1px solid #e2e8f0;
+    background:#f8fafc;
+    padding:12px 16px 16px;
   }
 
-  @keyframes bobina-pendente-pulse{
-    0%{
-      box-shadow:0 0 0 0 rgba(245,158,11,0.15);
-      filter:brightness(1);
-    }
-    50%{
-      box-shadow:0 0 0 4px rgba(245,158,11,0.28);
-      filter:brightness(1.06);
-    }
-    100%{
-      box-shadow:0 0 0 0 rgba(245,158,11,0.15);
-      filter:brightness(1);
-    }
+  .history-machine-panel.open{
+    display:block;
   }
 
-  .bobina-card input[readonly],
-  .bobina-card input:disabled{
-    cursor:not-allowed;
+  .history-machine-row{
+    display:grid;
+    grid-template-columns:minmax(150px,1fr) repeat(5,minmax(85px,.8fr)) auto;
+    gap:10px;
+    align-items:center;
+    padding:11px 0;
+    border-bottom:1px solid #e2e8f0;
   }
 
-  .bobina-card-futura .op-edit input{
-    background:#dbeafe;
-    border-color:#6A9FD4;
+  .history-machine-row:last-child{
+    border-bottom:0;
   }
 
-  .bobina-card-pendente .op-edit input{
-    background:#fef3c7;
-    border-color:#f59e0b;
-  }
-
-  .bobina-title{
+  .history-machine-name{
+    color:#0f172a;
     font-size:13px;
     font-weight:900;
-    color:#0f172a;
-    margin-bottom:10px;
-    display:flex;
-    justify-content:space-between;
-    gap:10px;
-    flex-wrap:wrap;
   }
 
-  .bobina-sub{
-    font-size:12px;
-    font-weight:700;
+  .history-machine-value{
     color:#475569;
+    font-size:12px;
+    font-weight:800;
   }
 
-  .bobina-grid{
-    display:grid;
-    grid-template-columns: repeat(12, 1fr);
-    gap:12px;
+  .history-machine-value strong{
+    display:block;
+    color:#94a3b8;
+    font-size:9px;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+    margin-bottom:2px;
   }
 
+  .history-detail-button{
+    height:34px;
+    border:1px solid #cbd5e1;
+    border-radius:8px;
+    background:#fff;
+    color:#0f172a;
+    padding:0 10px;
+    font-size:11px;
+    font-weight:900;
+    cursor:pointer;
+  }
 
-  /* Modal Dia (detalhe do dia) */
-  .day-modal-backdrop{
+  .history-ops{
+    grid-column:1 / -1;
+    display:flex;
+    gap:6px;
+    flex-wrap:wrap;
+    padding-top:2px;
+  }
+
+  .history-op{
+    padding:4px 8px;
+    border-radius:999px;
+    background:#fff;
+    border:1px solid #cbd5e1;
+    color:#475569;
+    font-size:10px;
+    font-weight:800;
+  }
+
+  .history-empty,
+  .history-loading,
+  .history-error{
+    padding:34px 18px;
+    text-align:center;
+    border:1px dashed #cbd5e1;
+    border-radius:14px;
+    color:#64748b;
+    background:#f8fafc;
+    font-size:13px;
+    font-weight:700;
+  }
+
+  .history-error{
+    color:#b91c1c;
+    background:#fef2f2;
+    border-color:#fecaca;
+  }
+
+  .history-note{
+    display:none;
+    padding:12px 14px;
+    border-radius:12px;
+    border:1px solid #fdba74;
+    background:#fff7ed;
+    color:#9a3412;
+    font-size:12px;
+    font-weight:800;
+  }
+
+  .history-note.open{
+    display:block;
+  }
+
+  .history-modal-backdrop{
     position:fixed;
     inset:0;
-    background:rgba(15,23,42,0.55);
+    z-index:9999;
     display:none;
     align-items:center;
     justify-content:center;
     padding:18px;
-    z-index:60;
+    background:rgba(15,23,42,.62);
   }
-  .day-modal-backdrop.open{ display:flex; }
 
-  .day-modal{
-    width:min(1100px, 96vw);
-    max-height:86vh;
-    overflow:auto;
-    background:#ffffff;
-    border-radius:16px;
-    border:1px solid #e8e8e8;
-    box-shadow:0 18px 40px rgba(0,0,0,0.30);
+  .history-modal-backdrop.open{
+    display:flex;
   }
-  .day-modal-header{
+
+  .history-modal{
+    width:min(1120px,96vw);
+    max-height:90vh;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    border-radius:16px;
+    background:#fff;
+    box-shadow:0 24px 70px rgba(15,23,42,.35);
+  }
+
+  .history-modal-header{
     display:flex;
     align-items:center;
     justify-content:space-between;
     gap:12px;
     padding:14px 16px;
-    border-bottom:1px solid #e8e8e8;
-    background:#f8fafc;
+    border-bottom:1px solid #e2e8f0;
   }
-  .day-modal-title{
-    font-weight:900;
+
+  .history-modal-title{
     color:#0f172a;
     font-size:15px;
+    font-weight:900;
   }
-  .day-modal-close{
-    border:1px solid #cbd5e1;
-    background:#ffffff;
-    color:#0f172a;
-    border-radius:10px;
+
+  .history-modal-close{
     height:34px;
+    border:1px solid #cbd5e1;
+    border-radius:8px;
+    background:#fff;
+    color:#0f172a;
     padding:0 12px;
+    font-size:12px;
     font-weight:900;
     cursor:pointer;
   }
-  .day-modal-body{ padding:14px 16px 18px 16px; }
 
-  .day-hour-table{
+  .history-modal-body{
+    overflow:auto;
+    padding:12px 16px 18px;
+  }
+
+  .history-hour-table{
     width:100%;
     border-collapse:collapse;
-    font-size:13px;
-  }
-  .day-hour-table th{
-    background:#f1f5f9;
-    padding:10px 12px;
-    text-align:left;
-    font-weight:900;
-    color:#0f172a;
-    border-bottom:1px solid #e2e8f0;
-  }
-  .day-hour-table td{
-    padding:10px 12px;
-    border-bottom:1px solid #e2e8f0;
-    vertical-align:top;
-  }
-  .hour-cell{
-    display:flex;
-    flex-direction:column;
-    gap:8px;
-  }
-  .hour-top{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:12px;
-    flex-wrap:wrap;
-  }
-  .hour-metrics{
-    display:flex;
-    align-items:center;
-    gap:10px;
-    flex-wrap:wrap;
-    font-weight:800;
-    color:#0f172a;
-  }
-  .hour-metrics span{
-    display:inline-block;
-    padding:4px 8px;
-    border-radius:999px;
-    background:#f1f5f9;
-    border:1px solid #e2e8f0;
-  }
-
-  .tbar{
-    width:100%;
-    height:12px;
-    border-radius:999px;
-    background:#e8e8e8;
-    overflow:hidden;
-    display:flex;
-    border:1px solid #cbd5e1;
-  }
-  .tseg{ height:100%; }
-  .tseg.run{ background:#16a34a; }
-  .tseg.stop{ background:#dc2626; cursor:pointer; }
-  .tseg.stop:hover{ filter:brightness(.88); box-shadow:inset 0 0 0 1px rgba(255,255,255,.55); }
-  .tseg.np{ background:#94a3b8; }
-
-  /* Barra simples (progresso da hora) */
-  .pbar{
-    width:100%;
-    height:12px;
-    border-radius:999px;
-    background:#e8e8e8;
-    overflow:hidden;
-    border:1px solid #cbd5e1;
-  }
-  .pfill{
-    height:100%;
-    width:0%;
-    border-radius:999px;
-  }
-  .pfill.run{ background:#16a34a; }
-  .pfill.stop{ background:#dc2626; }
-  .pfill.np{ background:#94a3b8; }
-
-  /* Clique na linha do dia */
-  tr.day-row{ cursor:pointer; }
-  tr.day-row:hover td,
-  tr.day-row:hover .day-summary{ background:#eceff3; }
-
-
-  .hwrap{
-    display:flex;
-    flex-direction:column;
-    gap:8px;
-  }
-  .pills{
-    display:flex;
-    flex-wrap:wrap;
-    gap:10px;
-    margin-bottom:4px;
-  }
-  .pill{
-    padding:4px 10px;
     font-size:12px;
   }
 
+  .history-hour-table th{
+    position:sticky;
+    top:0;
+    z-index:2;
+    padding:9px 8px;
+    background:#f1f5f9;
+    color:#475569;
+    text-align:left;
+    font-size:10px;
+    font-weight:900;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+    border-bottom:1px solid #cbd5e1;
+  }
+
+  .history-hour-table td{
+    padding:9px 8px;
+    color:#0f172a;
+    border-bottom:1px solid #e2e8f0;
+    vertical-align:middle;
+  }
+
+  .history-timeline{
+    min-width:220px;
+    height:11px;
+    display:flex;
+    overflow:hidden;
+    border:1px solid #cbd5e1;
+    border-radius:999px;
+    background:#e2e8f0;
+  }
+
+  .history-seg{
+    height:100%;
+  }
+
+  .history-seg.run{
+    background:#16a34a;
+  }
+
+  .history-seg.stop{
+    background:#dc2626;
+    cursor:pointer;
+  }
+
+  .history-seg.stop:hover{
+    filter:brightness(.88);
+  }
+
+  .history-seg.np,
+  .history-seg.idle{
+    background:#94a3b8;
+  }
+
+  @media (max-width:1100px){
+    .history-summary{
+      grid-template-columns:repeat(3,minmax(0,1fr));
+    }
+
+    .history-day-main{
+      grid-template-columns:1fr;
+    }
+
+    .history-day-metrics{
+      grid-template-columns:repeat(5,minmax(0,1fr));
+    }
+
+    .history-view-day{
+      width:100%;
+    }
+
+    .history-machine-row{
+      grid-template-columns:repeat(3,minmax(0,1fr));
+    }
+
+    .history-machine-name,
+    .history-ops{
+      grid-column:1 / -1;
+    }
+  }
+
+  @media (max-width:760px){
+    .history-page{
+      padding:14px;
+    }
+
+    .history-title{
+      font-size:25px;
+    }
+
+    .history-filter-grid{
+      grid-template-columns:1fr;
+    }
+
+    .history-query-button{
+      width:100%;
+    }
+
+    .history-custom-dates{
+      grid-template-columns:1fr;
+    }
+
+    .history-summary{
+      grid-template-columns:1fr 1fr;
+    }
+
+    .history-day-metrics{
+      grid-template-columns:1fr 1fr;
+    }
+
+    .history-machine-row{
+      grid-template-columns:1fr 1fr;
+    }
+
+    .history-detail-button{
+      grid-column:1 / -1;
+      width:100%;
+    }
+  }
 </style>
 
-<div class="page">
-
-  <div class="page-header">
-    <div class="page-heading">
-      <div class="page-eyebrow">Análise operacional</div>
-      <h1 class="page-title">Histórico</h1>
-      <p class="page-description">Consulte produção, OP/bobinas, refugo e eventos por dia sem misturar dados entre empresas.</p>
-      <div class="subtitle" id="machine-name">Máquina: —</div>
+<div class="history-page">
+  <div class="history-header">
+    <div>
+      <div class="history-eyebrow">Análise operacional</div>
+      <h1 class="history-title">Histórico Operacional</h1>
+      <p class="history-description">
+        Consulte tudo o que aconteceu nas máquinas no período: produção, tempo produzindo,
+        tempo parado, OPs e paradas.
+      </p>
     </div>
-    <div class="page-actions">
+
+    <div class="history-actions">
       <a class="btn btn-secondary" href="/producao/">Produção</a>
       <a class="btn btn-primary" href="/">Painel Industrial</a>
     </div>
   </div>
 
-  <div id="historyTestNotice" class="page-note" style="display:none;margin-bottom:14px;background:#fff7ed;border-color:#fdba74;color:#9a3412;"><strong>DADOS DE TESTE:</strong> TESTE01 é sintética. Clique nas barras vermelhas para validar a classificação de paradas sem tocar na CORPO01.</div>
-
-  <div class="card">
-
-    <!-- EM CIMA: BUSCA POR DATA -->
-    <div class="filter-bar">
-      <div class="filter-group">
-        <label for="filter-date">Buscar por data</label>
-        <input id="filter-date" type="date">
-      </div>
-
-      <div class="hint">Selecione uma data para filtrar (opcional)</div>
-      <div class="actions">
-        <button id="btn-reset-date" type="button" class="btn-danger">Zerar producao por data</button>
-      </div>
-    </div>
-
-    <!-- EMBAIXO: TABELA POR DIA -->
-    <table>
-      <thead>
-        <tr>
-          <th>Data</th>
-          <th class="r">Produção Total</th>
-          <th class="r">Peças Boas</th>
-          <th class="r">Refugo</th>
-            <th class="r">Ações</th>
-        </tr>
-      </thead>
-
-      <tbody id="historico-body">
-        <tr class="loading"><td colspan="5">Carregando histórico...</td></tr>
-      </tbody>
-    </table>
-
+  <div id="historyTestNotice" class="history-note">
+    DADOS DE TESTE: a máquina TESTE01 é sintética.
   </div>
 
-</div>
-
-<!-- ===============================
-     MODAL OP (abre ao clicar na linha OP)
-     Azul = read-only | Amarelo = editavel
-     =============================== -->
-<div id="op-modal-backdrop" class="op-modal-backdrop" aria-hidden="true">
-  <div class="op-modal" role="dialog" aria-modal="true" aria-labelledby="op-modal-title">
-    <div class="op-modal-header">
-      <div class="op-modal-title" id="op-modal-title">OP</div>
-      <button type="button" id="op-modal-close" class="op-modal-close">x</button>
+  <section class="history-card history-section">
+    <div class="history-step">
+      <div class="history-step-number">1</div>
+      <h2 class="history-step-title">Escolha o que deseja consultar</h2>
     </div>
 
-    <div class="op-modal-body">
-      <div class="op-form-grid">
+    <div class="history-filter-grid">
+      <div class="history-field">
+        <label for="historyMachine">Máquina</label>
+        <select id="historyMachine">
+          <option value="all" selected>Todos</option>
+        </select>
+      </div>
 
+      <div class="history-field">
+        <label for="historyPeriod">Período</label>
+        <select id="historyPeriod">
+          <option value="1">Hoje</option>
+          <option value="yesterday">Ontem</option>
+          <option value="7" selected>Últimos 7 dias</option>
+          <option value="30">Últimos 30 dias</option>
+          <option value="custom">Período personalizado</option>
+        </select>
+      </div>
 
-<!-- Linha 1 (read-only / azul) -->
-        <div class="op-field op-ro col-3">
-          <label>Máquina</label>
-          <input id="opv_machine" type="text" readonly>
-        </div>
-        <div class="op-field op-ro col-3">
-          <label>Operador</label>
-          <input id="opv_operador" type="text" readonly>
-        </div>
-        <div class="op-field op-ro col-3">
-          <label>Lote</label>
-          <input id="opv_lote" type="text" readonly>
-        </div>
-        <div class="op-field op-ro col-3">
-          <label>Status</label>
-          <input id="opv_status" type="text" readonly>
-        </div>
+      <button id="historySearch" class="history-query-button" type="button">
+        Consultar histórico
+      </button>
+    </div>
 
-        <!-- Linha 2 (read-only / azul) -->
-        <div class="op-field op-ro col-3">
-          <label>OS</label>
-          <input id="opv_os" type="text" readonly>
-        </div>
-        <div class="op-field op-ro col-3">
-          <label>GR e/ou fio</label>
-          <input id="opv_gr_fio" type="text" readonly>
-        </div>
-        <div class="op-field op-ro col-3">
-          <label>Conversão m/pcs</label>
-          <input id="opv_conv" type="text" readonly>
-        </div>
-        <div class="op-field op-ro col-3">
-          <label>Bobinas</label>
-          <input id="opv_bobinas_resumo" type="text" readonly>
-        </div>
+    <div id="historyCustomDates" class="history-custom-dates">
+      <div class="history-field">
+        <label for="historyDateFrom">Data inicial</label>
+        <input id="historyDateFrom" type="date">
+      </div>
 
-        <!-- Linha 3 (read-only / azul) -->
-        <div class="op-field op-ro col-6">
-          <label>ABERTURA OP</label>
-          <input id="opv_started" type="text" readonly>
-        </div>
-        <div class="op-field op-ro col-6">
-          <label>FINAL OP</label>
-          <input id="opv_ended" type="text" readonly>
-        </div>
-
-
-        <!-- Bobinas (metros) - editavel no modo edicao -->
-        <div class="bobinas-m-wrap" id="bobinas-m-wrap" style="display:none;">
-          <div class="bobinas-m-header">
-            <div class="bobinas-m-title">Bobinas (metros)</div>
-            <button type="button" class="btn-secondary" id="bobinas-m-add">Adicionar bobina</button>
-          </div>
-          <div class="bobinas-m-list" id="bobinas-m-list">
-            <!-- preenchido via JS -->
-          </div>
-        </div>
-
-        <!-- Bobinas (fechamento por bobina) -->
-        <div class="bobinas-wrap" id="bobinas-wrap">
-          <!-- preenchido via JS -->
-        </div>
-
-        <!-- Observações (editavel / amarelo) -->
-        <div class="op-field op-edit col-12">
-          <label>Observações</label>
-          <textarea id="ope_obs"></textarea>
-        </div>
-
+      <div class="history-field">
+        <label for="historyDateTo">Data final</label>
+        <input id="historyDateTo" type="date">
       </div>
     </div>
 
-    <div class="op-modal-footer">
-      <button type="button" id="op-modal-toggle" class="btn-secondary">Ativar OP</button>
-      <button type="button" id="op-modal-swap" class="btn-secondary">Troca de Bobina</button>
-      <button type="button" id="op-modal-pdf" class="btn-secondary">Gerar PDF</button>
+    <p class="history-helper">
+      “Todos” já vem selecionado para mostrar uma visão consolidada. Para investigar uma máquina,
+      selecione-a e consulte novamente.
+    </p>
+  </section>
+
+  <section class="history-card history-section">
+    <div class="history-step">
+      <div class="history-step-number">2</div>
+      <h2 class="history-step-title">Resumo do período</h2>
     </div>
-  </div>
+
+    <div class="history-summary">
+      <div class="history-kpi">
+        <div class="history-kpi-label">Produção total</div>
+        <div id="kpiProduction" class="history-kpi-value">0</div>
+        <div class="history-kpi-sub">peças produzidas</div>
+      </div>
+
+      <div class="history-kpi">
+        <div class="history-kpi-label">Tempo produzindo</div>
+        <div id="kpiRun" class="history-kpi-value">0h 00min</div>
+        <div class="history-kpi-sub">estado RUN</div>
+      </div>
+
+      <div class="history-kpi">
+        <div class="history-kpi-label">Tempo parado</div>
+        <div id="kpiStop" class="history-kpi-value">0h 00min</div>
+        <div class="history-kpi-sub">estado STOP</div>
+      </div>
+
+      <div class="history-kpi">
+        <div class="history-kpi-label">OPs</div>
+        <div id="kpiOps" class="history-kpi-value">0</div>
+        <div class="history-kpi-sub">ordens no período</div>
+      </div>
+
+      <div class="history-kpi">
+        <div class="history-kpi-label">Paradas</div>
+        <div id="kpiStops" class="history-kpi-value">0</div>
+        <div class="history-kpi-sub">ocorrências registradas</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="history-card history-section">
+    <div class="history-step">
+      <div class="history-step-number">3</div>
+      <h2 class="history-step-title">Histórico por dia</h2>
+    </div>
+
+    <div id="historyList" class="history-list">
+      <div class="history-loading">Carregando histórico...</div>
+    </div>
+  </section>
 </div>
 
-
-<!-- ===============================
-     MODAL DIA (abre ao clicar na linha do DIA)
-     Cada linha (hora) tem duas metades:
-     - topo: meta / produzido / refugo
-     - baixo: barra timeline RUN/STOP/NP
-     =============================== -->
-<div id="day-modal-backdrop" class="day-modal-backdrop" aria-hidden="true">
-  <div class="day-modal" role="dialog" aria-modal="true" aria-labelledby="day-modal-title">
-    <div class="day-modal-header">
-      <div class="day-modal-title" id="day-modal-title">Detalhe do dia</div>
-      <button type="button" id="day-modal-close" class="day-modal-close">Fechar</button>
+<div id="historyModalBackdrop" class="history-modal-backdrop" aria-hidden="true">
+  <div class="history-modal" role="dialog" aria-modal="true" aria-labelledby="historyModalTitle">
+    <div class="history-modal-header">
+      <div id="historyModalTitle" class="history-modal-title">Detalhe do dia</div>
+      <button id="historyModalClose" class="history-modal-close" type="button">Fechar</button>
     </div>
-    <div class="day-modal-body">
-      <table class="day-hour-table">
+
+    <div class="history-modal-body">
+      <table class="history-hour-table">
         <thead>
           <tr>
-            <th style="width:90px;">Hora</th>
-            <th>Detalhe</th>
+            <th>Hora</th>
+            <th>Produção</th>
+            <th>Meta</th>
+            <th>Produzindo</th>
+            <th>Parado</th>
+            <th>Paradas</th>
+            <th>Linha do tempo</th>
           </tr>
         </thead>
-        <tbody id="day-hour-tbody">
-          <tr><td colspan="2">Carregando...</td></tr>
+        <tbody id="historyHourBody">
+          <tr><td colspan="7">Carregando...</td></tr>
         </tbody>
       </table>
     </div>
   </div>
 </div>
 
-
 <script>
 (function(){
   "use strict";
 
-  // Helpers: datas da OP
-  // ABERTURA_OP: nasce ao criar (nao deve ser sobrescrita na ativacao)
-  // ATIVACAO_OP: nasce ao ativar
-  function getOpAberturaIso(op){
-    if(!op) return "";
-    return (
-      op.abertura_op ||
-      op.abertura_at ||
-      op.created_at ||
-      op.createdAt ||
-      op.started_at ||
-      ""
-    );
+  const TZ = "America/Bahia";
+  const qs = new URLSearchParams(window.location.search);
+
+  const machineSelect = document.getElementById("historyMachine");
+  const periodSelect = document.getElementById("historyPeriod");
+  const searchButton = document.getElementById("historySearch");
+  const customDates = document.getElementById("historyCustomDates");
+  const dateFromInput = document.getElementById("historyDateFrom");
+  const dateToInput = document.getElementById("historyDateTo");
+  const historyList = document.getElementById("historyList");
+  const testNotice = document.getElementById("historyTestNotice");
+
+  const kpiProduction = document.getElementById("kpiProduction");
+  const kpiRun = document.getElementById("kpiRun");
+  const kpiStop = document.getElementById("kpiStop");
+  const kpiOps = document.getElementById("kpiOps");
+  const kpiStops = document.getElementById("kpiStops");
+
+  const modalBackdrop = document.getElementById("historyModalBackdrop");
+  const modalClose = document.getElementById("historyModalClose");
+  const modalTitle = document.getElementById("historyModalTitle");
+  const hourBody = document.getElementById("historyHourBody");
+
+  let latestPayload = null;
+  let machinesLoaded = false;
+
+  function fmtNum(value){
+    const n = Number(value);
+    return new Intl.NumberFormat("pt-BR").format(Number.isFinite(n) ? Math.floor(n) : 0);
   }
 
-  function getOpAtivacaoIso(op){
-    if(!op) return "";
-    return (
-      op.ativada_at ||
-      op.ativacao_at ||
-      op.activated_at ||
-      op.started_at ||
-      ""
-    );
+  function fmtDuration(seconds){
+    const total = Math.max(0, Math.floor(Number(seconds) || 0));
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    return String(hours) + "h " + String(minutes).padStart(2, "0") + "min";
   }
 
-  // Exporta para debug (evita erro de escopo em handlers)
-  window.getOpAberturaIso = getOpAberturaIso;
-  window.getOpAtivacaoIso = getOpAtivacaoIso;
+  function fmtClock(seconds){
+    const total = Math.max(0, Math.floor(Number(seconds) || 0));
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    return String(hours).padStart(2, "0") + ":" + String(minutes).padStart(2, "0");
+  }
 
-  const IND_TZ = "America/Bahia";
+  function isoToBr(iso){
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ""));
+    return m ? (m[3] + "/" + m[2] + "/" + m[1]) : String(iso || "-");
+  }
 
-  function nowPartsInTz(tz, utcMs){
-    const dtf = new Intl.DateTimeFormat("en-US", {
-      timeZone: tz,
-      hour12: false,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit"
-    });
-    const parts = dtf.formatToParts(new Date(utcMs));
-    const obj = {};
-    for(const p of parts){
-      if(p.type !== "literal"){
-        obj[p.type] = p.value;
-      }
+  function weekdayName(iso){
+    try{
+      const date = new Date(String(iso) + "T12:00:00");
+      const raw = new Intl.DateTimeFormat("pt-BR", { weekday:"long" }).format(date);
+      return raw.charAt(0).toUpperCase() + raw.slice(1);
+    }catch(e){
+      return "";
     }
+  }
+
+  function todayParts(){
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: TZ,
+      year:"numeric",
+      month:"2-digit",
+      day:"2-digit"
+    }).formatToParts(new Date());
+
+    const obj = {};
+    parts.forEach(p => {
+      if(p.type !== "literal") obj[p.type] = p.value;
+    });
+
     return {
-      year: Number(obj.year),
-      month: Number(obj.month),
-      day: Number(obj.day),
-      hour: Number(obj.hour),
-      minute: Number(obj.minute),
-      second: Number(obj.second)
+      year:Number(obj.year),
+      month:Number(obj.month),
+      day:Number(obj.day)
     };
   }
 
-  function tzOffsetMs(tz, utcMs){
-    const p = nowPartsInTz(tz, utcMs);
-    const asUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
+  function isoFromParts(parts){
+    return String(parts.year).padStart(4,"0") + "-" +
+      String(parts.month).padStart(2,"0") + "-" +
+      String(parts.day).padStart(2,"0");
+  }
+
+  function shiftIsoDay(iso, delta){
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ""));
+    if(!m) return "";
+    const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+    d.setUTCDate(d.getUTCDate() + Number(delta || 0));
+    return d.toISOString().slice(0,10);
+  }
+
+  function currentTodayIso(){
+    return isoFromParts(todayParts());
+  }
+
+  function setCustomDatesFromToday(){
+    const today = currentTodayIso();
+    if(!dateToInput.value) dateToInput.value = today;
+    if(!dateFromInput.value) dateFromInput.value = shiftIsoDay(today, -6);
+  }
+
+  function updateCustomVisibility(){
+    const custom = periodSelect.value === "custom";
+    customDates.classList.toggle("open", custom);
+    if(custom) setCustomDatesFromToday();
+  }
+
+  function queryMachineFromUrl(){
+    const raw = qs.get("machine_id") || qs.get("machine") || "";
+    if(!raw) return "all";
+    return raw;
+  }
+
+  function requestedDateFromUrl(){
+    return qs.get("date") || "";
+  }
+
+  function buildHistoryUrl(){
+    const params = new URLSearchParams();
+    params.set("wrap", "1");
+    params.set("machine_id", machineSelect.value || "all");
+
+    const period = periodSelect.value;
+    const today = currentTodayIso();
+
+    if(period === "yesterday"){
+      const yesterday = shiftIsoDay(today, -1);
+      params.set("date_from", yesterday);
+      params.set("date_to", yesterday);
+    }else if(period === "custom"){
+      const start = dateFromInput.value;
+      const end = dateToInput.value;
+      if(!start || !end){
+        throw new Error("Informe a data inicial e a data final.");
+      }
+      params.set("date_from", start);
+      params.set("date_to", end);
+    }else{
+      params.set("days", period || "7");
+    }
+
+    return "/producao/api/producao/historico?" + params.toString();
+  }
+
+  function populateMachines(machines){
+    const current = machineSelect.value || queryMachineFromUrl() || "all";
+    const list = Array.isArray(machines) ? machines : [];
+
+    machineSelect.innerHTML = "";
+    const all = document.createElement("option");
+    all.value = "all";
+    all.textContent = "Todos";
+    machineSelect.appendChild(all);
+
+    list.forEach(machine => {
+      const opt = document.createElement("option");
+      opt.value = String(machine);
+      opt.textContent = String(machine);
+      machineSelect.appendChild(opt);
+    });
+
+    const exists = Array.from(machineSelect.options).some(opt => opt.value === current);
+    machineSelect.value = exists ? current : "all";
+    machinesLoaded = true;
+  }
+
+  function renderSummary(summary){
+    const s = summary || {};
+    kpiProduction.textContent = fmtNum(s.produzido);
+    kpiRun.textContent = fmtDuration(s.tempo_produzindo_sec);
+    kpiStop.textContent = fmtDuration(s.tempo_parado_sec);
+    kpiOps.textContent = fmtNum(s.ops);
+    kpiStops.textContent = fmtNum(s.paradas);
+  }
+
+  function clearSummary(){
+    renderSummary({
+      produzido:0,
+      tempo_produzindo_sec:0,
+      tempo_parado_sec:0,
+      ops:0,
+      paradas:0
+    });
+  }
+
+  function metricHtml(label, value){
+    return (
+      '<div class="history-day-metric">' +
+        '<div class="history-day-metric-label">' + escapeHtml(label) + '</div>' +
+        '<div class="history-day-metric-value">' + escapeHtml(value) + '</div>' +
+      '</div>'
+    );
+  }
+
+  function escapeHtml(value){
+    return String(value === null || value === undefined ? "" : value)
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#39;");
+  }
+
+  function opLabel(op){
+    if(!op) return "OP";
+    const opCode = op.os || op.op || "";
+    const lote = op.lote || "";
+    const status = op.status || "";
+    const parts = [];
+    if(opCode) parts.push("OP " + opCode);
+    if(lote) parts.push("Lote " + lote);
+    if(status) parts.push(status);
+    return parts.length ? parts.join(" · ") : "OP";
+  }
+
+  function machineRowHtml(machine, dateIso){
+    const ops = Array.isArray(machine.ops) ? machine.ops : [];
+    const opsHtml = ops.length
+      ? (
+          '<div class="history-ops">' +
+          ops.map(op => '<span class="history-op">' + escapeHtml(opLabel(op)) + '</span>').join("") +
+          '</div>'
+        )
+      : "";
+
+    return (
+      '<div class="history-machine-row">' +
+        '<div class="history-machine-name">' + escapeHtml(machine.machine_id || "-") + '</div>' +
+        '<div class="history-machine-value"><strong>Produção</strong>' + fmtNum(machine.produzido) + '</div>' +
+        '<div class="history-machine-value"><strong>Produzindo</strong>' + fmtClock(machine.tempo_produzindo_sec) + '</div>' +
+        '<div class="history-machine-value"><strong>Parado</strong>' + fmtClock(machine.tempo_parado_sec) + '</div>' +
+        '<div class="history-machine-value"><strong>OPs</strong>' + fmtNum(machine.ops_count) + '</div>' +
+        '<div class="history-machine-value"><strong>Paradas</strong>' + fmtNum(machine.paradas) + '</div>' +
+        '<button type="button" class="history-detail-button" ' +
+          'data-detail-machine="' + escapeHtml(machine.machine_id || "") + '" ' +
+          'data-detail-date="' + escapeHtml(dateIso) + '">Detalhar</button>' +
+        opsHtml +
+      '</div>'
+    );
+  }
+
+  function renderDays(days){
+    const rows = Array.isArray(days) ? days : [];
+    historyList.innerHTML = "";
+
+    if(!rows.length){
+      historyList.innerHTML =
+        '<div class="history-empty">Nenhum dado foi encontrado para a máquina e o período escolhidos.</div>';
+      return;
+    }
+
+    rows.forEach((day, index) => {
+      const machines = Array.isArray(day.machines) ? day.machines : [];
+      const machineNames = machines.map(m => m.machine_id).filter(Boolean);
+      const machineLabel = machineSelect.value === "all"
+        ? (
+            day.maquinas_count === 1
+              ? "1 máquina"
+              : String(day.maquinas_count || 0) + " máquinas"
+          )
+        : (machineSelect.value || "-");
+
+      const chips = [];
+      chips.push('<span class="history-chip">' + escapeHtml(machineLabel) + '</span>');
+      machineNames.slice(0,4).forEach(name => {
+        chips.push('<span class="history-chip">' + escapeHtml(name) + '</span>');
+      });
+      if(machineNames.length > 4){
+        chips.push('<span class="history-chip">+' + String(machineNames.length - 4) + '</span>');
+      }
+
+      const panelId = "history-day-machines-" + String(index);
+      const dayElement = document.createElement("div");
+      dayElement.className = "history-day";
+
+      dayElement.innerHTML =
+        '<div class="history-day-main">' +
+          '<div>' +
+            '<div class="history-day-date">' +
+              escapeHtml(isoToBr(day.data) + " — " + weekdayName(day.data)) +
+            '</div>' +
+            '<div class="history-day-sub">' + chips.join("") + '</div>' +
+          '</div>' +
+          '<div class="history-day-metrics">' +
+            metricHtml("Produção", fmtNum(day.produzido)) +
+            metricHtml("Produzindo", fmtClock(day.tempo_produzindo_sec)) +
+            metricHtml("Parado", fmtClock(day.tempo_parado_sec)) +
+            metricHtml("OPs", fmtNum(day.ops_count)) +
+            metricHtml("Paradas", fmtNum(day.paradas)) +
+          '</div>' +
+          '<button type="button" class="history-view-day" ' +
+            'data-day-date="' + escapeHtml(day.data) + '" ' +
+            'data-panel-id="' + panelId + '">Ver dia</button>' +
+        '</div>' +
+        '<div id="' + panelId + '" class="history-machine-panel">' +
+          (
+            machines.length
+              ? machines.map(m => machineRowHtml(m, day.data)).join("")
+              : '<div class="history-empty">Sem detalhamento por máquina neste dia.</div>'
+          ) +
+        '</div>';
+
+      historyList.appendChild(dayElement);
+    });
+
+    historyList.querySelectorAll(".history-view-day").forEach(button => {
+      button.addEventListener("click", function(){
+        const dateIso = button.getAttribute("data-day-date") || "";
+
+        if(machineSelect.value !== "all"){
+          openDayDetail(machineSelect.value, dateIso);
+          return;
+        }
+
+        const panelId = button.getAttribute("data-panel-id") || "";
+        const panel = document.getElementById(panelId);
+        if(!panel) return;
+
+        const opening = !panel.classList.contains("open");
+        panel.classList.toggle("open", opening);
+        button.textContent = opening ? "Ocultar" : "Ver dia";
+      });
+    });
+
+    historyList.querySelectorAll("[data-detail-machine]").forEach(button => {
+      button.addEventListener("click", function(){
+        const machine = button.getAttribute("data-detail-machine") || "";
+        const dateIso = button.getAttribute("data-detail-date") || "";
+        openDayDetail(machine, dateIso);
+      });
+    });
+  }
+
+  function setLoading(){
+    historyList.innerHTML = '<div class="history-loading">Carregando histórico...</div>';
+  }
+
+  function setError(message){
+    historyList.innerHTML =
+      '<div class="history-error">' + escapeHtml(message || "Falha ao carregar histórico.") + '</div>';
+  }
+
+  function updateTestNotice(){
+    const isTest = String(machineSelect.value || "").toLowerCase() === "teste01";
+    testNotice.classList.toggle("open", isTest);
+  }
+
+  async function loadHistory(options){
+    const opts = options || {};
+    setLoading();
+    searchButton.disabled = true;
+    searchButton.textContent = "Consultando...";
+
+    try{
+      const response = await fetch(buildHistoryUrl(), {
+        method:"GET",
+        headers:{"Accept":"application/json"}
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if(!response.ok || !payload || payload.ok === false){
+        throw new Error(
+          (payload && (payload.error || payload.details))
+            ? (payload.error || payload.details)
+            : ("Falha ao consultar histórico (HTTP " + response.status + ")")
+        );
+      }
+
+      latestPayload = payload;
+
+      if(!machinesLoaded || opts.refreshMachines){
+        populateMachines(payload.machines || []);
+      }
+
+      renderSummary(payload.summary || {});
+      renderDays(payload.days || payload.dados || []);
+      updateTestNotice();
+    }catch(err){
+      latestPayload = null;
+      clearSummary();
+      setError(err && err.message ? err.message : String(err));
+    }finally{
+      searchButton.disabled = false;
+      searchButton.textContent = "Consultar histórico";
+    }
+  }
+
+  function parseHms(value){
+    const parts = String(value || "00:00:00").split(":");
+    if(parts.length !== 3) return 0;
+    return (Number(parts[0]) || 0) * 3600 +
+      (Number(parts[1]) || 0) * 60 +
+      (Number(parts[2]) || 0);
+  }
+
+  function timezoneOffsetMs(utcMs){
+    const dtf = new Intl.DateTimeFormat("en-US", {
+      timeZone:TZ,
+      hour12:false,
+      year:"numeric",
+      month:"2-digit",
+      day:"2-digit",
+      hour:"2-digit",
+      minute:"2-digit",
+      second:"2-digit"
+    });
+    const obj = {};
+    dtf.formatToParts(new Date(utcMs)).forEach(p => {
+      if(p.type !== "literal") obj[p.type] = p.value;
+    });
+    const asUtc = Date.UTC(
+      Number(obj.year),
+      Number(obj.month) - 1,
+      Number(obj.day),
+      Number(obj.hour),
+      Number(obj.minute),
+      Number(obj.second)
+    );
     return asUtc - utcMs;
   }
 
-  function tzWallToUtcMs(tz, isoDay, hour, minute, second){
-    const s = String(isoDay || "").trim();
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
-    if(!m) return NaN;
+  function bahiaWallToUtcMs(dateIso, hms){
+    const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateIso || ""));
+    const tm = /^(\d{2}):(\d{2}):(\d{2})$/.exec(String(hms || ""));
+    if(!dm || !tm) return NaN;
 
-    const y = Number(m[1]);
-    const mo = Number(m[2]);
-    const d = Number(m[3]);
-
-    const hh = Number(hour || 0);
-    const mm = Number(minute || 0);
-    const ss = Number(second || 0);
-
-    const guess = Date.UTC(y, mo - 1, d, hh, mm, ss);
-
-    const off1 = tzOffsetMs(tz, guess);
+    const guess = Date.UTC(
+      Number(dm[1]),
+      Number(dm[2]) - 1,
+      Number(dm[3]),
+      Number(tm[1]),
+      Number(tm[2]),
+      Number(tm[3])
+    );
+    const off1 = timezoneOffsetMs(guess);
     const utc1 = guess - off1;
-    const off2 = tzOffsetMs(tz, utc1);
-
+    const off2 = timezoneOffsetMs(utc1);
     return guess - off2;
   }
 
-  function nowInTzDate(tz){
-    const ms = Date.now();
-    const p = nowPartsInTz(tz, ms);
-    return new Date(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
-  }
-
-  function todayIsoLocal(){
-    const d = nowInTzDate(IND_TZ);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return y + "-" + m + "-" + day;
-  }
-
-
-
-  function opDiaISO(op){
-    // Usa __dia_ref quando existir (backend)
-    const dr = safeText(op && (op.__dia_ref || op.data_ref || op.data));
-    if(dr) return normalizeDateInput(dr);
-
-    // Fallback: tenta extrair do started_at
-    const st = safeText(op && (op.started_at || op.hs_inicial || op.inicio));
-    const d = normalizeDateInput(st);
-    return d || "";
-  }
-
-  function opIsHoje(op){
-    const d = opDiaISO(op);
-    return (d && d === todayIsoLocal());
-  }
-
-  function espFromStatus(status){
-    const v = Number(status && (
-      status.esp_absoluto ?? status._bd_esp_last ?? status._last_esp_abs_seen ?? status._ph_esp_last_seen ?? status._last_esp_abs
-    ));
-    return Number.isFinite(v) ? v : null;
-  }
-
-  function enrichOpWithLive(op){
-    try{
-      if(!op) return op;
-
-      const statusTxt = safeText(op.status).toUpperCase();
-      const ativa = statusTxt.includes("ATIV");
-      if(!ativa) return op;
-
-      if(!opIsHoje(op)) return op;
-
-      const base = Number(op.baseline_pcs);
-      if(!Number.isFinite(base)) return op;
-
-      const st = lastMachineStatus;
-      if(!st) return op;
-
-      const esp = espFromStatus(st);
-      if(esp === null) return op;
-
-      const delta = Math.max(0, Math.floor(esp - base));
-      const conv = num0(op.op_conv_m_por_pcs ?? op.conv_m_por_pcs ?? st.conv_m_por_pcs ?? st.conv_m_per_pcs ?? 0);
-
-      // Clona leve (evita mutar cache original)
-      const op2 = Object.assign({}, op);
-      op2.esp_atual = esp;
-      op2.op_pcs = delta;
-      op2.op_metros = round2(delta * conv);
-
-      const itens = Array.isArray(op2.bobinas_itens) ? op2.bobinas_itens.slice() : [];
-      if(itens.length > 0){
-        const now = nowInTzDate(IND_TZ);
-        const nowMs = now.getTime();
-
-        // Atualiza apenas a primeira bobina "aberta" (a regra do backend hoje é 1 bobina ativa por OP)
-        const it0 = Object.assign({}, itens[0]);
-        it0.pcs_total = delta;
-        it0.metro_consumido = round2(delta * conv);
-
-        // Tempo: diferenca entre started_at e agora
-        const startedRaw = safeText(it0.started_at || op2.started_at || "");
-        try{
-          const ds = new Date(startedRaw);
-          if(!isNaN(ds.getTime())){
-            const diffMin = Math.max(0, Math.floor((nowMs - ds.getTime()) / 60000));
-            it0.tempo_consumo_min = diffMin;
-          }
-        }catch(e){}
-
-        // Enquanto ativa, nao fixa hora final
-        it0.ended_at = "";
-
-        itens[0] = it0;
-        op2.bobinas_itens = itens;
-      }
-
-      return op2;
-    }catch(e){
-      return op;
+  function timelineHtml(machine, dateIso, segments){
+    const list = Array.isArray(segments) ? segments : [];
+    if(!list.length){
+      return '<div class="history-timeline"><div class="history-seg idle" style="width:100%"></div></div>';
     }
+
+    let total = 0;
+    list.forEach(seg => {
+      total += Math.max(0, parseHms(seg.end) - parseHms(seg.start));
+    });
+    if(total <= 0) total = 3600;
+
+    const html = list.map(seg => {
+      const duration = Math.max(0, parseHms(seg.end) - parseHms(seg.start));
+      const pct = Math.max(0, Math.min(100, (duration / total) * 100));
+      const state = String(seg.state || "IDLE").toUpperCase();
+      const cls = state === "RUN" ? "run" : (state === "STOP" ? "stop" : (state === "NP" ? "np" : "idle"));
+
+      const attrs = cls === "stop"
+        ? (
+            ' data-stop-machine="' + escapeHtml(machine) + '"' +
+            ' data-stop-date="' + escapeHtml(dateIso) + '"' +
+            ' data-stop-start="' + escapeHtml(seg.start || "") + '"' +
+            ' data-stop-end="' + escapeHtml(seg.end || "") + '"' +
+            ' title="Classificar esta parada"'
+          )
+        : "";
+
+      return '<div class="history-seg ' + cls + '" style="width:' + pct.toFixed(3) + '%"' + attrs + '></div>';
+    }).join("");
+
+    return '<div class="history-timeline">' + html + '</div>';
   }
 
-  function isoToBr(value){
-    if(!value || typeof value !== "string") return "-";
-    const s = value.trim();
-    if(!s) return "-";
+  function renderHourDetail(payload){
+    const machine = payload.machine_id || "";
+    const dateIso = payload.date || "";
+    modalTitle.textContent = "Detalhe do dia " + isoToBr(dateIso) + " — " + machine;
+    hourBody.innerHTML = "";
 
-    if(/^(\d{2})\/(\d{2})\/(\d{4})$/.test(s)) return s;
-
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
-    if(m) return `${m[3]}/${m[2]}/${m[1]}`;
-
-    return s;
-  }
-
-
-  function lsKeyTrail(){
-    return "indflow_state_trail::" + String(clienteId || "") + "::" + String(machineId || "");
-  }
-
-  function loadTrail(){
-    try{
-      const raw = localStorage.getItem(lsKeyTrail());
-      if(!raw){ stateTrail = []; return; }
-      const obj = JSON.parse(raw);
-      const arr = Array.isArray(obj && obj.events) ? obj.events : [];
-      stateTrail = arr
-        .filter(e => e && Number.isFinite(Number(e.ts_ms)) && typeof e.state === "string")
-        .map(e => ({ ts_ms: Number(e.ts_ms), state: String(e.state) }))
-        .sort((a,b) => a.ts_ms - b.ts_ms);
-
-      lastTrailState = stateTrail.length ? stateTrail[stateTrail.length-1].state : null;
-      lastTrailTsMs = stateTrail.length ? stateTrail[stateTrail.length-1].ts_ms : null;
-    }catch(err){
-      stateTrail = [];
-      lastTrailState = null;
-      lastTrailTsMs = null;
-    }
-  }
-
-  function saveTrail(){
-    try{
-      const now = Date.now();
-      const cutoff = now - (14 * 24 * 60 * 60 * 1000);
-      const pruned = stateTrail.filter(e => e.ts_ms >= cutoff);
-      stateTrail = pruned;
-      const payload = { v: 1, events: pruned };
-      localStorage.setItem(lsKeyTrail(), JSON.stringify(payload));
-    }catch(err){
-      // ignore
-    }
-  }
-
-  function normalizeStateFromStatus(st){
-    if(!st || typeof st !== "object") return null;
-    if(st.run === 1 || st.run === true) return "RUN";
-    if(st.run === 0 || st.run === false) return "STOP";
-    return null;
-  }
-
-  function appendTrailState(state, tsMs){
-    if(!state) return;
-
-    const ts = Number.isFinite(Number(tsMs)) ? Number(tsMs) : Date.now();
-
-    if(lastTrailState === state){
+    const hours = Array.isArray(payload.hours) ? payload.hours : [];
+    if(!hours.length){
+      hourBody.innerHTML = '<tr><td colspan="7">Sem dados.</td></tr>';
       return;
     }
 
-    stateTrail.push({ ts_ms: ts, state: state });
-    stateTrail.sort((a,b) => a.ts_ms - b.ts_ms);
-
-    lastTrailState = state;
-    lastTrailTsMs = ts;
-
-    saveTrail();
-  }
-
-  function stateLabelFromCode(code){
-    if(code === "RUN") return "PRODUZINDO";
-    if(code === "STOP") return "PARADO";
-    return "FORA DO HORARIO";
-  }
-
-  function isFutureHour(isoDay, hourIdx){
-    const day = String(isoDay);
-    const today = todayIsoLocal();
-
-    if(day > today) return true;
-    if(day < today) return false;
-
-    const h = Number(hourIdx);
-    if(!Number.isFinite(h)) return false;
-
-    const nowTz = nowInTzDate(IND_TZ);
-    return h > nowTz.getHours();
-  }
-
-  function toDayStartMsLocal(isoDay){
-    return tzWallToUtcMs(IND_TZ, isoDay, 0, 0, 0);
-  }
-
-  function toHourStartMsLocal(isoDay, hourIdx){
-    const h = Number(hourIdx);
-    if(!Number.isFinite(h)) return NaN;
-    return tzWallToUtcMs(IND_TZ, isoDay, h, 0, 0);
-  }
-
-  function segmentsForHour(isoDay, hourIdx){
-    const startMs = toHourStartMsLocal(isoDay, hourIdx);
-    const endMs = startMs + (60 * 60 * 1000);
-
-    // initial state: last event before start
-    let initState = null;
-    for(let i=stateTrail.length-1;i>=0;i--){
-      if(stateTrail[i].ts_ms <= startMs){
-        initState = stateTrail[i].state;
-        break;
-      }
-    }
-
-    const segs = [];
-    let curState = initState;
-    let curStart = startMs;
-
-    // events within hour
-    for(const ev of stateTrail){
-      if(ev.ts_ms <= startMs) continue;
-      if(ev.ts_ms >= endMs) break;
-
-      if(curState !== null){
-        segs.push({ state: curState, start_ms: curStart, end_ms: ev.ts_ms });
-      }
-
-      curState = ev.state;
-      curStart = ev.ts_ms;
-    }
-
-    // tail to end (or to now if current hour today)
-    let capEnd = endMs;
-    const now = Date.now();
-    const today = todayIsoLocal();
-    if(String(isoDay) === today){
-      const nowHourStart = toHourStartMsLocal(today, nowInTzDate(IND_TZ).getHours());
-      if(startMs == nowHourStart){
-        capEnd = Math.min(endMs, now);
-      }
-    }
-
-    if(curState !== null && curStart < capEnd){
-      segs.push({ state: curState, start_ms: curStart, end_ms: capEnd });
-    }
-
-    return { startMs, endMs, segs };
-  }
-
-  function buildTrailBar(isoDay, hourIdx){
-    const bar = document.createElement("div");
-    bar.className = "pbar";
-
-    // future hours always grey
-    if(isFutureHour(isoDay, hourIdx)){
-      const fill = document.createElement("div");
-      fill.className = "pfill np";
-      fill.style.width = "100%";
-      bar.appendChild(fill);
-      return { bar, lastState: null };
-    }
-
-    const info = segmentsForHour(isoDay, hourIdx);
-    const totalMs = Math.max(1, info.endMs - info.startMs);
-
-    let lastState = null;
-    if(!info.segs.length){
-      const fill = document.createElement("div");
-      fill.className = "pfill np";
-      fill.style.width = "100%";
-      bar.appendChild(fill);
-      return { bar, lastState: null };
-    }
-
-    for(const seg of info.segs){
-      const left = ((seg.start_ms - info.startMs) / totalMs) * 100;
-      const width = ((seg.end_ms - seg.start_ms) / totalMs) * 100;
-
-      const fill = document.createElement("div");
-      fill.className = "pfill";
-      fill.style.position = "absolute";
-      fill.style.left = left.toFixed(4) + "%";
-      fill.style.width = Math.max(0, width).toFixed(4) + "%";
-
-      if(seg.state === "RUN") fill.classList.add("run");
-      else if(seg.state === "STOP") fill.classList.add("stop");
-      else fill.classList.add("np");
-
-      bar.appendChild(fill);
-      lastState = seg.state;
-    }
-
-    // make bar relative for absolute segments
-    bar.style.position = "relative";
-
-    return { bar, lastState };
-  }
-
-
-
-
-  function dateValueToISO(value){
-    if(!value || typeof value !== "string") return "";
-    const s = value.trim();
-    if(!s) return "";
-
-    if(/^(\d{4})-(\d{2})-(\d{2})$/.test(s)) return s;
-
-    const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s);
-    if(m) return `${m[3]}-${m[2]}-${m[1]}`;
-
-    return "";
-  }
-
-  function getRowDateValue(r){
-    if(!r || typeof r !== "object") return "";
-    return String(r.data_ref || r.data || r.dia_ref || r.date || "").trim();
-  }
-
-  function getRowDateISO(r){
-    return dateValueToISO(getRowDateValue(r));
-  }
-
-  function normalizeDateInput(v){
-    const s = String(v || "").trim();
-    if(!s) return "";
-    if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-    const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s);
-    if(m) return `${m[3]}-${m[2]}-${m[1]}`;
-    return "";
-  }
-
-  function fmtNum(n){
-    const x = Number(n);
-    if(!Number.isFinite(x)) return "0";
-    return new Intl.NumberFormat("pt-BR").format(Math.floor(x));
-  }
-
-  function normalizeOsValue(v){
-    const s = safeText(v).trim();
-    return s;
-  }
-
-  function findDuplicateOsInCache(osValue, currentOpId){
-    const osNorm = normalizeOsValue(osValue);
-    if(!osNorm) return null;
-
-    const curId = Number(currentOpId || 0) || 0;
-
-    if(!Array.isArray(cache)) return null;
-
-    for(const r of cache){
-      const ops = r && r.ops;
-      if(!Array.isArray(ops)) continue;
-
-      for(const op of ops){
-        const opId = Number((op && (op.op_id ?? op.id ?? op.opId ?? op.opid)) || 0) || 0;
-        if(curId && opId && opId === curId) continue;
-
-        const opOs = normalizeOsValue(op && (op.os || op.os_num || op.ordem_servico));
-        if(opOs && opOs === osNorm){
-          return { op_id: opId, os: opOs, dia: getRowDateISO(r) };
-        }
-      }
-    }
-
-    return null;
-  }
-
-  function fmtInt(n){
-    return fmtNum(n);
-  }
-
-  
-
-  function fmtMinutes(v){
-    const x = Number(v);
-    if(!Number.isFinite(x)) return "-";
-    const m = Math.max(0, Math.floor(x));
-    return String(m) + " min";
-  }
-
-  function fmtDurationHHMM(v){
-    const x = Number(v);
-    const totalMin = Number.isFinite(x) ? Math.max(0, Math.floor(x)) : 0;
-    const hh = String(Math.floor(totalMin / 60)).padStart(2, "0");
-    const mm = String(totalMin % 60).padStart(2, "0");
-    return hh + ":" + mm;
-  }
-
-  function pickFirstNumber(obj, keys){
-    for(const k of keys){
-      if(obj && Object.prototype.hasOwnProperty.call(obj, k)){
-        const x = Number(obj[k]);
-        if(Number.isFinite(x)) return x;
-      }
-    }
-    return null;
-  }
-
-function safeText(v){
-    if(v === null || v === undefined) return "";
-    return String(v);
-  }
-
-  function buildOpLabel(op){
-    const osNum = safeText(op && (op.os || op.os_num || op.ordem_servico)).trim();
-    const lote = safeText(op && op.lote).trim();
-    const operador = safeText(op && op.operador).trim();
-    const status = safeText(op && op.status).trim();
-
-    let parts = [];
-    if(osNum) parts.push("OP " + osNum);
-    if(lote) parts.push("Lote " + lote);
-    if(operador) parts.push("Operador " + operador);
-    if(status) parts.push(status);
-
-    return parts.join(" | ");
-  }
-
-  function statusClass(status){
-    const s = safeText(status).toUpperCase();
-    if(s.includes("ATIV") || s.includes("ABERT") || s.includes("EM_ANDAMENTO")) return "op-pill-ativa";
-    if(s.includes("ENCERR") || s.includes("FECH") || s.includes("FINAL")) return "op-pill-encerrada";
-    return "op-pill-unk";
-  }
-
-  function opRowClass(status){
-    const s = safeText(status).toUpperCase();
-    if(s.includes("ENCERR") || s.includes("FECH") || s.includes("FINAL")) return "op-row-encerrada";
-    if(s.includes("ATIV") || s.includes("ABERT") || s.includes("EM_ANDAMENTO") || s.includes("PRODU") || s.includes("ANDAMENTO")) return "op-row-ativa";
-    return "op-row-lista";
-  }
-
-  function getBobinasCount(op){
-    if(!op) return 0;
-    const itens = pickOpBobinasItens(op);
-    if(Array.isArray(itens) && itens.length) return itens.length;
-    const arrM = Array.isArray(op.bobinas_m) ? op.bobinas_m : (Array.isArray(op.bobinasM) ? op.bobinasM : []);
-    if(arrM.length) return arrM.length;
-    const arrLegacy = Array.isArray(op.bobinas) ? op.bobinas : [];
-    if(arrLegacy.length) return arrLegacy.length;
-    return 0;
-  }
-
-  function getOpenBobinaSeq(op){
-    if(!op) return -1;
-
-    const eventos = Array.isArray(op.bobinas_eventos) ? op.bobinas_eventos : (Array.isArray(op.bobinasEventos) ? op.bobinasEventos : (Array.isArray(op.bobinas_eventos_detail) ? op.bobinas_eventos_detail : []));
-    if(Array.isArray(eventos) && eventos.length){
-      for(let i = eventos.length - 1; i >= 0; i--){
-        const ev = eventos[i];
-        if(!ev || typeof ev !== "object") continue;
-        const endedAt = safeText(ev.ended_at ?? ev.fim ?? ev.hs_final ?? ev.hs_termino ?? ev.end_at).trim();
-        const endedAbs = Number(ev.end_abs_pcs ?? ev.end_abs ?? ev.esp_end ?? ev.end_abs_count ?? 0);
-        if(!endedAt && !(endedAbs > 0)){
-          const seq = Number(ev.seq ?? ev.idx ?? i);
-          if(Number.isFinite(seq) && seq >= 0) return seq;
-        }
-      }
-    }
-
-    const itens = pickOpBobinasItens(op);
-    if(Array.isArray(itens) && itens.length){
-      for(let i = 0; i < itens.length; i++){
-        const it = itens[i];
-        const startedAt = safeText(it && (it.started_at ?? it.inicio ?? it.hs_inicial ?? it.start_at)).trim();
-        const endedAt = safeText(it && (it.ended_at ?? it.fim ?? it.hs_final ?? it.hs_termino ?? it.end_at)).trim();
-        if(startedAt && !endedAt) return i;
-      }
-    }
-
-    const st = safeText(op.status).toUpperCase();
-    if((st.includes("ATIV") || st.includes("PRODU") || st.includes("ANDAMENTO")) && getBobinasCount(op) > 0){
-      return 0;
-    }
-
-    return -1;
-  }
-
-  function hasNextBobinaAvailable(op){
-    const total = getBobinasCount(op);
-    if(total <= 0) return false;
-    const openSeq = getOpenBobinaSeq(op);
-    if(openSeq < 0) return true;
-    return openSeq < (total - 1);
-  }
-
-  function anyText(v){
-    const s = safeText(v).trim();
-    return s ? s : "-";
-  }
-
-  function fmtIsoDateTimeLocal(v){
-    const s = safeText(v).trim();
-    if(!s) return "-";
-    if(/^\d{4}-\d{2}-\d{2}T/.test(s)){
-      return s.replace("T", " ").slice(0, 19);
-    }
-    return s;
-  }
-
-  const qs = new URLSearchParams(window.location.search);
-  const machineId = qs.get("machine_id") || qs.get("machine") || "";
-
-  const clienteId = qs.get("cliente_id") || qs.get("cliente") || "";
-
-  const elMachine = document.getElementById("machine-name");
-  const elDate = document.getElementById("filter-date");
-  const elBtnReset = document.getElementById("btn-reset-date");
-  const tbody = document.getElementById("historico-body");
-  const isTestMachine = String(machineId || "").toLowerCase() === "teste01";
-  const requestedDate = qs.get("date") || "";
-  const testNotice = document.getElementById("historyTestNotice");
-  if(requestedDate && elDate) elDate.value = requestedDate;
-  if(isTestMachine){
-    if(testNotice) testNotice.style.display = "block";
-    if(elBtnReset) elBtnReset.style.display = "none";
-  }
-
-  
-  /* Modal */
-  const modalBackdrop = document.getElementById("op-modal-backdrop");
-  const modalClose = document.getElementById("op-modal-close");
-  const modalToggle = document.getElementById("op-modal-toggle");
-  const modalSwap = document.getElementById("op-modal-swap");
-  const modalPdf = document.getElementById("op-modal-pdf");
-  const modalTitle = document.getElementById("op-modal-title");
-
-  /* Modal Dia */
-  const dayModalBackdrop = document.getElementById("day-modal-backdrop");
-  const dayModalClose = document.getElementById("day-modal-close");
-  const dayModalTitle = document.getElementById("day-modal-title");
-  const dayHourTbody = document.getElementById("day-hour-tbody");
-
-  let dayModalTimer = null;
-  let dayModalCurrentDay = null;
-  let livePausedByDayModal = false;
-
-  let opModalTimer = null;
-  let opModalRefreshing = false;
-
-
-  const opv_machine = document.getElementById("opv_machine");
-  const opv_operador = document.getElementById("opv_operador");
-  const opv_lote = document.getElementById("opv_lote");
-  const opv_status = document.getElementById("opv_status");
-  const opv_os = document.getElementById("opv_os");
-  const opv_gr_fio = document.getElementById("opv_gr_fio");
-  const opv_conv = document.getElementById("opv_conv");
-  const opv_bobinas_resumo = document.getElementById("opv_bobinas_resumo");
-  const opv_started = document.getElementById("opv_started");
-  const opv_ended = document.getElementById("opv_ended");
-
-  const bobinasWrap = document.getElementById("bobinas-wrap");
-  const bobinasMWrap = document.getElementById("bobinas-m-wrap");
-  const bobinasMList = document.getElementById("bobinas-m-list");
-  const bobinasMAdd = document.getElementById("bobinas-m-add");
-
-  const ope_obs = document.getElementById("ope_obs");
-
-  let currentOp = null;
-  let currentOpMode = "view"; // view | edit
-  let currentBobinasM = [];
-  let swapLockActive = false;
-  let swapLockOpId = 0;
-  let swapLockNextSeq = null;
-
-  function resetSwapLock(){
-    swapLockActive = false;
-    swapLockOpId = 0;
-    swapLockNextSeq = null;
-  }
-
-  function opHasStartedSeq(op, seq){
-    if(!op) return false;
-    const arr = Array.isArray(op.bobinas_eventos) ? op.bobinas_eventos : (Array.isArray(op.bobinasEventos) ? op.bobinasEventos : (Array.isArray(op.bobinas_eventos_detail) ? op.bobinas_eventos_detail : []));
-    if(!Array.isArray(arr) || !arr.length) return false;
-    for(const ev of arr){
-      if(!ev || typeof ev !== "object") continue;
-      const evSeq = Number(ev.seq ?? ev.idx ?? -1);
-      if(evSeq !== Number(seq)) continue;
-      const sa = String(ev.started_at ?? "").trim();
-      const abs = num0(ev.start_abs_pcs ?? 0);
-      if(sa && sa !== "-" && abs > 0) return true;
-    }
-    return false;
-  }
-
-
-
-
-  function num0(v){
-    const n = Number(v);
-    return Number.isFinite(n) ? n : 0;
-  }
-
-  function round2(v){
-    const n = Number(v);
-    if(!Number.isFinite(n)) return 0;
-    return Math.round(n * 100) / 100;
-  }
-
-  function fmtMeters2Floor(v){
-    const n = Number(v);
-    if(!Number.isFinite(n)) return "0.00";
-    const floored = Math.floor(n * 100) / 100;
-    return floored.toFixed(2);
-  }
-
-  function calcMatBom(pcsTotal, cost, refugo, saco){
-    const t = Math.floor(num0(pcsTotal));
-    const c = Math.floor(num0(cost));
-    const r = Math.floor(num0(refugo));
-    const s = Math.floor(num0(saco));
-    let res = t - (c + r + s);
-    if(res < 0) res = 0;
-    return res;
-  }
-
-
-  function setReadonly(el, ro){
-    if(!el) return;
-    if(ro){
-      el.setAttribute("readonly","readonly");
-    }else{
-      el.removeAttribute("readonly");
-    }
-  }
-
-  function setDisabled(el, disabled){
-    if(!el) return;
-    el.disabled = !!disabled;
-  }
-
-  function isOpEncerrada(statusStr){
-    const s = safeText(statusStr).toUpperCase();
-    if(!s) return false;
-    return s.includes("ENCERR") || s.includes("FECH") || s.includes("FINAL");
-  }
-
-  function hasBobinaPrimeiroPulso(op, idx){
-    if(!op || idx < 0) return false;
-
-    const item = (pickOpBobinasItens(op)[idx] || {});
-    const ev = pickOpBobinaEvento(op, idx) || {};
-
-    const startedAt = safeText(
-      item.started_at ?? item.inicio ?? item.hs_inicial ?? item.start_at ??
-      ev.started_at ?? ev.inicio ?? ev.hs_inicial ?? ev.start_at ?? ""
-    ).trim();
-
-    const startAbs = num0(
-      item.start_abs_pcs ?? item.start_abs ?? item.baseline_pcs ?? item.esp_inicio ??
-      ev.start_abs_pcs ?? ev.start_abs ?? ev.baseline_pcs ?? ev.baseline ?? ev.esp_inicio ?? 0
-    );
-
-    const pcsTotal = num0(item.pcs_total ?? item.total_pcs ?? ev.pcs_total ?? ev.total_pcs ?? 0);
-    const metroConsumido = num0(item.metro_consumido ?? item.metro_linear_consumido ?? ev.metro_consumido ?? ev.metro_linear_consumido ?? 0);
-
-    return !!startedAt || startAbs > 0 || pcsTotal > 0 || metroConsumido > 0;
-  }
-
-  function isBobinaEncerradaByData(op, idx){
-    if(!op || idx < 0) return false;
-
-    const item = (pickOpBobinasItens(op)[idx] || {});
-    const ev = pickOpBobinaEvento(op, idx) || {};
-
-    const endedAt = safeText(
-      item.ended_at ?? item.fim ?? item.hs_final ?? item.hs_termino ?? item.end_at ??
-      ev.ended_at ?? ev.fim ?? ev.hs_final ?? ev.hs_termino ?? ev.end_at ?? ""
-    ).trim();
-
-    const endAbs = num0(
-      item.end_abs_pcs ?? item.end_abs ?? item.esp_final ?? item.esp_last ??
-      ev.end_abs_pcs ?? ev.end_abs ?? ev.esp_end ?? ev.end_abs_count ?? ev.esp_final ?? 0
-    );
-
-    return !!endedAt || endAbs > 0;
-  }
-
-  function getActiveBobinaSeq(op){
-    const total = getBobinasCount(op);
-    if(total <= 0) return -1;
-
-    for(let i = total - 1; i >= 0; i--){
-      if(isBobinaEncerradaByData(op, i)) continue;
-      if(hasBobinaPrimeiroPulso(op, i)) return i;
-    }
-
-    return -1;
-  }
-
-  function getPendingBobinaSeq(op){
-    const total = getBobinasCount(op);
-    if(total <= 0) return -1;
-
-    const opId = Number(op && (op.op_id ?? op.id ?? 0)) || 0;
-    if(swapLockActive && swapLockOpId && opId && swapLockOpId === opId && swapLockNextSeq != null){
-      const seq = Number(swapLockNextSeq);
-      if(Number.isFinite(seq) && seq >= 0 && seq < total && !hasBobinaPrimeiroPulso(op, seq) && !isBobinaEncerradaByData(op, seq)){
-        return seq;
-      }
-    }
-
-    const activeSeq = getActiveBobinaSeq(op);
-    if(activeSeq >= 0) return -1;
-
-    for(let i = 0; i < total; i++){
-      if(isBobinaEncerradaByData(op, i)) continue;
-      if(!hasBobinaPrimeiroPulso(op, i)) return i;
-    }
-
-    return -1;
-  }
-
-  function getEditableBobinaSeq(op){
-    const total = getBobinasCount(op);
-    if(total <= 0) return -1;
-
-    const activeSeq = getActiveBobinaSeq(op);
-    if(activeSeq >= 0) return activeSeq;
-
-    const pendingSeq = getPendingBobinaSeq(op);
-    if(pendingSeq >= 0) return pendingSeq;
-
-    return 0;
-  }
-
-  function getBobinaState(op, idx){
-    const total = getBobinasCount(op);
-    if(total <= 0){
-      return { editable: false, passada: false, futura: false, atual: false, pendente: false };
-    }
-
-    const activeSeq = getActiveBobinaSeq(op);
-    const pendingSeq = getPendingBobinaSeq(op);
-    const editableSeq = getEditableBobinaSeq(op);
-    const encerrada = isBobinaEncerradaByData(op, idx);
-
-    return {
-      editable: idx === editableSeq,
-      passada: encerrada,
-      futura: !encerrada && idx !== activeSeq && idx !== pendingSeq,
-      atual: idx === activeSeq,
-      pendente: idx === pendingSeq
-    };
-  }
-
-  function showBobinasM(show){
-
-    if(!bobinasMWrap) return;
-    bobinasMWrap.style.display = show ? "" : "none";
-  }
-
-  function normalizeBobinasM(op){
-    // tentar pegar lista de bobinas em metros
-    const raw =
-      (op && (op.bobinas_m || op.bobinasM || op.bobinas_metros || op.bobinas_m_list)) ||
-      (op && (op.bobinas || op.bobinas_list || op.bobinasItens)) ||
-      [];
-    const arr = Array.isArray(raw) ? raw : [];
-    const out = [];
-    arr.forEach((x) => {
-      if(typeof x === "number" || typeof x === "string"){
-        const n = num0(x);
-        out.push(Math.floor(n));
-        return;
-      }
-      if(x && typeof x === "object"){
-        const n = num0(x.comprimento_m ?? x.metros ?? x.bobina_m ?? x.valor ?? 0);
-        out.push(Math.floor(n));
-      }
+    hours.forEach(hour => {
+      const tr = document.createElement("tr");
+      tr.innerHTML =
+        '<td><strong>' + String(Number(hour.hour || 0)).padStart(2,"0") + ':00</strong></td>' +
+        '<td>' + fmtNum(hour.produzido) + '</td>' +
+        '<td>' + fmtNum(hour.meta) + '</td>' +
+        '<td>' + fmtClock(hour.tempo_produzindo_sec) + '</td>' +
+        '<td>' + fmtClock(hour.tempo_parado_sec) + '</td>' +
+        '<td>' + fmtNum(hour.qtd_paradas) + '</td>' +
+        '<td>' + timelineHtml(machine, dateIso, hour.segments) + '</td>';
+      hourBody.appendChild(tr);
     });
-    return out;
-  }
 
-  function renderBobinasM(){
-    if(!bobinasMList) return;
-    bobinasMList.innerHTML = "";
+    hourBody.querySelectorAll("[data-stop-machine]").forEach(segment => {
+      segment.addEventListener("click", function(event){
+        event.preventDefault();
+        event.stopPropagation();
 
-    const list = Array.isArray(currentBobinasM) ? currentBobinasM : [];
-    list.forEach((m, idx) => {
-      const row = document.createElement("div");
-      row.className = "bobinas-m-row";
-      row.setAttribute("data-bm-idx", String(idx));
+        const stopMachine = segment.getAttribute("data-stop-machine") || "";
+        const stopDate = segment.getAttribute("data-stop-date") || "";
+        const stopStart = segment.getAttribute("data-stop-start") || "";
+        const stopEnd = segment.getAttribute("data-stop-end") || "";
 
-      const w = document.createElement("div");
-      w.className = "op-field op-edit col-6";
-      w.style.margin = "0";
+        const startMs = bahiaWallToUtcMs(stopDate, stopStart);
+        const endMs = bahiaWallToUtcMs(stopDate, stopEnd);
+        if(!Number.isFinite(startMs) || !Number.isFinite(endMs)) return;
 
-      const l = document.createElement("label");
-      l.textContent = "Comprimento da bobina (m)";
-
-      const inp = document.createElement("input");
-      inp.type = "number";
-      inp.inputMode = "numeric";
-      inp.min = "0";
-      inp.step = "1";
-      inp.value = String(Math.floor(num0(m)));
-      inp.addEventListener("input", function(){
-        const i = Number(row.getAttribute("data-bm-idx") || "0");
-        currentBobinasM[i] = Math.floor(num0(inp.value));
+        const params = new URLSearchParams({
+          machine_id:stopMachine,
+          date:stopDate,
+          start_ms:String(startMs),
+          end_ms:String(endMs)
+        });
+        if(String(stopMachine).toLowerCase() === "teste01") params.set("teste","1");
+        window.location.href = "/paradas/?" + params.toString();
       });
-
-      w.appendChild(l);
-      w.appendChild(inp);
-
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "btn-secondary";
-      btn.textContent = "Remover";
-      btn.addEventListener("click", function(e){
-        if(e){ e.preventDefault(); e.stopPropagation(); }
-        const i = Number(row.getAttribute("data-bm-idx") || "0");
-        currentBobinasM.splice(i, 1);
-        renderBobinasM();
-      });
-
-      row.appendChild(w);
-      row.appendChild(btn);
-      bobinasMList.appendChild(row);
     });
-
-    // atualizar resumo
-    if(opv_bobinas_resumo){
-      opv_bobinas_resumo.value = bobinasResumo(list);
-    }
-
-    if(list.length === 0){
-      const empty = document.createElement("div");
-      empty.className = "muted";
-      empty.textContent = "Nenhuma bobina adicionada.";
-      bobinasMList.appendChild(empty);
-    }
   }
 
-  function collectBobinasMFromUI(){
-    if(!bobinasMList) return [];
-    const out = [];
-    const rows = bobinasMList.querySelectorAll("[data-bm-idx]");
-    rows.forEach((row) => {
-      const inp = row.querySelector("input");
-      if(!inp) return;
-      out.push(Math.floor(num0(inp.value)));
-    });
-    return out;
-  }
-
-  function clearBobinasUI(){
-    if(!bobinasWrap) return;
-    bobinasWrap.innerHTML = "";
-  }
-
-  function bobinasResumo(bobinasItens){
-    if(!Array.isArray(bobinasItens) || bobinasItens.length === 0) return "-";
-    let totalM = 0;
-    bobinasItens.forEach((b) => {
-      totalM += num0(b && (b.comprimento_m ?? b.metros ?? b.bobina_m ?? 0));
-    });
-    return String(bobinasItens.length) + " bobina(s) | " + String(Math.floor(totalM)) + " m";
-  }
-
-
-  function pickOpBobinasItens(op){
-    if(!op) return [];
-    const cand = [
-      op.bobinas_detail,
-      op.bobinasDetail,
-      op.bobinas_itens,
-      op.bobinas_items,
-      op.bobinasItens,
-      op.bobinasItems,
-      op.bobinas
-    ];
-    for(let k=0;k<cand.length;k++){
-      const arr = cand[k];
-      if(Array.isArray(arr) && arr.length){
-        // Se vier array de numeros (ex.: [6000]), normaliza para objetos minimos
-        if(typeof arr[0] === "number"){
-          return arr.map((v) => ({ comprimento_m: num0(v) }));
-        }
-        return arr;
-      }
-    }
-    return [];
-  }
-
-  function pickOpBobinaEvento(op, idx){
-    if(!op) return null;
-    const eventos = Array.isArray(op.bobinas_eventos) ? op.bobinas_eventos : (Array.isArray(op.bobinasEventos) ? op.bobinasEventos : (Array.isArray(op.bobinas_eventos_detail) ? op.bobinas_eventos_detail : []));
-    if(!Array.isArray(eventos) || !eventos.length) return null;
-    const ev = eventos[idx] ?? null;
-    return (ev && typeof ev === "object") ? ev : null;
-  }
-
-  function buildBobinaSavePayload(op, idx, manual){
-    const itens = pickOpBobinasItens(op);
-    const item = (Array.isArray(itens) && itens[idx] && typeof itens[idx] === "object") ? itens[idx] : {};
-    const ev = pickOpBobinaEvento(op, idx) || {};
-
-    const comprimento = Math.floor(num0(
-      item.comprimento_m ?? item.metros ?? item.bobina_m ??
-      ev.comprimento_m ?? ev.comprimentoM ?? ev.bobina_m ?? 0
-    ));
-
-    const startAbs = Math.floor(num0(
-      item.start_abs_pcs ?? item.start_abs ?? item.baseline_pcs ?? item.esp_inicio ??
-      ev.start_abs_pcs ?? ev.start_abs ?? ev.baseline_pcs ?? ev.baseline ?? ev.esp_inicio ?? 0
-    ));
-
-    const endAbs = Math.floor(num0(
-      item.end_abs_pcs ?? item.end_abs ?? item.esp_final ?? item.esp_last ??
-      ev.end_abs_pcs ?? ev.end_abs ?? ev.esp_end ?? ev.end_abs_count ?? ev.esp_final ?? 0
-    ));
-
-    const startedAt = safeText(
-      item.started_at ?? item.inicio ?? item.hs_inicial ?? item.start_at ??
-      ev.started_at ?? ev.inicio ?? ev.hs_inicial ?? ev.start_at ?? ""
-    ).trim();
-
-    const endedAt = safeText(
-      item.ended_at ?? item.fim ?? item.hs_final ?? item.hs_termino ?? item.end_at ??
-      ev.ended_at ?? ev.fim ?? ev.hs_final ?? ev.hs_termino ?? ev.end_at ?? ""
-    ).trim();
-
-    let pcsTotal = Math.floor(num0(item.pcs_total ?? item.total_pcs ?? 0));
-    if(!(pcsTotal > 0) && endAbs >= startAbs && endAbs > 0){
-      pcsTotal = Math.max(0, endAbs - startAbs);
-    }
-
-    let metroConsumido = num0(item.metro_consumido ?? item.metro_linear_consumido ?? 0);
-    if(!(metroConsumido > 0) && pcsTotal > 0){
-      const conv = num0(op && (op.op_conv_m_por_pcs ?? op.conv_m_por_pcs ?? 0));
-      if(conv > 0){
-        metroConsumido = pcsTotal * conv;
-      }
-    }
-
-    const qtdCost = Math.floor(num0(manual && manual.qtd_cost_elas));
-    const refugo = Math.floor(num0(manual && manual.refugo));
-    const qtdSaco = Math.floor(num0(manual && manual.qtd_saco_caixa));
-    const qtdMatBom = calcMatBom(pcsTotal, qtdCost, refugo, qtdSaco);
-
-    return {
-      idx: Math.floor(num0(item.idx ?? ev.idx ?? idx + 1)),
-      seq: Math.floor(num0(ev.seq ?? idx)),
-      comprimento_m: comprimento,
-      start_abs_pcs: startAbs,
-      end_abs_pcs: endAbs,
-      started_at: startedAt,
-      ended_at: endedAt,
-      pcs_total: pcsTotal,
-      metro_consumido: round2(metroConsumido),
-      qtd_cost_elas: qtdCost,
-      qtd_mat_bom: qtdMatBom,
-      qtd_saco_caixa: qtdSaco,
-      refugo: refugo
-    };
-  }
-
-
-  function createBobinaCard(item, idx, convMporPcs, opts){
-    opts = opts || {};
-    const opCtx = opts.op || null;
-
-    function pickEvento(op, i){
-      if(!op) return null;
-      const arr = Array.isArray(op.bobinas_eventos) ? op.bobinas_eventos : (Array.isArray(op.bobinasEventos) ? op.bobinasEventos : (Array.isArray(op.bobinas_eventos_detail) ? op.bobinas_eventos_detail : []));
-      if(!arr || !arr.length) return null;
-      const ev = arr[i] ?? arr[0] ?? null;
-      return (ev && typeof ev === "object") ? ev : null;
-    }
-
-    function pickBobinaMFromOp(op, i){
-      if(!op) return 0;
-
-
-      // 0) eventos (quando backend devolve bobinas_eventos)
-      const ev0 = pickEvento(op, i);
-      if(ev0){
-        const vEv = num0(ev0.comprimento_m ?? ev0.comprimentoM ?? ev0.bobina_m ?? 0);
-        if(vEv > 0) return vEv;
-      }
-
-      // 1) op.bobina (legacy / principal)
-      const b1 = num0(op.bobina ?? op.bobina_m ?? op.bobina_metros ?? 0);
-      if(b1 > 0) return b1;
-
-      // 2) op.bobinas[0] (legacy list)
-      const arrLegacy = Array.isArray(op.bobinas) ? op.bobinas : (Array.isArray(op.bobinas_list) ? op.bobinas_list : []);
-      if(arrLegacy && arrLegacy.length){
-        const v = num0(arrLegacy[i] ?? arrLegacy[0] ?? 0);
-        if(v > 0) return v;
-      }
-
-      // 3) op.bobinas_m[0] (new format list)
-      const arrM = Array.isArray(op.bobinas_m) ? op.bobinas_m : (Array.isArray(op.bobinasM) ? op.bobinasM : []);
-      if(arrM && arrM.length){
-        const v = num0(arrM[i] ?? arrM[0] ?? 0);
-        if(v > 0) return v;
-      }
-
-      return 0;
-    }
-
-    // Comprimento da bobina: primeiro tenta no item; se vier 0/vazio, faz fallback usando dados da OP
-    let comprimentoM = num0(item && (item.comprimento_m ?? item.metros ?? item.bobina_m ?? 0));
-    if(!(comprimentoM > 0)){
-      comprimentoM = pickBobinaMFromOp(opCtx, idx);
-    }
-
-    const pcsTotal = Math.floor(num0(item && (item.pcs_total ?? item.total_pcs ?? 0)));
-    const metroConsumido = num0(item && (item.metro_consumido ?? item.metro_linear_consumido ?? 0));
-
-    const vCost = Math.floor(num0(item && (item.qtd_cost_elas ?? item.cost_elas ?? 0)));
-    const vRef = Math.floor(num0(item && (item.refugo ?? 0)));
-    const vSaco = Math.floor(num0(item && (item.qtd_saco_caixa ?? item.saco_caixa ?? 0)));
-
-    const card = document.createElement("div");
-    card.className = "bobina-card";
-    card.setAttribute("data-bobina-idx", String(idx));
-
-    const bobinaState = getBobinaState(opCtx, idx);
-    const opEndedState = isOpEncerrada(opCtx && opCtx.status);
-    const isHiddenOperationalState = !!(bobinaState.futura || bobinaState.pendente);
-    const canEditBobina = !!(opts.isEdit && !opEndedState && bobinaState.editable && !isHiddenOperationalState);
-
-    if(bobinaState.passada || opEndedState){
-      card.classList.add("bobina-card-travada");
-    }else if(bobinaState.pendente){
-      card.classList.add("bobina-card-pendente");
-    }else if(bobinaState.atual){
-      card.classList.add("bobina-card-ativa");
-    }else if(bobinaState.futura){
-      card.classList.add("bobina-card-futura");
-    }
-
-    const title = document.createElement("div");
-    title.className = "bobina-title";
-    title.textContent = "Bobina " + String(idx + 1);
-
-    const sub = document.createElement("div");
-    sub.className = "bobina-sub";
-    let bobinaStatusTxt = "Travada";
-    if(opEndedState){
-      bobinaStatusTxt = "Travada";
-    }else if(bobinaState.passada){
-      bobinaStatusTxt = "Encerrada";
-    }else if(bobinaState.pendente){
-      bobinaStatusTxt = "Aguardando 1 pulso";
-    }else if(bobinaState.atual){
-      bobinaStatusTxt = "Ativa";
-    }else if(bobinaState.futura){
-      bobinaStatusTxt = "Futura";
-    }
-    sub.textContent = "Comprimento: " + String(Math.floor(comprimentoM)) + " m | " + bobinaStatusTxt;
-    title.appendChild(sub);
-
-    const grid = document.createElement("div");
-    grid.className = "bobina-grid";
-
-    function fieldRO(label, value, col){
-      const w = document.createElement("div");
-      w.className = "op-field op-ro " + col;
-
-      const l = document.createElement("label");
-      l.textContent = label;
-
-      const inp = document.createElement("input");
-      inp.type = "text";
-      inp.readOnly = true;
-      inp.value = String(value);
-
-      w.appendChild(l);
-      w.appendChild(inp);
-      return w;
-    }
-
-    function fieldEdit(label, value, col, name){
-      const w = document.createElement("div");
-      w.className = "op-field op-edit " + col;
-
-      const l = document.createElement("label");
-      l.textContent = label;
-
-      const inp = document.createElement("input");
-      inp.type = "number";
-      inp.inputMode = "numeric";
-      inp.min = "0";
-      inp.step = "1";
-      inp.value = String(Math.floor(num0(value)));
-      inp.setAttribute("data-field", name);
-      inp.readOnly = !canEditBobina;
-      inp.disabled = !canEditBobina;
-
-      w.appendChild(l);
-      w.appendChild(inp);
-      return {wrap: w, input: inp};
-    }
-
-    const conv = num0(convMporPcs);
-    const forceZeroLive = !!opts.forceZeroLive;
-
-    // Opcao 1: nao estimar pcs/metragem por comprimento/conv.
-    // Sem pcs_total real vindo do backend, o valor deve iniciar zerado e aguardar o primeiro update.
-    let derivedPcs = pcsTotal;
-    let derivedMetroConsumido = metroConsumido;
-
-    // Read-only context
-    const ev = pickEvento(opCtx, idx);
-    const startedRaw = (
-      (item && (item.started_at ?? item.inicio ?? item.hs_inicial ?? item.start_at)) ||
-      (ev && (ev.started_at ?? ev.inicio ?? ev.hs_inicial ?? ev.start_at)) ||
-      (opCtx && (opCtx.started_at ?? opCtx.hs_inicial ?? opCtx.inicio)) ||
-      ""
-    );
-    let endedRaw = (
-      (item && (item.ended_at ?? item.fim ?? item.hs_final ?? item.hs_termino ?? item.end_at)) ||
-      (ev && (ev.ended_at ?? ev.fim ?? ev.hs_final ?? ev.hs_termino ?? ev.end_at)) ||
-      ""
-    );
-    const startedStr = fmtIsoDateTimeLocal(startedRaw);
-    let endedStr = fmtIsoDateTimeLocal(endedRaw);
-
-    // Alguns backends preenchem ended_at igual started_at na criacao. Tratar como "ainda nao encerrada".
-    const placeholderEnd = (endedStr && endedStr !== "-" && endedStr === startedStr);
-    if(placeholderEnd){
-      endedRaw = "";
-      endedStr = "";
-    }
-
-    const bobinaAberta = (!endedRaw) || placeholderEnd;
-
-    let tempoMin = Math.floor(num0(item && (item.tempo_consumo_min ?? item.tempo_consumo ?? 0)));
-    if(!(tempoMin > 0)){
-      try{
-        const ds = new Date(String(startedRaw || ""));
-        const de = new Date(String(endedRaw || ""));
-        if(!isNaN(ds.getTime()) && !isNaN(de.getTime())){
-          const diff = Math.floor((de.getTime() - ds.getTime()) / 60000);
-          if(diff > 0) tempoMin = diff;
-        }
-      }catch(e){
-        // ignore
-      }
-    }
-
-    const isOperationalLive = !!(bobinaState.atual && !opEndedState && !isHiddenOperationalState);
-
-    if(isOperationalLive){
-      try{
-        const dsLive = new Date(String(startedRaw || ""));
-        if(!isNaN(dsLive.getTime())){
-          tempoMin = Math.max(0, Math.floor((Date.now() - dsLive.getTime()) / 60000));
-        }
-      }catch(e){
-        // ignore
-      }
-    }
-
-    // Forcar inicio zerado/vazio no modal para OP ativa do dia (evita valores fantasmas antes do primeiro update)
-    // Nao depender de ended_at da bobina, porque o backend pode popular ended_at prematuramente.
-    if(forceZeroLive && bobinaAberta){
-      derivedPcs = 0;
-      derivedMetroConsumido = 0;
-      tempoMin = 0;
-      endedStr = "";
-    }
-
-
-    // Atualizacao ao vivo: quando a OP esta ATIVA no dia atual e o backend envia esp_atual/baseline_pcs,
-    // calcular pcs/metragem/tempo mesmo que o item ainda esteja zerado.
-    if((!forceZeroLive) && opts && opts.isLiveHoje && (idx === 0) && (derivedPcs <= 0) && (num0(opts.livePcs) > 0)){
-      derivedPcs = Math.floor(num0(opts.livePcs));
-      derivedMetroConsumido = num0(opts.liveMetros);
-      if(num0(opts.liveTempoMin) > 0) tempoMin = Math.floor(num0(opts.liveTempoMin));
-      // em modo live, nao mostrar hora final
-      endedStr = "";
-    }
-
-    if(isHiddenOperationalState){
-      derivedPcs = 0;
-      derivedMetroConsumido = 0;
-      tempoMin = 0;
-    }
-
-    const displayStartedStr = isHiddenOperationalState ? "-" : startedStr;
-    const displayEndedStr = isHiddenOperationalState ? "-" : (endedStr || "-");
-    const displayTempo = isHiddenOperationalState ? "00:00" : fmtDurationHHMM(tempoMin);
-
-    const fLen = fieldRO("Comprimento da bobina (m)", Math.floor(comprimentoM), "col-3");
-    const fPcs = fieldRO("Total pcs (bobina)", derivedPcs, "col-3");
-    const fMetro = fieldRO("Metro linear consumido (m)", fmtMeters2Floor(derivedMetroConsumido), "col-3");
-    const fTempo = fieldRO("Tempo de consumo (hh:mm)", displayTempo, "col-3");
-
-    // marca campos para leitura/validacao
-    try{
-      const pcsInp = fPcs && fPcs.querySelector("input");
-      if(pcsInp) pcsInp.setAttribute("data-field", "pcs_total");
-    }catch(e){}
-
-    grid.appendChild(fLen);
-    grid.appendChild(fPcs);
-    grid.appendChild(fMetro);
-    grid.appendChild(fTempo);
-
-    grid.appendChild(fieldRO("Hora inicial", displayStartedStr, "col-6"));
-    grid.appendChild(fieldRO("Hora final", displayEndedStr, "col-6"));
-
-    // Editable (yellow)
-    const fCost = fieldEdit("Qtd. cost. elas.", vCost, "col-3", "qtd_cost_elas");
-    const fRef = fieldEdit("Refugo", vRef, "col-3", "refugo");
-    const fSaco = fieldEdit("Retrabalho", vSaco, "col-3", "qtd_saco_caixa");
-
-    // Computed (read-only)
-    const initialMatBom = isHiddenOperationalState ? 0 : calcMatBom(derivedPcs, vCost, vRef, vSaco);
-    const fMat = fieldRO("Qtd. mat bom", initialMatBom, "col-3");
-    const matInput = fMat.querySelector("input");
-    if(matInput){
-      matInput.setAttribute("data-field", "qtd_mat_bom");
-    }
-
-    grid.appendChild(fMat);
-    grid.appendChild(fCost.wrap);
-    grid.appendChild(fRef.wrap);
-    grid.appendChild(fSaco.wrap);
-
-    function recalc(){
-      const cost = num0(fCost.input.value);
-      const ref = num0(fRef.input.value);
-      const saco = num0(fSaco.input.value);
-      const mat = isHiddenOperationalState ? 0 : calcMatBom(derivedPcs, cost, ref, saco);
-      if(matInput) matInput.value = String(mat);
-    }
-
-    fCost.input.addEventListener("input", recalc);
-    fRef.input.addEventListener("input", recalc);
-    fSaco.input.addEventListener("input", recalc);
-
-    if(!canEditBobina){
-      fCost.wrap.classList.remove("op-edit");
-      fCost.wrap.classList.add("op-ro");
-      fRef.wrap.classList.remove("op-edit");
-      fRef.wrap.classList.add("op-ro");
-      fSaco.wrap.classList.remove("op-edit");
-      fSaco.wrap.classList.add("op-ro");
-    }
-
-    card.appendChild(title);
-    card.appendChild(grid);
-    return card;
-  }
-
-
-  async function fetchOpGet(opId){
-    const qs = "?op_id=" + encodeURIComponent(String(opId));
-    const urls = ["/producao/op/get" + qs, "/op/get" + qs];
-    let lastErr = null;
-
-    for(const u of urls){
-      try{
-        const r = await fetch(u, { method: "GET" });
-        if(!r.ok){
-          lastErr = new Error("HTTP " + r.status);
-          continue;
-        }
-        const data = await r.json().catch(() => null);
-        if(!data) return null;
-
-        // aceitar formatos: {ok:true, op:{...}} ou direto {...}
-        const op = (data.op || data.data || data) || null;
-        return op;
-      }catch(e){
-        lastErr = e;
-      }
-    }
-
-    throw lastErr || new Error("Falha ao carregar OP.");
-  }
-
-
-  function collectCurrentOpenBobinaManualPayload(){
-    const op = currentOp || null;
-    const idx = getEditableBobinaSeq(op);
-    if(!op || idx < 0) return null;
-
-    const card = bobinasWrap ? bobinasWrap.querySelector('[data-bobina-idx="' + String(idx) + '"]') : null;
-    const manual = {
-      qtd_cost_elas: 0,
-      refugo: 0,
-      qtd_saco_caixa: 0
-    };
-
-    if(card){
-      const fields = ["qtd_cost_elas", "refugo", "qtd_saco_caixa"];
-      fields.forEach((name) => {
-        try{
-          const inp = card.querySelector('[data-field="' + name + '"]');
-          if(inp){
-            manual[name] = Math.floor(num0(inp.value));
-          }
-        }catch(e){}
-      });
-    }
-
-    const bobinaPayload = buildBobinaSavePayload(op, idx, manual);
-    bobinaPayload.idx = Math.floor(num0(bobinaPayload.idx || (idx + 1)));
-    bobinaPayload.seq = Math.floor(num0(bobinaPayload.seq || idx));
-
-    return bobinaPayload;
-  }
-
-  async function postOpSwapBobina(opId, extraPayload){
-    const payload = Object.assign({ op_id: Number(opId || 0), machine_id: machineId || "" }, (extraPayload || {}));
-    const url = "/producao/op/troca-bobina";
+  async function openDayDetail(machine, dateIso){
+    if(!machine || !dateIso) return;
+
+    modalBackdrop.classList.add("open");
+    modalBackdrop.setAttribute("aria-hidden","false");
+    modalTitle.textContent = "Carregando detalhe...";
+    hourBody.innerHTML = '<tr><td colspan="7">Carregando...</td></tr>';
 
     try{
-      const r = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      const params = new URLSearchParams({
+        machine_id:machine,
+        date:dateIso
       });
 
-      const data = await r.json().catch(() => ({}));
+      const response = await fetch(
+        "/producao/api/producao/detalhe-dia?" + params.toString(),
+        { method:"GET", headers:{"Accept":"application/json"} }
+      );
+      const payload = await response.json().catch(() => null);
 
-      if(!r.ok){
-        const msg = (data && (data.error || data.err || data.message))
-          ? (data.error || data.err || data.message)
-          : ("HTTP " + r.status);
-        throw new Error(msg);
+      if(!response.ok || !payload || payload.ok === false){
+        throw new Error(
+          payload && payload.error
+            ? payload.error
+            : ("Falha ao carregar detalhe (HTTP " + response.status + ")")
+        );
       }
 
-      if(data && (data.error || data.err)){
-        throw new Error(data.error || data.err);
-      }
-
-      if(data && (data.ok === false)){
-        throw new Error(data.error || "Falha.");
-      }
-
-      if(data && data.status && String(data.status).toLowerCase() !== "ok"){
-        throw new Error(data.error || ("Falha: " + String(data.status)));
-      }
-
-      return data || {};
-    }catch(e){
-      throw e || new Error("Falha ao executar troca de bobina.");
-    }
-  }
-
-async function openOpEdit(opId){
-    const id = Number(opId || 0);
-    if(!id){
-      alert("OP invalida.");
-      return;
-    }
-
-    try{
-      // Carregar a OP completa via /op/get
-      const op = await fetchOpGet(id);
-      if(!op){
-        alert("Nao foi possivel carregar a OP.");
-        return;
-      }
-      openModal(op, "edit");
+      renderHourDetail(payload);
     }catch(err){
-      alert("Falha ao carregar OP: " + (err.message || err));
+      modalTitle.textContent = "Detalhe do dia";
+      hourBody.innerHTML =
+        '<tr><td colspan="7" style="color:#b91c1c;">' +
+        escapeHtml(err && err.message ? err.message : String(err)) +
+        '</td></tr>';
     }
-  }
-
-  function openModal(op, mode, opts){
-    currentOp = enrichOpWithLive(op || null);
-    // Controle de trava de troca: se abriu outra OP, limpa trava.
-    const openedId = Number(currentOp && (currentOp.op_id ?? currentOp.id ?? 0)) || 0;
-    if(swapLockActive && swapLockOpId && openedId && swapLockOpId !== openedId){
-      resetSwapLock();
-    }
-
-    // Se ja chegou o primeiro update que abriu a proxima bobina, libera a troca novamente.
-    if(swapLockActive && openedId && swapLockOpId === openedId && swapLockNextSeq != null){
-      if(opHasStartedSeq(currentOp, swapLockNextSeq)){
-        resetSwapLock();
-      }
-    }
-    currentOpMode = (mode === "edit") ? "edit" : "view";
-
-    // no modo edicao, liberar campos principais (exceto maquina/status)
-    const isEdit = (currentOpMode === "edit");
-    const opStatusOpen = safeText(currentOp && currentOp.status);
-    const opAtivaAgora = isOpAtiva(opStatusOpen);
-    const opEncerradaAgora = isOpEncerrada(opStatusOpen);
-    const canEditMainFields = isEdit && !opEncerradaAgora;
-    const canEditBobinasM = isEdit && !opAtivaAgora && !opEncerradaAgora;
-
-    setReadonly(opv_operador, !canEditMainFields);
-    setReadonly(opv_lote, !canEditMainFields);
-    setReadonly(opv_os, !canEditMainFields);
-    setReadonly(opv_gr_fio, !canEditMainFields);
-    setReadonly(opv_conv, !canEditMainFields);
-    setReadonly(opv_started, !canEditMainFields);
-    setReadonly(opv_ended, !canEditMainFields);
-    setReadonly(ope_obs, !canEditMainFields);
-    showBobinasM(canEditBobinasM);
-    if(bobinasMAdd){
-      bobinasMAdd.style.display = canEditBobinasM ? "" : "none";
-      bobinasMAdd.disabled = !canEditBobinasM;
-    }
-
-    if(isEdit){
-      currentBobinasM = normalizeBobinasM(op);
-      renderBobinasM();
-    }else{
-      currentBobinasM = [];
-    }
-
-
-
-    if(modalTitle){
-      const osNum = safeText(op && (op.os || op.os_num || op.ordem_servico)).trim();
-      const lote = safeText(op && op.lote).trim();
-
-      if(osNum && lote){
-        modalTitle.textContent = "OP " + osNum + " - Lote " + lote;
-      }else if(osNum){
-        modalTitle.textContent = "OP " + osNum;
-      }else if(lote){
-        modalTitle.textContent = "OP - Lote " + lote;
-      }else{
-        modalTitle.textContent = "OP";
-      }
-    }
-
-    if(opv_machine) opv_machine.value = anyText(op && op.machine_id ? op.machine_id : machineId);
-    if(opv_operador) opv_operador.value = anyText(op && op.operador);
-    if(opv_lote) opv_lote.value = anyText(op && op.lote);
-    if(opv_status) opv_status.value = anyText(op && op.status);
-
-    
-
-    updateToggleButton();
-if(opv_os) opv_os.value = anyText(op && (op.os || op.os_num || op.ordem_servico));
-    if(opv_gr_fio) opv_gr_fio.value = anyText(op && (op.gr_fio || op.gr_e_ou_fio));
-    if(opv_conv) opv_conv.value = anyText(op && (op.op_conv_m_por_pcs ?? op.conv_m_por_pcs));
-
-    const opStatus = safeText(op && op.status).toUpperCase();
-    const opEncerrada = (opStatus.includes("ENCERR") || opStatus.includes("FECH") || opStatus.includes("FINAL"));
-    const diaRefBruta = safeText(op && (op.__dia_ref || op.data_ref || op.data));
-    const startedIso = safeText(op && (op.started_at || op.hs_inicial || op.inicio));
-    const diaRefDerivada = (startedIso && startedIso.length >= 10) ? startedIso.slice(0,10) : "";
-    const diaRef = diaRefBruta || diaRefDerivada;
-    const isHoje = (diaRef && diaRef === todayIsoLocal());
-    // Regra: na OP ativa do dia atual, iniciar zerado apenas enquanto nao houver producao real no payload.
-    // Assim evitamos valores "fantasma" na abertura e liberamos a atualizacao normal quando os dados reais chegarem.
-    let temProducaoReal = false;
-    try {
-      const itensCheck = pickOpBobinasItens(op);
-      const evCheck = (op && (Array.isArray(op.bobinas_eventos) ? op.bobinas_eventos : (Array.isArray(op.bobinasEventos) ? op.bobinasEventos : (Array.isArray(op.bobinas_eventos_detail) ? op.bobinas_eventos_detail : [])))) || [];
-      let accPcs = 0;
-      let accMetro = 0;
-      let accMatBom = 0;
-      let accTempo = 0;
-      if(Array.isArray(itensCheck)){
-        itensCheck.forEach((it) => {
-          accPcs += num0(it && (it.pcs_total ?? it.total_pcs ?? 0));
-          accMetro += num0(it && (it.metro_consumido ?? it.metro_linear_consumido ?? 0));
-          accMatBom += num0(it && (it.qtd_mat_bom ?? it.mat_bom ?? 0));
-          accTempo += num0(it && (it.tempo_consumo_min ?? it.tempo_min ?? 0));
-        });
-      }
-      if(Array.isArray(evCheck)){
-        evCheck.forEach((ev) => {
-          accPcs += num0(ev && (ev.pcs_total ?? ev.total_pcs ?? 0));
-          accMetro += num0(ev && (ev.metro_consumido ?? ev.metro_linear_consumido ?? 0));
-        });
-      }
-      const opPcs = num0(op && (op.op_pcs ?? op.total_pcs ?? op.produzido ?? 0));
-      const opMetros = num0(op && (op.op_metros ?? op.total_m ?? 0));
-      temProducaoReal = (opPcs > 0) || (opMetros > 0) || (accPcs > 0) || (accMetro > 0) || (accMatBom > 0) || (accTempo > 0) || (Math.max(0, (num0(op && op.esp_atual) - num0(op && op.baseline_pcs))) > 0);
-    } catch(e) { temProducaoReal = false; }
-
-    const isLiveHoje = (!opEncerrada) && isHoje;
-    const forceZeroLive = isLiveHoje && !temProducaoReal;
-
-    const opStartedStr = fmtIsoDateTimeLocal(op && (op.started_at || op.hs_inicial || op.inicio));
-    let opEndedStr = fmtIsoDateTimeLocal(op && (op.ended_at || op.hs_termino || op.fim));
-    if(opEndedStr && opEndedStr !== "-" && opEndedStr === opStartedStr) opEndedStr = "";
-    if(forceZeroLive) opEndedStr = "";
-
-    if(opv_started) opv_started.value = opStartedStr;
-    if(opv_ended) opv_ended.value = opEndedStr;
-
-    if(ope_obs) ope_obs.value = safeText(op && op.observacoes);
-
-    const convMporPcs = num0(op && (op.op_conv_m_por_pcs ?? op.conv_m_por_pcs ?? 0));
-
-    const baselinePcs = num0(op && op.baseline_pcs);
-    const espAtual = num0(op && op.esp_atual);
-    const livePcs = (isLiveHoje && espAtual > 0 && baselinePcs > 0) ? Math.max(0, (espAtual - baselinePcs)) : 0;
-    const liveMetros = (livePcs > 0) ? (livePcs * convMporPcs) : 0;
-    let liveTempoMin = 0;
-    if(isLiveHoje && startedIso){
-      const t0 = new Date(startedIso).getTime();
-      if(!isNaN(t0)){
-        liveTempoMin = Math.max(0, Math.floor((Date.now() - t0) / 60000));
-      }
-    }
-
-
-    clearBobinasUI();
-
-    const itens = pickOpBobinasItens(op);
-    if(Array.isArray(itens) && itens.length > 0){
-      if(opv_bobinas_resumo) opv_bobinas_resumo.value = bobinasResumo(itens);
-      itens.forEach((b, i) => {
-        const card = createBobinaCard(b, i, convMporPcs, {op: op, isEdit: isEdit, forceZeroLive: forceZeroLive, isLiveHoje: isLiveHoje, livePcs: livePcs, liveMetros: liveMetros, liveTempoMin: liveTempoMin});
-        if(bobinasWrap) bobinasWrap.appendChild(card);
-      });
-    }else{
-      // Se backend trouxe eventos de bobina, usa eles para montar os cards mesmo quando bobinas_itens/bobinas_detail vier vazio
-      const evArr = (op && (Array.isArray(op.bobinas_eventos) ? op.bobinas_eventos : (Array.isArray(op.bobinasEventos) ? op.bobinasEventos : (Array.isArray(op.bobinas_eventos_detail) ? op.bobinas_eventos_detail : [])))) || [];
-      if(evArr && evArr.length){
-        const pseudoItens = evArr.map((ev, i) => {
-          const startAbs = num0(ev && (ev.start_abs_pcs ?? ev.start_abs ?? ev.baseline_pcs ?? ev.baseline ?? 0));
-          const endAbs = num0(ev && (ev.end_abs_pcs ?? ev.end_abs ?? ev.esp_end ?? ev.end_abs_count ?? 0));
-          const pcsEvt = (endAbs > 0 && startAbs >= 0 && endAbs >= startAbs) ? (endAbs - startAbs) : 0;
-
-          return {
-            comprimento_m: num0(ev && (ev.comprimento_m ?? ev.comprimentoM ?? ev.bobina_m ?? 0)),
-            started_at: safeText(ev && (ev.started_at ?? ev.start_at ?? ev.inicio ?? "")),
-            ended_at: safeText(ev && (ev.ended_at ?? ev.end_at ?? ev.fim ?? "")),
-            baseline_pcs: startAbs,
-            esp_last: endAbs,
-            pcs_total: pcsEvt
-          };
-        });
-
-        if(opv_bobinas_resumo) opv_bobinas_resumo.value = bobinasResumo(pseudoItens);
-        pseudoItens.forEach((b, i) => {
-          const card = createBobinaCard(b, i, convMporPcs, {op: op, isEdit: isEdit, forceZeroLive: forceZeroLive, isLiveHoje: isLiveHoje, livePcs: livePcs, liveMetros: liveMetros, liveTempoMin: liveTempoMin});
-          if(bobinasWrap) bobinasWrap.appendChild(card);
-        });
-      }else{
-        if(opv_bobinas_resumo) opv_bobinas_resumo.value = "-";
-        // Fallback legacy: cria uma bobina virtual com base no total da OP
-      const totalPcs = Math.floor(num0(op && (op.total_pcs ?? op.op_pcs ?? op.produzido ?? 0)));
-      const comprimentoM = num0(op && (op.bobina ?? 0));
-      const metroConsumido = (totalPcs > 0 && convMporPcs > 0) ? (totalPcs * convMporPcs) : 0;
-
-      const legacy = {
-        comprimento_m: comprimentoM,
-        pcs_total: totalPcs,
-        metro_consumido: metroConsumido,
-        qtd_cost_elas: num0(op && (op.qtd_cost_elas ?? 0)),
-        refugo: num0(op && (op.refugo ?? op.refugo_total ?? 0)),
-        qtd_saco_caixa: num0(op && (op.qtd_saco_caixa ?? 0))
-      };
-
-      const card = createBobinaCard(legacy, 0, convMporPcs, {op: op, isEdit: isEdit, forceZeroLive: forceZeroLive});
-      if(bobinasWrap) bobinasWrap.appendChild(card);
-      }
-    }
-
-    if(modalBackdrop){
-      modalBackdrop.style.display = "flex";
-      modalBackdrop.setAttribute("aria-hidden", "false");
-    }
-    // live refresh enquanto estiver em view e OP ativa
-    try{
-      const _opts = opts || {};
-      if(!_opts.skipLiveStart){
-        startOpModalLiveRefresh();
-      }
-    }catch(e){}
-
   }
 
   function closeModal(){
-    currentOp = null;
-
-    if(opModalTimer){
-      clearInterval(opModalTimer);
-      opModalTimer = null;
-    }
-    opModalRefreshing = false;
-
-    if(modalBackdrop){
-      modalBackdrop.style.display = "none";
-      modalBackdrop.setAttribute("aria-hidden", "true");
-    }
+    modalBackdrop.classList.remove("open");
+    modalBackdrop.setAttribute("aria-hidden","true");
   }
 
+  periodSelect.addEventListener("change", updateCustomVisibility);
 
-  function pauseLiveRefreshForDayModal(){
-    if(liveTimer){
-      clearInterval(liveTimer);
-      liveTimer = null;
-    }
-    livePausedByDayModal = true;
-  }
+  machineSelect.addEventListener("change", updateTestNotice);
 
-  function resumeLiveRefreshAfterDayModal(){
-    if(!livePausedByDayModal) return;
-    livePausedByDayModal = false;
-    if(!liveTimer){
-      liveTimer = setInterval(refreshLive, 5000);
-    }
-  }
+  searchButton.addEventListener("click", function(){
+    loadHistory();
+  });
 
-  function closeDayModal(){
-    if(dayModalBackdrop){
-      dayModalBackdrop.classList.remove("open");
-      dayModalBackdrop.style.display = "none";
-      dayModalBackdrop.setAttribute("aria-hidden", "true");
-    }
+  modalClose.addEventListener("click", closeModal);
 
-    if(dayModalTimer){
-      clearInterval(dayModalTimer);
-      dayModalTimer = null;
-    }
-    dayModalCurrentDay = null;
-    resumeLiveRefreshAfterDayModal();
-  }
+  modalBackdrop.addEventListener("click", function(event){
+    if(event.target === modalBackdrop) closeModal();
+  });
 
-  function parseTs(v){
-    if(v === null || v === undefined) return null;
-    if(typeof v === "number"){
-      // aceita ms ou s
-      if(v < 2000000000){ return new Date(v * 1000); }
-      return new Date(v);
-    }
-    if(typeof v === "string"){
-      const d = new Date(v);
-      if(!isNaN(d.getTime())) return d;
-    }
-    return null;
-  }
-
-  function clamp(n, a, b){
-    return Math.max(a, Math.min(b, n));
-  }
-
-  function buildHourBar(isoDay, hourIdx, segments){
-    const bar = document.createElement("div");
-    bar.className = "tbar";
-
-    const day = isoDay;
-
-    const hourStartMs = tzWallToUtcMs(IND_TZ, day, hourIdx, 0, 0);
-    const hourEndMs = hourStartMs + (60 * 60 * 1000) - 1;
-
-    const hourStart = new Date(hourStartMs);
-    const hourEnd = new Date(hourEndMs);
-
-    const nowTz = nowInTzDate(IND_TZ);
-    const isToday = (day === todayIsoLocal());
-    const isCurrentHour = isToday && (nowTz.getHours() === Number(hourIdx));
-
-    const nowMs = Date.now();
-    const capEndMs = (isCurrentHour && nowMs < (hourEndMs + 1)) ? nowMs : (hourEndMs + 1);
-    const capEnd = new Date(capEndMs);
-
-    const totalMs = Math.max(1, (hourEndMs + 1) - hourStartMs);
-
-    function parseInDay(dayIso, value){
-      if(value === null || value === undefined) return null;
-      if(typeof value === "string" && /^\d{2}:\d{2}(:\d{2})?$/.test(value)){
-        const t = value.length === 5 ? (value + ":00") : value;
-        const hh = Number(t.slice(0,2));
-        const mm = Number(t.slice(3,5));
-        const ss = Number(t.slice(6,8));
-        const ms = tzWallToUtcMs(IND_TZ, dayIso, hh, mm, ss);
-        return new Date(ms);
-      }
-      return parseTs(value);
-    }
-
-    let lastPctEnd = 0;
-
-    (Array.isArray(segments) ? segments : []).forEach(seg=>{
-      const state = (seg && (seg.state || seg.status || seg.color)) ? String(seg.state || seg.status || seg.color) : "NP";
-      const startStr = seg && (seg.start || seg.started_at || seg.ts_start) ? (seg.start || seg.started_at || seg.ts_start) : null;
-      const endStr = seg && (seg.end || seg.ended_at || seg.ts_end) ? (seg.end || seg.ended_at || seg.ts_end) : null;
-
-      const startTs = parseInDay(day, startStr) || hourStart;
-      const endTsRaw = parseInDay(day, endStr);
-      const endTs = endTsRaw || capEnd;
-
-      const st = startTs < hourStart ? hourStart : startTs;
-      const en = endTs > capEnd ? capEnd : endTs;
-
-      if(en <= st) return;
-
-      const sp = ((st.getTime() - hourStart.getTime()) / totalMs) * 100;
-      const ep = ((en.getTime() - hourStart.getTime()) / totalMs) * 100;
-
-      const startPct = Math.max(lastPctEnd, sp);
-      const endPct = Math.max(startPct, ep);
-
-      let cls = "np";
-      if(state === "RUN" || state === "PROD" || state === "PRODUZINDO" || state === "GREEN"){ cls = "run"; }
-      else if(state === "STOP" || state === "PARADO" || state === "PAUSA" || state === "RED"){ cls = "stop"; }
-      else if(state === "NP" || state === "NAO_PROGRAMADO" || state === "CINZA" || state === "GRAY" || state === "GREY"){ cls = "np"; }
-
-      const div = document.createElement("div");
-      div.className = "tseg " + cls;
-      div.style.width = (endPct - startPct).toFixed(3) + "%";
-
-      if(cls === "stop" && machineId){
-        div.title = "Classificar esta parada";
-        div.addEventListener("click", function(event){
-          event.preventDefault();
-          event.stopPropagation();
-          const params = new URLSearchParams({
-            machine_id: machineId,
-            date: day,
-            start_ms: String(st.getTime()),
-            end_ms: String(en.getTime())
-          });
-          if(String(machineId).toLowerCase() === "teste01") params.set("teste", "1");
-          window.location.href = "/paradas/?" + params.toString();
-        });
-      }
-
-      bar.appendChild(div);
-
-      lastPctEnd = endPct;
-    });
-
-    if(!bar.children.length){
-      const div = document.createElement("div");
-      div.className = "tseg np";
-      div.style.width = "100%";
-      bar.appendChild(div);
-    }
-
-    return bar;
-  }
-
-  function buildLiveProgressBar(isoDay, hourIdx, row){
-    const bar = document.createElement("div");
-    bar.className = "pbar";
-
-    const fill = document.createElement("div");
-    fill.className = "pfill";
-
-    const meta = Number(row && (row.meta ?? row.meta_hora ?? 0)) || 0;
-    const prod = Number(row && (row.produzido ?? row.producao ?? 0)) || 0;
-
-    let cls = "stop";
-    if(meta <= 0){
-      cls = "np";
-    }else if(prod >= meta){
-      cls = "run";
-    }else{
-      cls = "stop";
-    }
-    fill.classList.add(cls);
-
-    const day = String(isoDay || "").trim();
-    const now = new Date();
-    const today = todayIsoLocal();
-
-    let pct = 0;
-
-    if(meta > 0){
-      pct = clamp((prod / meta) * 100, 0, 100);
-    }else{
-      pct = 0;
-    }
-
-    fill.style.width = pct.toFixed(3) + "%";
-    bar.appendChild(fill);
-    return bar;
-  }
-
-
-  function buildMetricsBar(isoDay, hourIdx, row){
-    const bar = document.createElement("div");
-    bar.className = "tbar";
-
-    const meta = Number(row && (row.meta ?? row.meta_hora ?? 0)) || 0;
-    const prod = Number(row && (row.produzido ?? row.producao ?? row.prod ?? 0)) || 0;
-    const tProdSec = Number(row && (row.tempo_produzindo_sec ?? row.tempo_produzindo_seg ?? row.tempo_produzindo_s ?? 0)) || 0;
-    const tStopSec = Number(row && (row.tempo_parado_sec ?? row.tempo_parado_seg ?? row.tempo_parado_s ?? 0)) || 0;
-    const tProdMinRaw = Number(row && (row.tempo_produzindo_min ?? row.tempo_produzindo_minutos ?? row.tempo_produzindo ?? 0)) || 0;
-    const tStopMinRaw = Number(row && (row.tempo_parado_min ?? row.tempo_parado_minutos ?? row.tempo_parado ?? 0)) || 0;
-
-    const tProdMin = tProdSec > 0 ? Math.round(tProdSec / 60) : tProdMinRaw;
-    const tStopMin = tStopSec > 0 ? Math.round(tStopSec / 60) : tStopMinRaw;
-
-    function seg(cls, widthPct){
-      const div = document.createElement("div");
-      div.className = "tseg " + cls;
-      div.style.width = Math.max(0, widthPct).toFixed(3) + "%";
-      bar.appendChild(div);
-    }
-
-    if(isFutureHour(isoDay, hourIdx)){
-      seg("np", 100);
-      return bar;
-    }
-
-    if((tProdMin + tStopMin) > 0){
-      const prodPct = Math.min(100, (tProdMin / 60) * 100);
-      const stopPct = Math.min(100 - prodPct, (tStopMin / 60) * 100);
-      const npPct = Math.max(0, 100 - prodPct - stopPct);
-
-      if(prodPct > 0) seg("run", prodPct);
-      if(stopPct > 0) seg("stop", stopPct);
-      if(npPct > 0) seg("np", npPct);
-      return bar;
-    }
-
-    if(prod > 0){
-      if(meta > 0 && prod < meta){
-        seg("stop", 100);
-      }else{
-        seg("run", 100);
-      }
-      return bar;
-    }
-
-    seg("np", 100);
-    return bar;
-  }
-
-  async function fetchDayDetail(isoDay){
-    if(!machineId) throw new Error("machine_id vazio");
-
-    // Compatibilidade: tenta mais de um caminho (dependendo de como o blueprint foi montado)
-    const candidates = [
-      `/producao/api/producao/detalhe-dia?machine_id=${encodeURIComponent(machineId)}&date=${encodeURIComponent(isoDay)}`,
-      `/api/producao/detalhe-dia?machine_id=${encodeURIComponent(machineId)}&date=${encodeURIComponent(isoDay)}`,
-      `/producao/detalhe-dia?machine_id=${encodeURIComponent(machineId)}&date=${encodeURIComponent(isoDay)}`
-    ];
-
-    let lastErr = null;
-
-    for(const url of candidates){
-      try{
-        const resp = await fetch(url, { method: "GET", headers: { "Accept": "application/json" } });
-        if(resp.ok){
-          return await resp.json();
-        }
-
-        // Se for 404, tenta o proximo candidato
-        if(resp.status === 404){
-          lastErr = new Error("Endpoint nao encontrado: " + url);
-          continue;
-        }
-
-        lastErr = new Error("Falha ao buscar detalhe do dia (HTTP " + resp.status + ")");
-      }catch(e){
-        lastErr = e;
-      }
-    }
-
-    throw (lastErr || new Error("Falha ao buscar detalhe do dia"));
-  }
-
-
-  function renderDayDetail(payload){
-    const isoDay = payload && payload.date ? String(payload.date) : "";
-
-    dayModalTitle.textContent = "Detalhe do dia " + isoToBr(isoDay);
-
-    const hours = (payload && Array.isArray(payload.hours)) ? payload.hours : [];
-    dayHourTbody.innerHTML = "";
-
-    if(!hours.length){
-      dayHourTbody.innerHTML = '<tr><td colspan="2">Sem dados.</td></tr>';
-      return;
-    }
-
-    hours.forEach(h=>{
-      const hourIdx = Number(h.hour ?? h.hora ?? h.hora_idx ?? 0);
-      const tr = document.createElement("tr");
-
-      const tdH = document.createElement("td");
-      tdH.textContent = String(hourIdx).padStart(2,"0") + ":00";
-      tr.appendChild(tdH);
-
-      const tdD = document.createElement("td");
-
-      const wrap = document.createElement("div");
-      wrap.className = "hwrap";
-
-      
-
-      const meta = pickFirstNumber(h, ["meta", "meta_hora", "meta_h"]);
-      const prod = pickFirstNumber(h, ["produzido", "producao", "prod", "produzido_hora"]);
-      const tProdSec = pickFirstNumber(h, ["tempo_produzindo_sec", "tempo_produzindo_seg", "tempo_produzindo_s" ]);
-      const tStopSec = pickFirstNumber(h, ["tempo_parado_sec", "tempo_parado_seg", "tempo_parado_s" ]);
-      const tProdMin = (tProdSec === null ? pickFirstNumber(h, ["tempo_produzindo_min", "tempo_produzindo_minutos", "tempo_produzindo" ]) : Math.round(tProdSec / 60));
-      const tStopMin = (tStopSec === null ? pickFirstNumber(h, ["tempo_parado_min", "tempo_parado_minutos", "tempo_parado" ]) : Math.round(tStopSec / 60));
-      const qtdParadas = pickFirstNumber(h, ["qtd_paradas", "paradas", "quantidade_paradas" ]);
-
-      const pills = document.createElement("div");
-      pills.className = "pills";
-      pills.innerHTML =
-        '<span class="pill">Meta ' + (meta === null ? '-' : fmtInt(meta)) + '</span>' +
-        '<span class="pill">Prod ' + (prod === null ? '-' : fmtInt(prod)) + '</span>' +
-        '<span class="pill">Tempo Prod ' + (tProdMin === null ? '-' : fmtMinutes(tProdMin)) + '</span>' +
-        '<span class="pill">Tempo Parado ' + (tStopMin === null ? '-' : fmtMinutes(tStopMin)) + '</span>' +
-        '<span class="pill">Paradas ' + (qtdParadas === null ? '-' : fmtInt(qtdParadas)) + '</span>';
-      wrap.appendChild(pills);
-
-      const segments =
-        (Array.isArray(h && h.segments) ? h.segments :
-         (Array.isArray(h && h.timeline) ? h.timeline :
-          (Array.isArray(h && h.barra) ? h.barra : null)));
-
-      if(segments && segments.length){
-        wrap.appendChild(buildHourBar(isoDay, hourIdx, segments));
-      }else{
-        wrap.appendChild(buildMetricsBar(isoDay, hourIdx, h));
-      }
-
-tdD.appendChild(wrap);
-      tr.appendChild(tdD);
-
-      dayHourTbody.appendChild(tr);
-    });
-  }
-  async function refreshDayModal(preserveScroll){
-    if(!dayModalCurrentDay) return;
-
-    const bodyEl = dayModalBackdrop.querySelector(".day-modal-body");
-    const prevScroll = bodyEl ? bodyEl.scrollTop : 0;
-
-    try{
-      const payload = await fetchDayDetail(dayModalCurrentDay);
-      renderDayDetail(payload);
-    }catch(err){
-      console.error(err);
-      dayHourTbody.innerHTML = '<tr><td colspan="2">Falha ao carregar detalhe do dia.</td></tr>';
-    }
-
-    if(preserveScroll && bodyEl){
-      bodyEl.scrollTop = prevScroll;
-    }
-  }
-
-
-  async function openDayModal(dateIso){
-    dayModalCurrentDay = String(dateIso || "");
-    if(!dayModalCurrentDay) return;
-
-    pauseLiveRefreshForDayModal();
-
-    dayModalBackdrop.classList.add("open");
-    dayModalBackdrop.style.display = "";
-    dayModalBackdrop.setAttribute("aria-hidden", "false");
-
-    if(dayModalTimer){
-      clearInterval(dayModalTimer);
-      dayModalTimer = null;
-    }
-
-    dayHourTbody.innerHTML = '<tr><td colspan="2">Carregando...</td></tr>';
-
-    try{
-      const payload = await fetchDayDetail(dayModalCurrentDay);
-      renderDayDetail(payload);
-    }catch(err){
-      console.error(err);
-      dayHourTbody.innerHTML = '<tr><td colspan="2">Falha ao carregar detalhe do dia.</td></tr>';
-    }
-  }
-
-  function escapeHtml(s){
-    return String(s || "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#39;");
-  }
-
-  function buildOpPrintHtml(op){
-    const title = (op && op.lote) ? ("OP " + escapeHtml(anyText(op.op_id || op.id || "")) + " - Lote " + escapeHtml(op.lote)) : "OP";
-    const conv = num0(op && (op.op_conv_m_por_pcs ?? op.conv_m_por_pcs ?? 0));
-    const bobinas = pickOpBobinasItens(op);
-
-    const machine = anyText(op && (op.machine_id || machineId));
-    const operador = anyText(op && op.operador);
-    const lote = anyText(op && op.lote);
-    const status = anyText(op && op.status);
-    const os = anyText(op && (op.os || op.os_num || op.ordem_servico));
-    const grFio = anyText(op && (op.gr_fio || op.gr_e_ou_fio));
-    const conversao = anyText(op && (op.op_conv_m_por_pcs ?? op.conv_m_por_pcs));
-    const abertura = fmtIsoDateTimeLocal(op && (op.started_at || op.hs_inicial || op.inicio));
-    const finalOp = fmtIsoDateTimeLocal(op && (op.ended_at || op.hs_termino || op.fim));
-
-    const bobinaResumo = bobinas.length
-      ? `${bobinas.length} bobina(s) | ${bobinas.map(b => Math.floor(num0(b && (b.comprimento_m ?? b.metros ?? b.bobina_m ?? 0)))).join(' | ')} m`
-      : "Sem bobinas";
-
-    const bobinasHtml = bobinas.length
-      ? bobinas.map((b, i) => {
-          const comprimento = Math.floor(num0(b && (b.comprimento_m ?? b.metros ?? b.bobina_m ?? 0)));
-          const pcs = Math.floor(num0(b && (b.pcs_total ?? b.total_pcs ?? 0)));
-          const metro = fmtMeters2Floor(num0(b && (b.metro_consumido ?? b.metro_linear_consumido ?? (pcs * conv))));
-          const startedRaw = safeText(b && (b.started_at ?? b.inicio ?? b.hs_inicial ?? b.start_at ?? "")).trim();
-          const endedRaw = safeText(b && (b.ended_at ?? b.fim ?? b.hs_final ?? b.hs_termino ?? b.end_at ?? "")).trim();
-          let tempo = Math.floor(num0(b && (b.tempo_consumo_min ?? b.tempo_consumo ?? b.tempo_min ?? b.tempo ?? 0)));
-          if(!(tempo > 0) && startedRaw && endedRaw){
-            try{
-              const ds = new Date(startedRaw);
-              const de = new Date(endedRaw);
-              if(!isNaN(ds.getTime()) && !isNaN(de.getTime())){
-                const diff = Math.floor((de.getTime() - ds.getTime()) / 60000);
-                if(diff > 0) tempo = diff;
-              }
-            }catch(e){
-              // ignore
-            }
-          }
-          const hi = fmtIsoDateTimeLocal(startedRaw);
-          const hf = fmtIsoDateTimeLocal(endedRaw);
-          const cost = Math.floor(num0(b && (b.qtd_cost_elas ?? b.cost_elas ?? 0)));
-          const ref = Math.floor(num0(b && (b.refugo ?? 0)));
-          const retrabalho = Math.floor(num0(b && (b.qtd_saco_caixa ?? b.saco_caixa ?? 0)));
-          const mat = calcMatBom(pcs, cost, ref, retrabalho);
-
-          return `
-            <div class="bobina-print-box">
-              <table class="block-table bobina-head">
-                <tr>
-                  <th style="width:25%;">BOBINA ${i + 1}</th>
-                  <td style="width:25%;"></td>
-                  <td style="width:25%;"></td>
-                  <th style="width:25%;" class="text-right">Comprimento: ${comprimento} m</th>
-                </tr>
-              </table>
-
-              <table class="block-table bobina-grid bobina-section">
-                <tr>
-                  <th>COMPRIMENTO DA BOBINA (M)</th>
-                  <th>TOTAL PCS (BOBINA)</th>
-                  <th>METRO LINEAR CONSUMIDO (M)</th>
-                  <th>TEMPO DE CONSUMO (MIN)</th>
-                </tr>
-                <tr>
-                  <td>${comprimento}</td>
-                  <td>${pcs}</td>
-                  <td>${escapeHtml(metro)}</td>
-                  <td>${tempo}</td>
-                </tr>
-              </table>
-
-              <table class="block-table two-col bobina-section">
-                <tr>
-                  <th>HORA INICIAL</th>
-                  <th>HORA FINAL</th>
-                </tr>
-                <tr>
-                  <td>${escapeHtml(hi)}</td>
-                  <td>${escapeHtml(hf)}</td>
-                </tr>
-              </table>
-
-              <table class="block-table bobina-grid bobina-totals bobina-section">
-                <tr>
-                  <th>QTD. MAT BOM</th>
-                  <th>QTD. COST. ELAS.</th>
-                  <th>REFUGO</th>
-                  <th>RETRABALHO</th>
-                </tr>
-                <tr>
-                  <td>${mat}</td>
-                  <td>${cost}</td>
-                  <td>${ref}</td>
-                  <td>${retrabalho}</td>
-                </tr>
-              </table>
-            </div>
-          `;
-        }).join("")
-      : `
-          <div class="bobina-print-box bobina-print-box-empty">
-            <table class="block-table bobina-grid bobina-section">
-              <tr>
-                <td class="empty">Sem bobinas registradas.</td>
-              </tr>
-            </table>
-          </div>
-        `;
-
-    const obs = escapeHtml(op && op.observacoes ? op.observacoes : "");
-
-    return `<!doctype html>
-
-<!--
-C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\indflow\modules\producao\templates\historico.html
-LAST_RECODE: 2026-03-06 21:30:00 -03:00
-MOTIVO: Corrigir a impressao para calcular e exibir o tempo de consumo das bobinas no PDF, mantendo o layout em retrato e os blocos visuais.
--->
-<html lang="pt-BR">
-<head>
-<meta charset="utf-8">
-<title>${title}</title>
-<style>
-  @page{ size:A4 portrait; margin:10mm; }
-  *{ box-sizing:border-box; }
-  body{ font-family: Arial, sans-serif; color:#0f172a; margin:0; font-size:12px; }
-  .sheet{ width:100%; }
-  .title-table,
-  .block-table{ width:100%; border-collapse:separate; border-spacing:0; margin:0 0 8px 0; }
-  .bobina-print-box{
-    background:#e5e7eb;
-    border:1.5px solid #6b7280;
-    padding:8px;
-    margin:0 0 12px 0;
-    page-break-inside:avoid;
-    break-inside:avoid;
-  }
-  .bobina-print-box .block-table{ margin:0 0 6px 0; }
-  .bobina-print-box .block-table:last-child{ margin-bottom:0; }
-  .title-table th,
-  .block-table th,
-  .block-table td{
-    border:1px solid #cbd5e1;
-    padding:8px 10px;
-    vertical-align:middle;
-  }
-  .title-table th{
-    background:#f8fafc;
-    font-size:16px;
-    font-weight:800;
-    text-align:left;
-  }
-  .block-table th{
-    background:#f8fafc;
-    font-size:11px;
-    font-weight:800;
-    text-align:left;
-  }
-  .block-table td{
-    background:#ffffff;
-    font-size:12px;
-  }
-  .top-grid th,
-  .top-grid td,
-  .bobina-grid th,
-  .bobina-grid td,
-  .bobina-head th,
-  .bobina-head td,
-  .two-col th,
-  .two-col td,
-  .obs-table th,
-  .obs-table td{ width:25%; }
-  .two-col th,
-  .two-col td{ width:50%; }
-  .bobina-head th,
-  .bobina-head td{ background:#d1d5db; }
-  .bobina-head th{
-    font-size:12px;
-    letter-spacing:0.03em;
-  }
-  .bobina-section td{ background:#ffffff; }
-  .bobina-totals th,
-  .bobina-totals td{ background:#fef3c7; }
-  .obs-table td{
-    min-height:78px;
-    height:78px;
-    white-space:pre-wrap;
-    vertical-align:top;
-  }
-  .empty{ text-align:center; color:#64748b; }
-  .text-right{ text-align:right; }
-  @media print{
-    html, body{ width:210mm; }
-    .sheet{ width:100%; }
-  }
-</style>
-</head>
-<body>
-  <div class="sheet">
-    <table class="title-table">
-      <tr>
-        <th>${title}</th>
-      </tr>
-    </table>
-
-    <table class="block-table top-grid">
-      <tr>
-        <th>MÁQUINA</th>
-        <th>OPERADOR</th>
-        <th>LOTE</th>
-        <th>STATUS</th>
-      </tr>
-      <tr>
-        <td>${escapeHtml(machine)}</td>
-        <td>${escapeHtml(operador)}</td>
-        <td>${escapeHtml(lote)}</td>
-        <td>${escapeHtml(status)}</td>
-      </tr>
-    </table>
-
-    <table class="block-table top-grid">
-      <tr>
-        <th>OS</th>
-        <th>GR E/OU FIO</th>
-        <th>CONVERSÃO M/PCS</th>
-        <th>BOBINAS</th>
-      </tr>
-      <tr>
-        <td>${escapeHtml(os)}</td>
-        <td>${escapeHtml(grFio)}</td>
-        <td>${escapeHtml(conversao)}</td>
-        <td>${escapeHtml(bobinaResumo)}</td>
-      </tr>
-    </table>
-
-    <table class="block-table two-col">
-      <tr>
-        <th>ABERTURA OP</th>
-        <th>FINAL OP</th>
-      </tr>
-      <tr>
-        <td>${escapeHtml(abertura)}</td>
-        <td>${escapeHtml(finalOp)}</td>
-      </tr>
-    </table>
-
-    ${bobinasHtml}
-
-    <table class="block-table obs-table">
-      <tr>
-        <th>OBSERVAÇÕES</th>
-      </tr>
-      <tr>
-        <td>${obs || ""}</td>
-      </tr>
-    </table>
-  </div>
-</body>
-</html>`;
-  }
-
-  function openPrintWindow(){
-    if(!currentOp){
-      alert("OP invalida.");
-      return;
-    }
-    const html = buildOpPrintHtml(currentOp);
-    const w = window.open("", "_blank");
-    if(!w){
-      alert("Bloqueio de popup. Libere popups para gerar PDF.");
-      return;
-    }
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-    w.focus();
-    setTimeout(() => { try{ w.print(); }catch(e){} }, 250);
-  }
-
-
-  if(modalClose) modalClose.addEventListener("click", closeModal);
-if(modalBackdrop){
-    modalBackdrop.addEventListener("click", function(e){
-      if(e && e.target === modalBackdrop){
-        closeModal();
-      }
-    });
-  }
-
-  document.addEventListener("keydown", function(e){
-    if(e && e.key === "Escape"){
-      if(dayModalBackdrop && dayModalBackdrop.classList.contains("open")){
-        closeDayModal();
-        return;
-      }
-      if(modalBackdrop && modalBackdrop.style.display === "flex"){
-        closeModal();
-        return;
-      }
+  document.addEventListener("keydown", function(event){
+    if(event.key === "Escape" && modalBackdrop.classList.contains("open")){
+      closeModal();
     }
   });
 
-  
-  function isOpAtiva(statusStr){
-    const s = safeText(statusStr).toUpperCase();
-    if(!s) return false;
-    if(s.includes("ENCERR") || s.includes("FECH") || s.includes("FINAL")) return false;
-    if(s.includes("ATIV") || s.includes("ATIVA") || s.includes("PRODU") || s.includes("ANDAMENTO") || s.includes("EM PRODU")) return true;
-    // por padrao, FILA nao é ativa
-    return false;
-  }
+  async function init(){
+    updateCustomVisibility();
 
-  function updateToggleButton(){
-    const st = (currentOp && (currentOp.status || currentOp.stat)) || "";
-    const ativa = isOpAtiva(st);
-    const encerrada = isOpEncerrada(st);
-    const criada = !ativa && !encerrada;
+    const requestedDate = requestedDateFromUrl();
+    if(requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)){
+      periodSelect.value = "custom";
+      dateFromInput.value = requestedDate;
+      dateToInput.value = requestedDate;
+      updateCustomVisibility();
+    }
 
-    if(modalToggle){
-      if(encerrada){
-        modalToggle.textContent = "Encerrar OP";
-        modalToggle.style.display = "none";
-        modalToggle.disabled = true;
-        modalToggle.title = "";
-      }else if(ativa){
-        modalToggle.textContent = "Encerrar OP";
-        modalToggle.style.display = "";
-        modalToggle.disabled = false;
-        modalToggle.title = "";
-      }else{
-        modalToggle.textContent = "Ativar OP";
-        modalToggle.style.display = "";
-        modalToggle.disabled = false;
-        modalToggle.title = "";
+    const requestedMachine = queryMachineFromUrl();
+
+    // Primeiro carregamento sempre consegue trazer a lista de máquinas.
+    machineSelect.value = "all";
+    await loadHistory({refreshMachines:true});
+
+    if(requestedMachine && requestedMachine !== "all"){
+      const exists = Array.from(machineSelect.options).some(opt => opt.value === requestedMachine);
+      if(exists){
+        machineSelect.value = requestedMachine;
+        await loadHistory();
       }
-    }
-
-    if(modalSwap){
-      const hasBobinas = getBobinasCount(currentOp) > 0;
-      const hasNextBobina = hasNextBobinaAvailable(currentOp);
-      const waitingSwapUpdate = swapLockActive && swapLockOpId === Number(currentOp && (currentOp.op_id ?? currentOp.id ?? 0));
-
-      modalSwap.style.display = (ativa && hasBobinas) ? "" : "none";
-      modalSwap.disabled = (!ativa) || (!hasBobinas) || (!hasNextBobina) || waitingSwapUpdate;
-
-      if(!hasBobinas){
-        modalSwap.title = "Sem bobina cadastrada.";
-      }else if(!hasNextBobina){
-        modalSwap.title = "Ultima bobina ja esta em uso.";
-      }else if(waitingSwapUpdate){
-        modalSwap.title = "Aguardando primeiro machine/update apos a troca.";
-      }else{
-        modalSwap.title = "";
-      }
-    }
-
-    if(modalPdf){
-      modalPdf.style.display = "";
-      modalPdf.disabled = false;
-    }
-  }
-
-  async function postOpAction(opId, action, extraPayload){
-    const payload = Object.assign(
-      { op_id: Number(opId || 0), machine_id: machineId || "" },
-      (extraPayload || {})
-    );
-
-    const urls = [];
-    if(action === "ativar"){
-      urls.push("/producao/op/ativar", "/op/ativar");
     }else{
-      urls.push("/producao/op/encerrar-by-id", "/op/encerrar-by-id", "/producao/op/encerrar", "/op/encerrar");
+      machineSelect.value = "all";
     }
 
-    let lastErr = null;
-    for(const u of urls){
-      try{
-        const r = await fetch(u, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        const data = await r.json().catch(() => ({}));
-
-        if(!r.ok){
-          const msg = (data && (data.error || data.err || data.message)) ? (data.error || data.err || data.message) : ("HTTP " + r.status);
-          lastErr = new Error(msg);
-          continue;
-        }
-
-        if(data && (data.ok === false || data.error || data.err)){
-          lastErr = new Error(data.error || data.err || "Falha.");
-          continue;
-        }
-
-        return true;
-      }catch(e){
-        lastErr = e;
-      }
-    }
-    throw lastErr || new Error("Falha ao executar ação.");
-  }
-
-  function stopOpModalLiveRefresh(){
-    if(opModalTimer){
-      clearInterval(opModalTimer);
-      opModalTimer = null;
-    }
-    opModalRefreshing = false;
-  }
-
-  function startOpModalLiveRefresh(){
-    stopOpModalLiveRefresh();
-
-    if(!modalBackdrop) return;
-    if(modalBackdrop.style.display !== "flex") return;
-
-    if(!currentOp) return;
-    if(currentOpMode !== "view") return; // evita sobrescrever campos durante edicao
-
-    const opId = Number(currentOp && (currentOp.op_id ?? currentOp.id ?? currentOp.opId ?? currentOp.opid) || 0) || 0;
-    if(!opId) return;
-
-    // so atualiza ao vivo enquanto estiver ativa e for hoje
-    if(!currentOp.ativa) return;
-    if(!opIsHoje(currentOp)) return;
-
-    opModalTimer = setInterval(async ()=>{
-      if(opModalRefreshing) return;
-      if(!modalBackdrop || modalBackdrop.style.display !== "flex") return;
-
-      const stillId = Number(currentOp && (currentOp.op_id ?? currentOp.id ?? currentOp.opId ?? currentOp.opid) || 0) || 0;
-      if(stillId !== opId) return;
-
-      opModalRefreshing = true;
-      try{
-        const fresh = await fetchOpGet(opId);
-        if(fresh){
-          // re-render em view mantendo o timer
-          openModal(enrichOpWithLive(fresh), "view", { skipLiveStart: true });
-        }
-      }catch(e){
-        // ignora falha pontual
-      }finally{
-        opModalRefreshing = false;
-      }
-    }, 5000);
-  }
-
-
-
-  if(modalToggle){
-    modalToggle.addEventListener("click", async function(){
-      const opId = Number((currentOp && (currentOp.op_id ?? currentOp.id ?? currentOp.opId)) || 0);
-      if(!opId){
-        alert("OP invalida.");
-        return;
-      }
-
-      const ativa = isOpAtiva(currentOp && currentOp.status);
-      const encerrada = isOpEncerrada(currentOp && currentOp.status);
-      if(encerrada){
-        return;
-      }
-
-      const action = ativa ? "encerrar" : "ativar";
-      const actionLabel = ativa ? "encerrar" : "ativar";
-
-      try{
-        modalToggle.disabled = true;
-
-        let extraPayload = {};
-        if(ativa){
-          const bobinaAtualPayload = collectCurrentOpenBobinaManualPayload();
-          extraPayload = bobinaAtualPayload ? {
-            idx: bobinaAtualPayload.idx,
-            seq: bobinaAtualPayload.seq,
-            qtd_cost_elas: Math.floor(num0(bobinaAtualPayload.qtd_cost_elas)),
-            refugo: Math.floor(num0(bobinaAtualPayload.refugo)),
-            qtd_saco_caixa: Math.floor(num0(bobinaAtualPayload.qtd_saco_caixa)),
-            qtd_mat_bom: Math.floor(num0(bobinaAtualPayload.qtd_mat_bom)),
-            pcs_total: Math.floor(num0(bobinaAtualPayload.pcs_total)),
-            start_abs_pcs: Math.floor(num0(bobinaAtualPayload.start_abs_pcs)),
-            end_abs_pcs: Math.floor(num0(bobinaAtualPayload.end_abs_pcs)),
-            metro_consumido: round2(num0(bobinaAtualPayload.metro_consumido)),
-            bobina_atual: bobinaAtualPayload
-          } : {};
-        }
-
-        await postOpAction(opId, action, extraPayload);
-        const op = await fetchOpGet(opId);
-        if(op){
-          openModal(op, "edit");
-        }else if(currentOp){
-          currentOp.status = ativa ? "ENCERRADA" : "ATIVA";
-          updateToggleButton();
-        }
-        await fetchHistorico();
-      }catch(err){
-        alert("Falha ao " + actionLabel + ": " + (err.message || err));
-      }finally{
-        modalToggle.disabled = false;
-        updateToggleButton();
-      }
-    });
-  }
-
-
-  if(modalSwap){
-    modalSwap.addEventListener("click", async function(){
-      const opId = Number((currentOp && (currentOp.op_id ?? currentOp.id ?? currentOp.opId)) || 0);
-      if(!opId){
-        alert("OP invalida.");
-        return;
-      }
-
-      const ativa = isOpAtiva(currentOp && currentOp.status);
-      if(!ativa){
-        alert("A OP precisa estar ATIVA para trocar bobina.");
-        return;
-      }
-
-      if(swapLockActive && swapLockOpId === opId){
-        alert("Troca ja solicitada. Aguardando primeiro machine/update.");
-        return;
-      }
-
-      const ok = confirm("Confirmar troca de bobina?");
-      if(!ok) return;
-
-      try{
-        modalSwap.disabled = true;
-
-        const bobinaAtualPayload = collectCurrentOpenBobinaManualPayload();
-        const swapPayload = bobinaAtualPayload ? {
-          idx: bobinaAtualPayload.idx,
-          seq: bobinaAtualPayload.seq,
-          qtd_cost_elas: Math.floor(num0(bobinaAtualPayload.qtd_cost_elas)),
-          refugo: Math.floor(num0(bobinaAtualPayload.refugo)),
-          qtd_saco_caixa: Math.floor(num0(bobinaAtualPayload.qtd_saco_caixa)),
-          qtd_mat_bom: Math.floor(num0(bobinaAtualPayload.qtd_mat_bom)),
-          pcs_total: Math.floor(num0(bobinaAtualPayload.pcs_total)),
-          start_abs_pcs: Math.floor(num0(bobinaAtualPayload.start_abs_pcs)),
-          end_abs_pcs: Math.floor(num0(bobinaAtualPayload.end_abs_pcs)),
-          metro_consumido: round2(num0(bobinaAtualPayload.metro_consumido)),
-          bobina_atual: bobinaAtualPayload
-        } : {};
-
-        const resp = await postOpSwapBobina(opId, swapPayload);
-
-        // Travar nova troca ate chegar o primeiro machine/update e abrir a proxima bobina (seq next_seq)
-        const nextSeq = (resp && (resp.next_seq ?? resp.nextSeq ?? resp.next)) ?? null;
-        swapLockActive = true;
-        swapLockOpId = opId;
-        swapLockNextSeq = (nextSeq != null) ? Number(nextSeq) : null;
-
-        // Recarregar OP (pode ainda nao ter a proxima bobina aberta - depende do primeiro update)
-        try{
-          const op = await fetchOpGet(opId);
-          if(op){
-            openModal(op, "edit");
-          }
-        }catch(e){
-          // ignora
-        }
-
-        alert("Troca registrada. Aguardando primeiro machine/update para iniciar a proxima bobina.");
-      }catch(err){
-        alert("Falha ao trocar bobina: " + (err.message || err));
-      }finally{
-        modalSwap.disabled = false;
-        updateToggleButton();
-      }
-    });
-  }
-
-
-  if(modalPdf){
-    modalPdf.addEventListener("click", function(){
-      openPrintWindow();
-    });
-  }
-
-
-
-  if(bobinasMAdd){
-    bobinasMAdd.addEventListener("click", function(e){
-      if(e){ e.preventDefault(); e.stopPropagation(); }
-      if(currentOpMode !== "edit") return;
-      currentBobinasM.push(0);
-      renderBobinasM();
-    });
-  }
-
-  function renderMsgRow(msg){
-    if(!tbody) return;
-    tbody.innerHTML = "";
-    const tr = document.createElement("tr");
-    const td = document.createElement("td");
-    td.colSpan = 5;
-    td.className = "text-center";
-    td.textContent = msg;
-    tr.appendChild(td);
-    tbody.appendChild(tr);
-  }
-
-  function appendOpsRows(r){
-    if(!tbody) return;
-    const ops = r && r.ops;
-    if(!Array.isArray(ops) || ops.length === 0) return;
-
-    ops.forEach((op) => {
-      const trOp = document.createElement("tr");
-      trOp.className = "op-row " + opRowClass(op && op.status);
-
-      const tdOp = document.createElement("td");
-      tdOp.className = "op-cell";
-
-      const pill = document.createElement("span");
-      pill.className = "op-pill " + statusClass(op && op.status);
-      pill.textContent = "OP";
-
-      const label = document.createElement("span");
-      label.textContent = " " + buildOpLabel(op);
-
-      const content = document.createElement("div");
-      content.className = "op-content";
-      content.appendChild(pill);
-      content.appendChild(label);
-      tdOp.appendChild(content);
-
-      const tdBlank1 = document.createElement("td");
-      const tdBlank2 = document.createElement("td");
-      const tdBlank3 = document.createElement("td");
-
-      const tdActions = document.createElement("td");
-      tdActions.className = "op-actions";
-
-      const btnEdit = document.createElement("button");
-      btnEdit.type = "button";
-      btnEdit.className = "op-action-btn";
-      btnEdit.textContent = "Editar";
-
-      const btnDel = document.createElement("button");
-      btnDel.type = "button";
-      btnDel.className = "op-action-btn op-action-btn-danger";
-      btnDel.textContent = "Excluir";
-
-      tdActions.appendChild(btnEdit);
-      tdActions.appendChild(btnDel);
-
-      trOp.appendChild(tdOp);
-      trOp.appendChild(tdBlank1);
-      trOp.appendChild(tdBlank2);
-      trOp.appendChild(tdBlank3);
-      trOp.appendChild(tdActions);
-
-      tbody.appendChild(trOp);
-
-      function _openDetails(e){
-        if(e){
-          // Se o clique foi em Editar/Excluir (acoes), nao abrir o modal grande
-          try{
-            const t = e.target;
-            if(t && (t.closest && (t.closest('button') || t.closest('.op-actions')))){
-              return;
-            }
-          }catch(_e){}
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        if(dayModalBackdrop && dayModalBackdrop.classList.contains("open")){
-          closeDayModal();
-        }
-        const op2 = Object.assign({}, op || {});
-        op2.__dia_ref = getRowDateISO(r);
-        openModal(op2);
-      }
-
-      async function _goEdit(e){
-        if(e){
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        const opId = Number((op && (op.op_id ?? op.id ?? op.opId ?? op.opid)) || 0);
-        if(!opId){
-          alert("Nao foi possivel identificar o ID da OP para editar.");
-          return;
-        }
-        // Editar: abrir modal grande aqui no Historico em modo edicao
-        await openOpEdit(opId);
-      }
-btnEdit.addEventListener("click", _goEdit);
-      btnEdit.addEventListener("mousedown", function(e){ if(e){ e.stopPropagation(); } });
-
-      btnDel.addEventListener("mousedown", function(e){ if(e){ e.stopPropagation(); } });
-
-      btnDel.addEventListener("click", async function(e){
-        if(e){
-          e.preventDefault();
-          e.stopPropagation();
-        }
-
-        const opId = (op && (op.id || op.op_id || op.opId || op.opid)) || 0;
-        const opTxt = (op && (op.op || op.op_code || op.op_num || op.op_id || "")) || "";
-        if(!opId){
-          alert("Nao foi possivel identificar o ID da OP para excluir.");
-          return;
-        }
-        const ok = confirm("Excluir esta OP do historico?\n\nOP: " + opTxt + "\nID: " + opId);
-        if(!ok) return;
-
-        try{
-          const resp = await fetch("/producao/op/excluir", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Accept": "application/json" },
-            body: JSON.stringify({ op_id: opId })
-          });
-
-          let payload = null;
-          try{ payload = await resp.json(); }catch(_e){ payload = null; }
-
-          if(!resp.ok){
-            const msg = (payload && (payload.error || payload.message)) || ("HTTP " + resp.status);
-            alert("Falha ao excluir OP: " + msg + "\n\nObs: o endpoint esperado e POST /producao/op/excluir");
-            return;
-          }
-
-          // Recarrega historico para refletir a exclusao
-          await fetchHistorico();
-        }catch(err){
-          alert("Falha ao excluir OP: " + (err && err.message ? err.message : err));
-        }
-      });
-    });
-  }
-
-  function renderRows(rows){
-    if(!tbody) return;
-    tbody.innerHTML = "";
-
-    const visibleRows = (Array.isArray(rows) ? rows : []).filter((r) => {
-      const produzido = Number(r && r.produzido);
-      const pecasBoas = Number(r && r.pecas_boas);
-      const refugo = Number(r && (r.refugo_total ?? r.refugo ?? 0));
-      const ops = Array.isArray(r && r.ops) ? r.ops : [];
-      return (produzido > 0) || (pecasBoas > 0) || (refugo > 0) || (ops.length > 0);
-    });
-
-    if(!visibleRows.length){
-      renderMsgRow("Nenhum dado encontrado.");
-      return;
-    }
-
-    visibleRows.forEach((r) => {
-      const tr = document.createElement("tr");
-
-      tr.className = "day-row";
-      tr.dataset.dayIso = getRowDateISO(r);
-
-      const tdDay = document.createElement("td");
-      tdDay.colSpan = 5;
-
-      const summary = document.createElement("div");
-      summary.className = "day-summary";
-
-      const dateEl = document.createElement("div");
-      dateEl.className = "day-date";
-      dateEl.textContent = isoToBr((r && (r.data_ref || r.data || r.dia_ref || r.date)) || "-");
-
-      const metrics = document.createElement("div");
-      metrics.className = "day-metrics";
-
-      function createMetric(label, value, addDivider){
-        const wrap = document.createElement("div");
-        wrap.className = "day-metric";
-
-        const lab = document.createElement("span");
-        lab.className = "day-metric-label";
-        lab.textContent = label;
-
-        const val = document.createElement("span");
-        val.textContent = value;
-
-        wrap.appendChild(lab);
-        wrap.appendChild(val);
-        metrics.appendChild(wrap);
-
-        if(addDivider){
-          const divider = document.createElement("div");
-          divider.className = "day-divider";
-          metrics.appendChild(divider);
-        }
-      }
-
-      createMetric("Total", fmtNum(r.produzido), true);
-      createMetric("Boas", fmtNum(r.pecas_boas), true);
-      createMetric("Refugo", fmtNum((r && (r.refugo_total ?? r.refugo ?? 0))), false);
-
-      summary.appendChild(dateEl);
-      summary.appendChild(metrics);
-      tdDay.appendChild(summary);
-      tr.appendChild(tdDay);
-
-      tr.addEventListener("click", function(ev){
-        // Evita conflitar com clique em linhas de OP (elas sao outras trs)
-        const iso = tr.dataset.dayIso || "";
-        if(!iso) return;
-        openDayModal(iso);
-      });
-
-      tbody.appendChild(tr);
-
-      appendOpsRows(r);
-    });
-  }
-
-  let cache = null;
-  let liveTimer = null;
-  let lastMachineStatus = null;
-  let stateTrail = [];
-  let lastTrailState = null;
-  let lastTrailTsMs = null;
-
-
-  async function fetchStatus(){
-    if(!machineId) return null;
-
-    const url = `/machine/status?machine_id=${encodeURIComponent(machineId)}`;
-    const resp = await fetch(url, { method: "GET", headers: { "Accept": "application/json" } });
-    if(!resp.ok){
-      throw new Error("Falha ao buscar status (HTTP " + resp.status + ")");
-    }
-    return await resp.json();
-  }
-
-  function applyLiveOverride(status){
-    if(!status || !cache || !Array.isArray(cache)) return;
-
-    const dayIso = normalizeDateInput(status.ultimo_dia || status._bd_dia_ref || status._ph_data_ref || "");
-    const v = Number(status.producao_turno);
-
-    if(!dayIso) return;
-    if(!Number.isFinite(v)) return;
-
-    let row = cache.find((r) => getRowDateISO(r) === dayIso);
-    if(!row){
-      row = {
-        data: dayIso,
-        data_ref: dayIso,
-        machine_id: machineId,
-        meta: Number(status.meta_turno) || 0,
-        ops: [],
-        produzido: 0,
-        pecas_boas: 0,
-        refugo_total: 0,
-        percentual: 0
-      };
-      cache.unshift(row);
-    }
-
-    row.produzido = v;
-    row.pecas_boas = v;
-
-    if(row.refugo_total === undefined && row.refugo !== undefined){
-      row.refugo_total = row.refugo;
-    }
-
-    const p = Number(status.percentual_turno);
-    if(Number.isFinite(p)){
-      row.percentual = p;
-    }
-  }
-
-if(dayModalClose){
-    dayModalClose.addEventListener("click", function(){
-      closeDayModal();
-    });
-  }
-
-  if(dayModalBackdrop){
-    dayModalBackdrop.addEventListener("click", function(e){
-      if(e && e.target === dayModalBackdrop){
-        closeDayModal();
-      }
-    });
-  }
-
-  async function refreshLive(){
-    if(!machineId) return;
-    try{
-      const status = await fetchStatus();
-      
-      lastMachineStatus = status;
-      const runVal = (status && (status.run === 1 || status.run === true)) ? 1 : ((status && (status.run === 0 || status.run === false)) ? 0 : null);
-      if(runVal !== null){
-        appendTrailState(runVal === 1 ? "RUN" : "STOP", Date.now());
-      }
-      applyLiveOverride(status);
-      applyFilterAndRender();
-    }catch(e){
-      // silencioso: historico continua com cache
-    }
-  }
-
-  async function fetchHistorico(){
-    if(!machineId){
-      renderMsgRow("Selecione uma maquina.");
-      return;
-    }
-
-    renderMsgRow("Carregando historico...");
-
-    try{
-      const url = `/producao/api/producao/historico?machine_id=${encodeURIComponent(machineId)}`;
-      const resp = await fetch(url, { method: "GET", headers: { "Accept": "application/json" } });
-      if(!resp.ok){
-        throw new Error("Falha ao buscar historico (HTTP " + resp.status + ")");
-      }
-      const data = await resp.json();
-      cache = Array.isArray(data) ? data : [];
-
-      await refreshLive();
-    }catch(err){
-      cache = [];
-      renderMsgRow("Falha ao carregar historico.");
-      return;
-    }
-
-    applyFilterAndRender();
-  }
-
-  function applyFilterAndRender(){
-    const iso = normalizeDateInput(elDate ? elDate.value : "");
-    if(!cache){
-      renderMsgRow("Carregando historico...");
-      return;
-    }
-    if(!iso){
-      renderRows(cache);
-      return;
-    }
-    const filtered = cache.filter((r) => getRowDateISO(r) === iso);
-    renderRows(filtered);
-  }
-
-  async function resetByDate(){
-    if(!machineId){ alert("Maquina nao selecionada."); return; }
-
-    const iso = normalizeDateInput(elDate ? elDate.value : "");
-    if(!iso){ alert("Selecione uma data."); return; }
-
-    if(!confirm("CONFIRMAR RESET DA PRODUCAO NA DATA " + isoToBr(iso) + "?\nEssa acao zera a producao do dia e reancora o baseline.")){
-      return;
-    }
-
-    try{
-      const resp = await fetch("/admin/reset-date", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ machine_id: machineId, date: iso })
-      });
-
-      let payload = null;
-      try{ payload = await resp.json(); }catch(e){ payload = null; }
-
-      if(!resp.ok){
-        const msg = (payload && (payload.error || payload.message)) ? (payload.error || payload.message) : ("Falha no reset (HTTP " + resp.status + ")");
-        throw new Error(msg);
-      }
-
-      alert("Reset por data executado.");
-      await fetchHistorico();
-    }catch(err){
-      alert(String(err && err.message ? err.message : err));
-    }
-  }
-
-  if(elDate){
-    elDate.addEventListener("change", applyFilterAndRender);
-    elDate.addEventListener("input", applyFilterAndRender);
-  }
-
-  if(elBtnReset){
-    elBtnReset.addEventListener("click", resetByDate);
-  }
-
-  function init(){
-    loadTrail();
-    fetchHistorico();
-
-    if(liveTimer){
-      clearInterval(liveTimer);
-      liveTimer = null;
-    }
-
-    liveTimer = setInterval(refreshLive, 5000);
+    updateTestNotice();
   }
 
   if(document.readyState === "loading"){
@@ -4030,5 +1377,3 @@ if(dayModalClose){
 </script>
 
 {% endblock %}
-
-
