@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\operacao\routes.py
-# Último recode: 2026-09-01 18:38 (America/Bahia)
-# Motivo: Exigir sessão SSO do GestFlow também na Tela Operacional e impedir PIN/QR de criar acesso independente ao IndFlow.
+# Último recode: 2026-09-01 19:08 (America/Bahia)
+# Motivo: Restaurar entrada exclusiva da Tela Operacional por QR/PIN sem conta GestFlow, mantendo bloqueados todos os demais módulos do IndFlow.
 
 from __future__ import annotations
 
@@ -541,8 +541,25 @@ def _set_operator_active_machine(operator_id: str, machine_id: str | None) -> No
         conn.close()
 
 
-def _operator_logout_redirect():
-    response = redirect(_gestflow_base_url())
+def _operator_logout_redirect(
+    cliente_id: str = "",
+    machine_id: str = "",
+    token: str = "",
+):
+    access_token = str(token or "").strip()
+    if not access_token:
+        cid = str(cliente_id or "").strip()
+        try:
+            access_token = _operator_access_token(cid, machine_id)
+        except Exception:
+            access_token = ""
+
+    target = (
+        url_for("operacao.operador_pin", token=access_token)
+        if access_token
+        else _gestflow_base_url()
+    )
+    response = redirect(target)
     response.headers["Cache-Control"] = "no-store"
     response.headers["Referrer-Policy"] = "no-referrer"
     return response
@@ -563,17 +580,14 @@ def _global_access_policy():
     if path.startswith("/static/"):
         return None
 
-    if _is_operator_session() and not _is_gestflow_session():
-        session.clear()
-        if _request_wants_json():
-            return jsonify({"ok": False, "error": "Acesso ao IndFlow exige autenticação pelo GestFlow."}), 401
-        return _operator_logout_redirect()
-
     if _is_operator_session():
         row = _operator_session_record()
         if not row:
+            cid = _cliente_id()
+            entry_machine = str(session.get("operator_entry_machine_id") or "").strip()
+            entry_token = str(session.get("operator_entry_token") or "").strip()
             session.clear()
-            return _operator_logout_redirect()
+            return _operator_logout_redirect(cid, entry_machine, entry_token)
 
         allowed = (
             path == "/machine/status"
@@ -877,7 +891,6 @@ def acesso_operador():
 
 
 @operacao_bp.route("/pin", methods=["GET", "POST"])
-@login_required
 def operador_pin():
     token = str(request.values.get("token") or request.args.get("token") or "").strip()
     try:
@@ -891,7 +904,11 @@ def operador_pin():
             error=str(exc),
         ), 403
 
-    if not _is_superadmin_session() and cid != _cliente_id():
+    if (
+        _is_gestflow_session()
+        and not _is_superadmin_session()
+        and cid != _cliente_id()
+    ):
         return render_template(
             "operador_pin.html",
             token="",
@@ -985,6 +1002,7 @@ def operador_pin():
     session["role"] = "operator"
     session["operator_id"] = str(operator["id"])
     session["operator_name"] = str(operator["nome"])
+    session["operator_entry_token"] = token
     session["email"] = f"Operador · {operator['nome']}"
 
     conn = get_db()
@@ -1018,8 +1036,11 @@ def operador_escolher_maquina():
         return redirect(url_for("operacao.home"))
     row = _operator_session_record()
     if not row:
+        cid = _cliente_id()
+        entry_machine = str(session.get("operator_entry_machine_id") or "").strip()
+        entry_token = str(session.get("operator_entry_token") or "").strip()
         session.clear()
-        return _operator_logout_redirect()
+        return _operator_logout_redirect(cid, entry_machine, entry_token)
     machines = _list_operator_machines(_cliente_id(), str(row["id"]))
     if not machines:
         return render_template(
@@ -1073,14 +1094,17 @@ def operador_trocar_maquina():
 @operacao_bp.get("/sair-operador")
 @login_required
 def operador_sair():
+    cid = _cliente_id()
     oid = str(session.get("operator_id") or "")
+    entry_machine = str(session.get("operator_entry_machine_id") or "").strip()
+    entry_token = str(session.get("operator_entry_token") or "").strip()
     if oid:
         try:
             _set_operator_active_machine(oid, None)
         except Exception:
             pass
     session.clear()
-    return _operator_logout_redirect()
+    return _operator_logout_redirect(cid, entry_machine, entry_token)
 
 
 @operacao_bp.get("/api/contexto")

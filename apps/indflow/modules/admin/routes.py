@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\admin\routes.py
-# Último recode: 2026-09-01 18:38 (America/Bahia)
-# Motivo: Eliminar acesso direto ao IndFlow, exigir sessão originada pelo SSO do GestFlow e remover fallback para domínio Railway.
+# Último recode: 2026-09-01 19:08 (America/Bahia)
+# Motivo: Permitir sessão exclusiva do operador por QR/PIN sem reabrir login próprio do IndFlow, mantendo usuários administrativos somente via SSO GestFlow.
 
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for
 from datetime import datetime
@@ -70,8 +70,19 @@ def _is_gestflow_session() -> bool:
     )
 
 
+def _is_operator_session() -> bool:
+    return bool(
+        session.get("user_id")
+        and (session.get("role") or "").strip().lower() == "operator"
+        and session.get("operator_id")
+        and session.get("cliente_id")
+    )
+
+
 def _is_logged_in() -> bool:
-    return bool(session.get("user_id")) and _is_gestflow_session()
+    return bool(session.get("user_id")) and (
+        _is_gestflow_session() or _is_operator_session()
+    )
 
 
 def _role() -> str:
