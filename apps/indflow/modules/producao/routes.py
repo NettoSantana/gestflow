@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\producao\routes.py
-# Último recode: 2026-08-21 06:43 (America/Bahia)
-# Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+# Ultimo recode: 2026-09-01 13:20 (America/Bahia)
+# Motivo: Restaurar o Historico Operacional usando a implementacao consolidada tenant-scoped que le os dados persistidos do SQLite.
 
 from flask import Blueprint, render_template, redirect, request, jsonify, session
 from datetime import datetime, timedelta, timezone
@@ -2425,6 +2425,14 @@ def api_historico():
 
     if machine_id and is_test_machine(cliente_id, machine_id):
         return jsonify(test_history_rows(limit))
+
+    # A tela nova usa wrap=1 e espera summary, days e machines.
+    # Delega para o Historico consolidado, que le o SQLite persistido por tenant.
+    try:
+        from modules.producao.historico_routes import api_producao_historico
+    except Exception:
+        from .historico_routes import api_producao_historico  # type: ignore
+    return api_producao_historico()
 
     try:
         if machine_id:
