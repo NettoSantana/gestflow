@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\operacao\templates\operadores_admin.html
-Último recode: 2026-08-31 21:33 (America/Bahia)
-Motivo: Adicionar QR Code exclusivo por máquina para o operador abrir o PIN e entrar diretamente na máquina autorizada.
+Último recode: 2026-09-01 18:38 (America/Bahia)
+Motivo: Deixar explícito que PIN e QR identificam o operador somente após autenticação pelo GestFlow.
 #}
 {% extends "base.html" %}
 {% block title %}Operadores — IndFlow{% endblock %}
@@ -15,14 +15,14 @@ Motivo: Adicionar QR Code exclusivo por máquina para o operador abrir o PIN e e
     <div>
       <div class="page-eyebrow">Acesso do chão de fábrica</div>
       <h1>Operadores por máquina</h1>
-      <p class="page-description">O operador pode entrar pelo QR Code fixado na máquina ou pelo acesso geral por PIN.</p>
+      <p class="page-description">O operador entra pelo GestFlow e, dentro do IndFlow, usa o PIN apenas para se identificar na máquina.</p>
     </div>
     <div class="opadm-actions">
-      <a class="btn btn-primary" href="/operacao/acesso-operador{% if is_superadmin %}?cliente_id={{ cliente_id }}{% endif %}">Abrir acesso geral por PIN</a>
+      <a class="btn btn-primary" href="/operacao/acesso-operador{% if is_superadmin %}?cliente_id={{ cliente_id }}{% endif %}">Identificar operador por PIN</a>
     </div>
   </div>
 
-  <div class="opadm-note">Regra do plano: <strong>até {{ max_per_machine }} operadores ativos por máquina</strong>. No uso normal, fixe o QR da própria máquina. O operador escaneia, informa o PIN e entra direto nela se estiver autorizado. O acesso geral por PIN continua disponível para quem precisar escolher entre várias máquinas. Após 5 tentativas incorretas, o dispositivo fica bloqueado por 5 minutos.</div>
+  <div class="opadm-note">Regra do plano: <strong>até {{ max_per_machine }} operadores ativos por máquina</strong>. PIN e QR não fazem login no IndFlow. Eles funcionam somente depois que o navegador já foi autenticado pelo GestFlow. Sem sessão válida do GestFlow, qualquer tentativa de abrir o acesso do operador volta para o GestFlow. Após 5 tentativas incorretas de PIN, o dispositivo fica bloqueado por 5 minutos.</div>
 
   {% if message %}<div class="opadm-msg ok">{{ message }}</div>{% endif %}
   {% if error %}<div class="opadm-msg err">{{ error }}</div>{% endif %}
@@ -55,7 +55,7 @@ Motivo: Adicionar QR Code exclusivo por máquina para o operador abrir o PIN e e
         <div class="opadm-qr-card">
           <div>
             <strong>{{ mid|upper }}</strong>
-            <span>PIN → acesso direto a esta máquina</span>
+            <span>Após GestFlow: PIN → esta máquina</span>
           </div>
           {% if is_superadmin %}
           <a class="btn btn-secondary" href="{{ url_for('operacao.operador_qr_admin', machine_id=mid, cliente_id=cliente_id) }}">Ver / imprimir QR</a>
