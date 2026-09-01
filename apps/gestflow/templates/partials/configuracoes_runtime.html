@@ -1,10 +1,240 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\partials\configuracoes_runtime.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-09-01 20:36 (America/Bahia)
+Motivo: Adicionar sidebar compacta no desktop, expansão por hover e opção de fixar aberta, preservando o menu mobile.
 #}
 
 {% if gestflow_configuracoes_runtime %}
 <script id="gestflow-configuracoes-runtime" type="application/json">{{ gestflow_configuracoes_runtime|tojson }}</script>
 <script src="{{ url_for('static', filename='js/configuracoes_modulos.js') }}" defer></script>
 {% endif %}
+
+<style id="gestflow-sidebar-compact-style">
+    @media (min-width: 1025px) {
+        :root {
+            --gestflow-sidebar-compact: 76px;
+            --gestflow-sidebar-expanded: 238px;
+        }
+
+        .sidebar {
+            width: var(--gestflow-sidebar-compact);
+            padding-left: 10px;
+            padding-right: 10px;
+            overflow-x: hidden;
+            transition: width 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .sidebar:hover,
+        body.gestflow-sidebar-pinned .sidebar {
+            width: var(--gestflow-sidebar-expanded);
+            box-shadow: 8px 0 24px rgba(15, 23, 42, 0.16);
+        }
+
+        .content {
+            margin-left: var(--gestflow-sidebar-compact);
+            width: calc(100vw - var(--gestflow-sidebar-compact));
+            max-width: calc(100vw - var(--gestflow-sidebar-compact));
+            transition: margin-left 0.2s ease, width 0.2s ease, max-width 0.2s ease;
+        }
+
+        body.gestflow-sidebar-pinned .content {
+            margin-left: var(--gestflow-sidebar-expanded);
+            width: calc(100vw - var(--gestflow-sidebar-expanded));
+            max-width: calc(100vw - var(--gestflow-sidebar-expanded));
+        }
+
+        .sidebar .brand {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .gestflow-brand-compact-icon {
+            display: none;
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+            flex: 0 0 40px;
+        }
+
+        .gestflow-sidebar-pin {
+            position: absolute;
+            top: 5px;
+            right: 2px;
+            width: 30px;
+            height: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 9px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+            cursor: pointer;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.15s ease, background 0.15s ease;
+        }
+
+        .sidebar:hover .gestflow-sidebar-pin,
+        body.gestflow-sidebar-pinned .gestflow-sidebar-pin {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .gestflow-sidebar-pin:hover,
+        body.gestflow-sidebar-pinned .gestflow-sidebar-pin {
+            background: rgba(255, 255, 255, 0.16);
+        }
+
+        body:not(.gestflow-sidebar-pinned) .sidebar:not(:hover) .brand {
+            justify-content: center;
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        body:not(.gestflow-sidebar-pinned) .sidebar:not(:hover) .brand-logo-img {
+            display: none;
+        }
+
+        body:not(.gestflow-sidebar-pinned) .sidebar:not(:hover) .gestflow-brand-compact-icon {
+            display: block;
+        }
+
+        body:not(.gestflow-sidebar-pinned) .sidebar:not(:hover) .mobile-sidebar-close,
+        body:not(.gestflow-sidebar-pinned) .sidebar:not(:hover) .arrow,
+        body:not(.gestflow-sidebar-pinned) .sidebar:not(:hover) .submenu,
+        body:not(.gestflow-sidebar-pinned) .sidebar:not(:hover) .sidebar-version {
+            display: none !important;
+        }
+
+        .sidebar .menu-item > a {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            width: 100%;
+            color: inherit;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        body:not(.gestflow-sidebar-pinned) .sidebar:not(:hover) .menu-item,
+        body:not(.gestflow-sidebar-pinned) .sidebar:not(:hover) .menu-group > details > summary {
+            justify-content: center;
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        body:not(.gestflow-sidebar-pinned) .sidebar:not(:hover) .menu-item > a {
+            justify-content: center;
+            gap: 0;
+        }
+
+        body:not(.gestflow-sidebar-pinned) .sidebar:not(:hover) .menu-item > a > span:not(.menu-icon),
+        body:not(.gestflow-sidebar-pinned) .sidebar:not(:hover) .menu-label > span:not(.menu-icon) {
+            display: none;
+        }
+
+        body:not(.gestflow-sidebar-pinned) .sidebar:not(:hover) .menu-label {
+            justify-content: center;
+            gap: 0;
+        }
+
+        body:not(.gestflow-sidebar-pinned) .sidebar:not(:hover) .menu-icon {
+            width: 34px;
+            min-width: 34px;
+            font-size: 18px;
+        }
+
+        body:not(.gestflow-sidebar-pinned) .sidebar:not(:hover) .sidebar-footer {
+            margin-top: 26px;
+        }
+
+        body:not(.gestflow-sidebar-pinned) .sidebar:not(:hover) .footer-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 42px;
+            padding: 8px 0 !important;
+            font-size: 0 !important;
+            overflow: hidden;
+        }
+
+        body:not(.gestflow-sidebar-pinned) .sidebar:not(:hover) .footer-item[href="/instalar"]::before {
+            content: "▣";
+            font-size: 18px;
+        }
+
+        body:not(.gestflow-sidebar-pinned) .sidebar:not(:hover) .footer-item[href="/sair"]::before {
+            content: "↪";
+            font-size: 19px;
+        }
+    }
+</style>
+
+<script>
+(function () {
+    const storageKey = 'gestflow_sidebar_pinned';
+
+    function iniciarSidebarDesktop() {
+        const sidebar = document.querySelector('.sidebar');
+        if (!sidebar) {
+            return;
+        }
+
+        const brand = sidebar.querySelector('.brand');
+        const logoLink = sidebar.querySelector('.brand-logo-link');
+        if (!brand || !logoLink) {
+            return;
+        }
+
+        if (!logoLink.querySelector('.gestflow-brand-compact-icon')) {
+            const icon = document.createElement('img');
+            icon.src = '/static/img/gestflow-icon.png';
+            icon.alt = '';
+            icon.setAttribute('aria-hidden', 'true');
+            icon.className = 'gestflow-brand-compact-icon';
+            logoLink.prepend(icon);
+        }
+
+        let pin = brand.querySelector('.gestflow-sidebar-pin');
+        if (!pin) {
+            pin = document.createElement('button');
+            pin.type = 'button';
+            pin.className = 'gestflow-sidebar-pin';
+            pin.innerHTML = '⌖';
+            brand.appendChild(pin);
+        }
+
+        function aplicarEstado(fixada) {
+            document.body.classList.toggle('gestflow-sidebar-pinned', fixada);
+            pin.setAttribute('aria-pressed', fixada ? 'true' : 'false');
+            pin.setAttribute('aria-label', fixada ? 'Desafixar menu lateral' : 'Fixar menu lateral aberto');
+            pin.title = fixada ? 'Desafixar menu' : 'Fixar menu aberto';
+        }
+
+        let fixada = false;
+        try {
+            fixada = window.localStorage.getItem(storageKey) === '1';
+        } catch (erro) {
+            fixada = false;
+        }
+
+        aplicarEstado(fixada);
+
+        pin.addEventListener('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            fixada = !document.body.classList.contains('gestflow-sidebar-pinned');
+            aplicarEstado(fixada);
+            try {
+                window.localStorage.setItem(storageKey, fixada ? '1' : '0');
+            } catch (erro) {
+                return;
+            }
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', iniciarSidebarDesktop);
+    } else {
+        iniciarSidebarDesktop();
+    }
+})();
+</script>
