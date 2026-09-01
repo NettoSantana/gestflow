@@ -1,8 +1,8 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\admin\routes.py
-# Último recode: 2026-08-31 21:09 (America/Bahia)
-# Motivo: Remover a gestão manual de usuários do IndFlow, mantendo autenticação interna e SSO sob controle do GestFlow.
+# Último recode: 2026-09-01 18:38 (America/Bahia)
+# Motivo: Eliminar acesso direto ao IndFlow, exigir sessão originada pelo SSO do GestFlow e remover fallback para domínio Railway.
 
-from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, render_template_string
+from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for
 from datetime import datetime
 import uuid
 import secrets
@@ -18,60 +18,16 @@ admin_bp = Blueprint("admin", __name__, template_folder="templates")
 
 
 def _gestflow_base_url() -> str:
-    """URL confiável do GestFlow para retorno após encerrar apenas a sessão do IndFlow."""
+    """URL oficial do GestFlow usada para qualquer retorno do IndFlow."""
     return (
-        (os.getenv("GESTFLOW_BASE_URL") or "https://gestflow-web-production.up.railway.app")
+        (os.getenv("GESTFLOW_BASE_URL") or "https://gestflow.nettsan.ia.br")
         .strip()
         .rstrip("/")
     )
 
 # ============================================================
-# AUTH (sessao + sha256)
+# AUTH (somente SSO GestFlow)
 # ============================================================
-LOGIN_FORM_HTML = """
-<!doctype html>
-<html lang="pt-br">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>IndFlow - Login</title>
-  <link rel="stylesheet" href="/static/style.css?v=2">
-  <style>
-    body { margin:0; background:#f8fafc; font-family: Arial, sans-serif; }
-    .login-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; }
-    .login-card { width:420px; background:#ffffff; border:1px solid #e5e7eb; border-radius:12px; padding:28px; box-shadow:0 10px 25px rgba(0,0,0,.06); }
-    .logo { display:flex; justify-content:center; margin-bottom:14px; }
-    .logo img { height:64px; width:auto; }
-    h1 { text-align:center; font-size:20px; margin:0 0 18px 0; color:#0f172a; }
-    label { display:block; font-size:13px; margin:10px 0 6px; color:#334155; }
-    input { width:100%; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; background:#ffffff; color:#0f172a; }
-    button { width:100%; margin-top:14px; padding:10px 12px; border-radius:10px; border:0; background:#2563eb; color:white; font-weight:700; cursor:pointer; }
-    .err { margin-top: 10px; color:#dc2626; font-size: 13px; text-align:center; }
-    .hint { margin-top: 10px; color:#64748b; font-size: 12px; text-align:center; }
-  </style>
-</head>
-<body>
-  <div class="login-wrap">
-    <div class="login-card">
-      <div class="logo">
-        <img src="/static/img/logo.png" alt="NettSan Technology">
-      </div>
-      <h1>IndFlow</h1>
-      <form method="post">
-        <label>Email</label>
-        <input name="email" type="email" autocomplete="username" required />
-        <label>Senha</label>
-        <input name="senha" type="password" autocomplete="current-password" required />
-        <button type="submit">Entrar</button>
-        {% if error %}<div class="err">{{ error }}</div>{% endif %}
-        <div class="hint">Acesso restrito.</div>
-      </form>
-    </div>
-  </div>
-</body>
-</html>
-"""
-
 def _sha256(s: str) -> str:
     return hashlib.sha256((s or "").encode("utf-8")).hexdigest()
 
@@ -106,8 +62,16 @@ def _get_user_by_email(email: str):
     }
 
 
+def _is_gestflow_session() -> bool:
+    return bool(
+        session.get("gestflow_sso")
+        and session.get("gestflow_empresa_id")
+        and session.get("gestflow_usuario_id")
+    )
+
+
 def _is_logged_in() -> bool:
-    return bool(session.get("user_id"))
+    return bool(session.get("user_id")) and _is_gestflow_session()
 
 
 def _role() -> str:
@@ -126,7 +90,7 @@ def login_required(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
         if not _is_logged_in():
-            return redirect(url_for("admin.login"))
+            return redirect(_gestflow_base_url())
         return fn(*args, **kwargs)
     return wrapper
 
@@ -135,7 +99,7 @@ def admin_required(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
         if not _is_logged_in():
-            return redirect(url_for("admin.login"))
+            return redirect(_gestflow_base_url())
         if not _is_admin():
             return "Acesso negado", 403
         return fn(*args, **kwargs)
@@ -467,6 +431,9 @@ def sso_gestflow():
     if (link.get("email") or "").strip().lower() == "admin@admin":
         sess_role = "superadmin"
     session["role"] = sess_role
+    session["gestflow_sso"] = True
+    session["gestflow_empresa_id"] = int(payload["empresa_id"])
+    session["gestflow_usuario_id"] = int(payload["usuario_id"])
 
     try:
         _touch_gestflow_sso_link(payload["empresa_id"], payload["usuario_id"])
@@ -481,45 +448,15 @@ def sso_gestflow():
 
 @admin_bp.route("/login", methods=["GET", "POST"])
 def login():
-    if request.method == "GET":
-        if _is_logged_in():
-            return redirect(url_for("admin.home"))
-        return render_template_string(LOGIN_FORM_HTML, error=None)
+    """Não existe autenticação própria no IndFlow: a entrada é sempre pelo GestFlow."""
+    if _is_logged_in():
+        return redirect(url_for("admin.home"))
 
-    email = (request.form.get("email") or "").strip().lower()
-    senha = request.form.get("senha") or ""
-
-    if not email or not senha:
-        return render_template_string(LOGIN_FORM_HTML, error="Informe email e senha.")
-
-    user = _get_user_by_email(email)
-    if not user or user.get("status") != "active":
-        return render_template_string(LOGIN_FORM_HTML, error="Email ou senha invalidos.")
-
-    if _sha256(senha) != (user.get("senha_hash") or ""):
-        return render_template_string(LOGIN_FORM_HTML, error="Email ou senha invalidos.")
-
-    session["user_id"] = user["id"]
-    session["email"] = user["email"]
-    session["cliente_id"] = user["cliente_id"]
-
-    sess_role = (user.get("role") or "viewer").strip().lower()
-
-    if (user.get("email") or "").strip().lower() == "admin@admin":
-        sess_role = "superadmin"
-        try:
-            conn = get_db()
-            try:
-                conn.execute("UPDATE usuarios SET role = 'superadmin' WHERE email = ?", ("admin@admin",))
-                conn.commit()
-            finally:
-                conn.close()
-        except Exception:
-            pass
-
-    session["role"] = sess_role
-
-    return redirect(url_for("admin.home"))
+    session.clear()
+    response = redirect(_gestflow_base_url())
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
 
 
 @admin_bp.route("/logout")

@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\templates\base.html
-Último recode: 2026-08-31 20:57 (America/Bahia)
-Motivo: Restringir o perfil OPERADOR à Tela Operacional, identificar a sessão por PIN e manter a gestão de operadores separada dos usuários do GestFlow.
+Último recode: 2026-09-01 18:38 (America/Bahia)
+Motivo: Remover saídas próprias do IndFlow e manter somente o retorno ao GestFlow, inclusive para o perfil OPERADOR.
 #}
 
 <!DOCTYPE html>
@@ -31,7 +31,6 @@ Motivo: Restringir o perfil OPERADOR à Tela Operacional, identificar a sessão 
   {% set _role = (session.get('role') or 'viewer')|lower %}
   {% set _is_operator = _role == 'operator' and session.get('operator_id') %}
   {% set _is_technical = _role in ['admin', 'superadmin'] %}
-  {% set _gestflow_url = gestflow_base_url|default('https://gestflow-web-production.up.railway.app', true) %}
 
   <div class="industrial-shell{% if _path == '/' %} industrial-dashboard-shell{% endif %}">
     <div class="sidebar-desktop-hover-zone" id="sidebarDesktopHoverZone" aria-hidden="true"></div>
@@ -130,20 +129,11 @@ Motivo: Restringir o perfil OPERADOR à Tela Operacional, identificar a sessão 
           <span class="industrial-nav-icon">⇄</span>
           <span>Trocar máquina</span>
         </a>
-        <a class="industrial-nav-item" href="/operacao/sair-operador">
-          <span class="industrial-nav-icon">↪</span>
-          <span>Sair do operador</span>
-        </a>
-        {% else %}
-        <a class="industrial-nav-item industrial-back-gestflow" href="{{ _gestflow_url }}">
+        {% endif %}
+        <a class="industrial-nav-item industrial-back-gestflow" href="/admin/logout">
           <span class="industrial-nav-icon">←</span>
           <span>Voltar ao GestFlow</span>
         </a>
-        <a class="industrial-nav-item" href="/admin/logout">
-          <span class="industrial-nav-icon">↪</span>
-          <span>Sair</span>
-        </a>
-        {% endif %}
         <div class="industrial-version">GestFlow · IndFlow</div>
       </div>
     </aside>
