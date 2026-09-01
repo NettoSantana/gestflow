@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\admin_runtime_actions.py
-# Último recode: 2026-09-01 19:39 (America/Bahia)
-# Motivo: Permitir exclusão de títulos financeiros, exclusão segura de usuários e complementar as ações administrativas sem alterar o app.py monolítico.
+# Último recode: 2026-09-01 20:12 (America/Bahia)
+# Motivo: Corrigir a exibição da ação Excluir usuário na rota real /configuracoes/usuarios, preservando as regras de segurança existentes.
 
 from __future__ import annotations
 
@@ -278,6 +278,7 @@ def instalar_acoes_administrativas(runtime: Any) -> None:
         path = str(runtime.request.path or "")
         if path not in {
             "/configuracoes",
+            "/configuracoes/usuarios",
             "/financeiro/receber",
             "/financeiro/pagar",
             "/financeiro/fluxo-caixa",
@@ -286,7 +287,10 @@ def instalar_acoes_administrativas(runtime: Any) -> None:
 
         html = response.get_data(as_text=True)
 
-        if path == "/configuracoes":
+        if path in {
+            "/configuracoes",
+            "/configuracoes/usuarios",
+        }:
             html = _injetar_exclusao_usuario(runtime, html)
 
         if path.startswith("/financeiro/"):
