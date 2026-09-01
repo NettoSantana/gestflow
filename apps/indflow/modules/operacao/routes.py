@@ -1,17 +1,20 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\operacao\routes.py
-# Último recode: 2026-08-31 20:57 (America/Bahia)
-# Motivo: Manter acesso operacional por PIN e limite de 3 operadores por máquina, removendo do IndFlow o limite comercial de usuários de gestão, que passa a pertencer ao GestFlow.
+# Último recode: 2026-08-31 21:33 (America/Bahia)
+# Motivo: Adicionar QR Code exclusivo por máquina para abrir o PIN do operador, validar o vínculo e entrar direto na Tela Operacional da máquina autorizada.
 
 from __future__ import annotations
 
 from datetime import datetime
 import hashlib
+import io
 import re
 import time
 import uuid
 
-from flask import Blueprint, current_app, jsonify, redirect, render_template, request, session, url_for
+from flask import Blueprint, Response, current_app, jsonify, redirect, render_template, request, session, url_for
 from itsdangerous import BadSignature, URLSafeSerializer
+import qrcode
+import qrcode.image.svg
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from modules.admin.routes import admin_required, login_required
@@ -118,19 +121,34 @@ def _operator_serializer() -> URLSafeSerializer:
     return URLSafeSerializer(secret_key=secret, salt=OPERATOR_ACCESS_SALT)
 
 
-def _operator_access_token(cliente_id: str) -> str:
+def _canonical_operator_machine(cliente_id: str, machine_id: str) -> str:
+    cid = str(cliente_id or "").strip()
+    mid = normalize_machine_id(machine_id or "", cid)
+    if not cid or not mid:
+        raise ValueError("Máquina não identificada.")
+    known = {m.casefold(): m for m in list_operational_machines(cid)}
+    if mid.casefold() not in known:
+        raise ValueError("Máquina não pertence à empresa atual.")
+    return known[mid.casefold()]
+
+
+def _operator_access_token(cliente_id: str, machine_id: str = "") -> str:
     cid = str(cliente_id or "").strip()
     if not cid:
         raise ValueError("Cliente não identificado.")
-    return _operator_serializer().dumps({"cliente_id": cid, "v": 1})
+    payload: dict[str, object] = {"cliente_id": cid, "v": 1}
+    if str(machine_id or "").strip():
+        payload["machine_id"] = _canonical_operator_machine(cid, machine_id)
+        payload["v"] = 2
+    return _operator_serializer().dumps(payload)
 
 
-def _cliente_from_operator_token(token: str) -> str:
+def _operator_access_context(token: str) -> tuple[str, str]:
     try:
         data = _operator_serializer().loads(str(token or "").strip())
     except BadSignature as exc:
         raise ValueError("Link de acesso do operador inválido.") from exc
-    if not isinstance(data, dict) or data.get("v") != 1:
+    if not isinstance(data, dict) or data.get("v") not in (1, 2):
         raise ValueError("Link de acesso do operador inválido.")
     cid = str(data.get("cliente_id") or "").strip()
     if not cid:
@@ -145,7 +163,11 @@ def _cliente_from_operator_token(token: str) -> str:
         conn.close()
     if not row:
         raise ValueError("Empresa não está ativa no IndFlow.")
-    return cid
+
+    machine_id = ""
+    if data.get("v") == 2:
+        machine_id = _canonical_operator_machine(cid, str(data.get("machine_id") or ""))
+    return cid, machine_id
 
 
 def _operator_admin_cliente_id() -> str:
@@ -519,10 +541,10 @@ def _set_operator_active_machine(operator_id: str, machine_id: str | None) -> No
         conn.close()
 
 
-def _operator_logout_redirect(cliente_id: str):
+def _operator_logout_redirect(cliente_id: str, machine_id: str = ""):
     cid = str(cliente_id or "").strip()
     try:
-        token = _operator_access_token(cid)
+        token = _operator_access_token(cid, machine_id)
     except Exception:
         return redirect(url_for("admin.login"))
     return redirect(url_for("operacao.operador_pin", token=token))
@@ -547,8 +569,9 @@ def _global_access_policy():
         row = _operator_session_record()
         if not row:
             cid = _cliente_id()
+            entry_machine = str(session.get("operator_entry_machine_id") or "").strip()
             session.clear()
-            return _operator_logout_redirect(cid)
+            return _operator_logout_redirect(cid, entry_machine)
 
         allowed = (
             path == "/machine/status"
@@ -792,6 +815,57 @@ def operadores_status():
     return redirect(url_for("operacao.operadores_admin", cliente_id=cid, msg="Status atualizado."))
 
 
+@operacao_bp.get("/operadores/qr/<machine_id>")
+@admin_required
+def operador_qr_admin(machine_id: str):
+    cid = _operator_admin_cliente_id()
+    try:
+        mid = _canonical_operator_machine(cid, machine_id)
+        token = _operator_access_token(cid, mid)
+    except ValueError as exc:
+        return redirect(url_for("operacao.operadores_admin", cliente_id=cid, err=str(exc)))
+
+    access_url = url_for("operacao.operador_pin", token=token, _external=True)
+    if _is_superadmin_session():
+        qr_svg_url = url_for("operacao.operador_qr_svg", machine_id=mid, cliente_id=cid)
+    else:
+        qr_svg_url = url_for("operacao.operador_qr_svg", machine_id=mid)
+    return render_template(
+        "operador_qr.html",
+        machine_id=mid,
+        access_url=access_url,
+        qr_svg_url=qr_svg_url,
+        cliente_id=cid,
+        is_superadmin=_is_superadmin_session(),
+    )
+
+
+@operacao_bp.get("/operadores/qr/<machine_id>/qr.svg")
+@admin_required
+def operador_qr_svg(machine_id: str):
+    cid = _operator_admin_cliente_id()
+    try:
+        mid = _canonical_operator_machine(cid, machine_id)
+        token = _operator_access_token(cid, mid)
+    except ValueError:
+        return Response("QR inválido.", status=404, mimetype="text/plain")
+
+    access_url = url_for("operacao.operador_pin", token=token, _external=True)
+    qr = qrcode.QRCode(
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(access_url)
+    qr.make(fit=True)
+    image = qr.make_image(image_factory=qrcode.image.svg.SvgPathImage)
+    output = io.BytesIO()
+    image.save(output)
+    response = Response(output.getvalue(), mimetype="image/svg+xml")
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 @operacao_bp.get("/acesso-operador")
 @admin_required
 def acesso_operador():
@@ -804,9 +878,15 @@ def acesso_operador():
 def operador_pin():
     token = str(request.values.get("token") or request.args.get("token") or "").strip()
     try:
-        cid = _cliente_from_operator_token(token)
+        cid, target_machine = _operator_access_context(token)
     except ValueError as exc:
-        return render_template("operador_pin.html", token="", empresa="", error=str(exc)), 403
+        return render_template(
+            "operador_pin.html",
+            token="",
+            empresa="",
+            machine_id="",
+            error=str(exc),
+        ), 403
 
     conn = get_db()
     try:
@@ -816,7 +896,13 @@ def operador_pin():
         conn.close()
 
     if request.method == "GET":
-        return render_template("operador_pin.html", token=token, empresa=empresa, error=None)
+        return render_template(
+            "operador_pin.html",
+            token=token,
+            empresa=empresa,
+            machine_id=target_machine,
+            error=None,
+        )
 
     remaining = _pin_guard_remaining(cid)
     if remaining > 0:
@@ -825,6 +911,7 @@ def operador_pin():
             "operador_pin.html",
             token=token,
             empresa=empresa,
+            machine_id=target_machine,
             error=f"Muitas tentativas incorretas. Aguarde {wait_min} minuto(s) e tente novamente.",
         ), 429
 
@@ -835,6 +922,7 @@ def operador_pin():
             "operador_pin.html",
             token=token,
             empresa=empresa,
+            machine_id=target_machine,
             error="Digite um PIN de 4 números.",
         )
 
@@ -845,6 +933,7 @@ def operador_pin():
             "operador_pin.html",
             token=token,
             empresa=empresa,
+            machine_id=target_machine,
             error="PIN inválido ou operador inativo.",
         )
 
@@ -855,8 +944,21 @@ def operador_pin():
             "operador_pin.html",
             token=token,
             empresa=empresa,
+            machine_id=target_machine,
             error="Seu cadastro não possui máquina autorizada. Procure o administrador.",
         )
+
+    known = {m.casefold(): m for m in machines}
+    if target_machine:
+        if target_machine.casefold() not in known:
+            return render_template(
+                "operador_pin.html",
+                token=token,
+                empresa=empresa,
+                machine_id=target_machine,
+                error=f"Você não possui autorização para operar a máquina {target_machine.upper()}.",
+            ), 403
+        target_machine = known[target_machine.casefold()]
 
     session.clear()
     session["user_id"] = f"operator:{operator['id']}"
@@ -876,6 +978,12 @@ def operador_pin():
     finally:
         conn.close()
 
+    if target_machine:
+        session["operator_machine_id"] = target_machine
+        session["operator_entry_machine_id"] = target_machine
+        _set_operator_active_machine(str(operator["id"]), target_machine)
+        return redirect(url_for("operacao.home"))
+
     if len(machines) == 1:
         session["operator_machine_id"] = machines[0]
         _set_operator_active_machine(str(operator["id"]), machines[0])
@@ -892,8 +1000,9 @@ def operador_escolher_maquina():
     row = _operator_session_record()
     if not row:
         cid = _cliente_id()
+        entry_machine = str(session.get("operator_entry_machine_id") or "").strip()
         session.clear()
-        return _operator_logout_redirect(cid)
+        return _operator_logout_redirect(cid, entry_machine)
     machines = _list_operator_machines(_cliente_id(), str(row["id"]))
     if not machines:
         return render_template(
@@ -938,6 +1047,7 @@ def operador_trocar_maquina():
         return redirect(url_for("operacao.home"))
     oid = str(session.get("operator_id") or "")
     session.pop("operator_machine_id", None)
+    session.pop("operator_entry_machine_id", None)
     if oid:
         _set_operator_active_machine(oid, None)
     return redirect(url_for("operacao.operador_escolher_maquina"))
@@ -947,13 +1057,14 @@ def operador_trocar_maquina():
 def operador_sair():
     cid = _cliente_id()
     oid = str(session.get("operator_id") or "")
+    entry_machine = str(session.get("operator_entry_machine_id") or "").strip()
     if oid:
         try:
             _set_operator_active_machine(oid, None)
         except Exception:
             pass
     session.clear()
-    return _operator_logout_redirect(cid)
+    return _operator_logout_redirect(cid, entry_machine)
 
 
 @operacao_bp.get("/api/contexto")

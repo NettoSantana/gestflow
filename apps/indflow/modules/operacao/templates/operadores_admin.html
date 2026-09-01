@@ -1,13 +1,13 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\operacao\templates\operadores_admin.html
-Último recode: 2026-08-31 20:57 (America/Bahia)
-Motivo: Administrar operadores do chão de fábrica e limitar a 3 operadores ativos por máquina, sem consumir vagas de usuários do GestFlow.
+Último recode: 2026-08-31 21:33 (America/Bahia)
+Motivo: Adicionar QR Code exclusivo por máquina para o operador abrir o PIN e entrar diretamente na máquina autorizada.
 #}
 {% extends "base.html" %}
 {% block title %}Operadores — IndFlow{% endblock %}
 {% block content %}
 <style>
-.opadm-wrap{display:flex;flex-direction:column;gap:14px}.opadm-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}.opadm-head h1{margin:0;font-size:25px}.opadm-actions{display:flex;gap:8px;flex-wrap:wrap}.opadm-note{padding:12px 14px;border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;font-size:12px;font-weight:700}.opadm-msg{padding:11px 13px;border-radius:10px;font-size:12px;font-weight:800}.opadm-msg.ok{background:#dcfce7;color:#166534}.opadm-msg.err{background:#fee2e2;color:#991b1b}.opadm-panel{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:15px}.opadm-panel h2{margin:0 0 12px;font-size:17px}.opadm-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.opadm-field label{display:block;margin:0 0 5px;color:#64748b;font-size:10px;font-weight:900;text-transform:uppercase}.opadm-field input,.opadm-field select{width:100%;box-sizing:border-box;padding:10px 11px;border:1px solid #cbd5e1;border-radius:9px;background:#fff}.opadm-machines{display:flex;gap:8px;flex-wrap:wrap}.opadm-check{display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:9px;background:#f8fafc;font-size:12px;font-weight:800}.opadm-check input{width:auto}.opadm-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.opadm-card{border:1px solid #e2e8f0;border-radius:13px;padding:14px;background:#fff}.opadm-card-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.opadm-card h3{margin:0;font-size:17px}.opadm-pill{padding:4px 8px;border-radius:999px;font-size:10px;font-weight:900}.opadm-pill.on{background:#dcfce7;color:#166534}.opadm-pill.off{background:#fee2e2;color:#991b1b}.opadm-meta{margin-top:4px;color:#64748b;font-size:11px}.opadm-form{margin-top:12px;padding-top:12px;border-top:1px solid #eef2f7}.opadm-form strong{display:block;margin-bottom:7px;font-size:11px}.opadm-row{display:flex;gap:8px;align-items:end;flex-wrap:wrap}.opadm-row input[type=text]{min-width:150px;padding:9px;border:1px solid #cbd5e1;border-radius:8px}.opadm-empty{color:#64748b;padding:20px;text-align:center}.opadm-submit{margin-top:12px}@media(max-width:1000px){.opadm-grid,.opadm-list{grid-template-columns:1fr}} 
+.opadm-wrap{display:flex;flex-direction:column;gap:14px}.opadm-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}.opadm-head h1{margin:0;font-size:25px}.opadm-actions{display:flex;gap:8px;flex-wrap:wrap}.opadm-note{padding:12px 14px;border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;font-size:12px;font-weight:700}.opadm-msg{padding:11px 13px;border-radius:10px;font-size:12px;font-weight:800}.opadm-msg.ok{background:#dcfce7;color:#166534}.opadm-msg.err{background:#fee2e2;color:#991b1b}.opadm-panel{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:15px}.opadm-panel h2{margin:0 0 12px;font-size:17px}.opadm-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.opadm-field label{display:block;margin:0 0 5px;color:#64748b;font-size:10px;font-weight:900;text-transform:uppercase}.opadm-field input,.opadm-field select{width:100%;box-sizing:border-box;padding:10px 11px;border:1px solid #cbd5e1;border-radius:9px;background:#fff}.opadm-machines{display:flex;gap:8px;flex-wrap:wrap}.opadm-check{display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:9px;background:#f8fafc;font-size:12px;font-weight:800}.opadm-check input{width:auto}.opadm-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.opadm-card{border:1px solid #e2e8f0;border-radius:13px;padding:14px;background:#fff}.opadm-card-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.opadm-card h3{margin:0;font-size:17px}.opadm-pill{padding:4px 8px;border-radius:999px;font-size:10px;font-weight:900}.opadm-pill.on{background:#dcfce7;color:#166534}.opadm-pill.off{background:#fee2e2;color:#991b1b}.opadm-meta{margin-top:4px;color:#64748b;font-size:11px}.opadm-form{margin-top:12px;padding-top:12px;border-top:1px solid #eef2f7}.opadm-form strong{display:block;margin-bottom:7px;font-size:11px}.opadm-row{display:flex;gap:8px;align-items:end;flex-wrap:wrap}.opadm-row input[type=text]{min-width:150px;padding:9px;border:1px solid #cbd5e1;border-radius:8px}.opadm-empty{color:#64748b;padding:20px;text-align:center}.opadm-submit{margin-top:12px}.opadm-qr-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.opadm-qr-card{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;border:1px solid #dbeafe;background:#f8fbff;border-radius:12px}.opadm-qr-card strong{font-size:13px}.opadm-qr-card span{display:block;margin-top:3px;color:#64748b;font-size:10px}@media(max-width:1000px){.opadm-grid,.opadm-list,.opadm-qr-grid{grid-template-columns:1fr}}
 </style>
 
 <div class="opadm-wrap">
@@ -15,15 +15,14 @@ Motivo: Administrar operadores do chão de fábrica e limitar a 3 operadores ati
     <div>
       <div class="page-eyebrow">Acesso do chão de fábrica</div>
       <h1>Operadores por máquina</h1>
-      <p class="page-description">Cada operador entra com PIN de 4 dígitos, escolhe apenas entre as máquinas autorizadas e acessa somente a Tela Operacional.</p>
+      <p class="page-description">O operador pode entrar pelo QR Code fixado na máquina ou pelo acesso geral por PIN.</p>
     </div>
     <div class="opadm-actions">
-      <a class="btn btn-primary" href="/operacao/acesso-operador{% if is_superadmin %}?cliente_id={{ cliente_id }}{% endif %}">Abrir acesso por PIN</a>
-      <a class="btn btn-secondary" href="/admin/usuarios">Usuários de gestão</a>
+      <a class="btn btn-primary" href="/operacao/acesso-operador{% if is_superadmin %}?cliente_id={{ cliente_id }}{% endif %}">Abrir acesso geral por PIN</a>
     </div>
   </div>
 
-  <div class="opadm-note">Regra do plano: <strong>até {{ max_per_machine }} operadores ativos por máquina</strong>. O mesmo operador pode ser autorizado em várias máquinas. Se ele trocar de máquina, a sessão anterior deixa de valer para a máquina antiga. Para uso diário, abra <strong>Acesso por PIN</strong> no tablet/navegador dedicado da operação. Após 5 tentativas de PIN incorretas, o acesso daquele dispositivo fica bloqueado por 5 minutos.</div>
+  <div class="opadm-note">Regra do plano: <strong>até {{ max_per_machine }} operadores ativos por máquina</strong>. No uso normal, fixe o QR da própria máquina. O operador escaneia, informa o PIN e entra direto nela se estiver autorizado. O acesso geral por PIN continua disponível para quem precisar escolher entre várias máquinas. Após 5 tentativas incorretas, o dispositivo fica bloqueado por 5 minutos.</div>
 
   {% if message %}<div class="opadm-msg ok">{{ message }}</div>{% endif %}
   {% if error %}<div class="opadm-msg err">{{ error }}</div>{% endif %}
@@ -45,6 +44,29 @@ Motivo: Administrar operadores do chão de fábrica e limitar a 3 operadores ati
     </form>
   </section>
   {% endif %}
+
+  <section class="opadm-panel">
+    <h2>QR Code por máquina</h2>
+    {% if not machines %}
+      <div class="opadm-empty">Nenhuma máquina disponível para gerar QR Code.</div>
+    {% else %}
+      <div class="opadm-qr-grid">
+        {% for mid in machines %}
+        <div class="opadm-qr-card">
+          <div>
+            <strong>{{ mid|upper }}</strong>
+            <span>PIN → acesso direto a esta máquina</span>
+          </div>
+          {% if is_superadmin %}
+          <a class="btn btn-secondary" href="{{ url_for('operacao.operador_qr_admin', machine_id=mid, cliente_id=cliente_id) }}">Ver / imprimir QR</a>
+          {% else %}
+          <a class="btn btn-secondary" href="{{ url_for('operacao.operador_qr_admin', machine_id=mid) }}">Ver / imprimir QR</a>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </section>
 
   <section class="opadm-panel">
     <h2>Cadastrar operador</h2>

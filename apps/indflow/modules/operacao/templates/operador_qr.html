@@ -1,0 +1,42 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\operacao\templates\operador_qr.html
+Último recode: 2026-08-31 21:33 (America/Bahia)
+Motivo: Exibir e imprimir a etiqueta com QR Code exclusivo para acesso operacional de cada máquina.
+#}
+{% extends "base.html" %}
+{% block title %}QR do Operador — {{ machine_id|upper }}{% endblock %}
+{% block content %}
+<style>
+.qr-page{display:flex;flex-direction:column;gap:14px}.qr-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}.qr-head h1{margin:0;font-size:25px}.qr-actions{display:flex;gap:8px;flex-wrap:wrap}.qr-label-wrap{display:flex;justify-content:center}.qr-label{width:min(440px,100%);background:#fff;border:2px solid #0f172a;border-radius:18px;padding:24px;text-align:center}.qr-brand{font-size:13px;font-weight:900;letter-spacing:.13em;color:#2563eb}.qr-label h2{margin:8px 0 3px;font-size:28px}.qr-machine{margin:0 0 16px;font-size:18px;font-weight:900}.qr-image{display:block;width:min(300px,82vw);height:auto;margin:0 auto 14px}.qr-instruction{margin:0;font-size:15px;font-weight:800;line-height:1.45}.qr-detail{margin:8px 0 0;color:#64748b;font-size:11px;line-height:1.45}.qr-url{margin-top:14px;padding-top:12px;border-top:1px dashed #cbd5e1;word-break:break-all;color:#64748b;font-size:9px}@media print{.industrial-sidebar,.industrial-topbar,.qr-head,.sidebar-desktop-hover-zone,.industrial-sidebar-backdrop{display:none!important}.industrial-main,.industrial-content,.industrial-container{margin:0!important;padding:0!important;width:100%!important;max-width:none!important}.qr-page{display:block}.qr-label{margin:0 auto;box-shadow:none;page-break-inside:avoid}}
+</style>
+
+<div class="qr-page">
+  <div class="qr-head">
+    <div>
+      <div class="page-eyebrow">Acesso do operador</div>
+      <h1>QR Code · {{ machine_id|upper }}</h1>
+      <p class="page-description">Imprima esta etiqueta e fixe na própria máquina. O QR não contém PIN; ele abre somente o acesso assinado desta máquina.</p>
+    </div>
+    <div class="qr-actions">
+      <button class="btn btn-primary" type="button" onclick="window.print()">Imprimir etiqueta</button>
+      {% if is_superadmin %}
+      <a class="btn btn-secondary" href="{{ url_for('operacao.operadores_admin', cliente_id=cliente_id) }}">Voltar aos operadores</a>
+      {% else %}
+      <a class="btn btn-secondary" href="{{ url_for('operacao.operadores_admin') }}">Voltar aos operadores</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="qr-label-wrap">
+    <section class="qr-label">
+      <div class="qr-brand">GESTFLOW · INDFLOW</div>
+      <h2>ACESSO DO OPERADOR</h2>
+      <div class="qr-machine">MÁQUINA: {{ machine_id|upper }}</div>
+      <img class="qr-image" src="{{ qr_svg_url }}" alt="QR Code de acesso da máquina {{ machine_id|upper }}">
+      <p class="qr-instruction">Aponte a câmera para o QR Code<br>e informe seu PIN de 4 números.</p>
+      <p class="qr-detail">O acesso será liberado somente se o operador estiver ativo e autorizado nesta máquina.</p>
+      <div class="qr-url">{{ access_url }}</div>
+    </section>
+  </div>
+</div>
+{% endblock %}
