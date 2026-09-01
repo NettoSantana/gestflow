@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\producao\historico_routes.py
-# Último recode: 2026-09-01 10:04 (America/Bahia)
-# Motivo: Redesenhar o Histórico Operacional com seleção "Todos", período, resumo consolidado e histórico por dia, preservando isolamento por cliente e detalhe hora a hora.
+# Último recode: 2026-09-01 10:49 (America/Bahia)
+# Motivo: Restaurar compatibilidade das funções legadas usadas por Paradas/Indicadores sem desfazer o novo Histórico Operacional consolidado.
 
 from __future__ import annotations
 
@@ -1071,6 +1071,243 @@ def _meta_24_from_config(config: dict, day: date) -> list[int] | None:
                 meta24[hour] = max(meta24[hour], meta_h)
 
     return meta24
+
+
+# ============================================================
+# COMPATIBILIDADE COM PARADAS / INDICADORES
+# ============================================================
+# O módulo modules.paradas.services ainda importa estes nomes históricos.
+# Mantemos a API interna antiga apontando para as rotinas consolidadas acima,
+# evitando duplicar a lógica do Histórico Operacional.
+
+
+def _build_meta_24_from_config_v2(cfg: dict | None, data_ref: date) -> list[int] | None:
+    """Compatibilidade: mantém o nome antigo usando a regra consolidada atual."""
+    return _meta_24_from_config(cfg or {}, data_ref)
+
+
+def _build_meta_24_from_machine_state(machine_state: dict | None) -> list[int] | None:
+    """Monta meta[24] a partir do fallback legado do estado da máquina."""
+    if not isinstance(machine_state, dict):
+        return None
+
+    meta_por_hora = machine_state.get("meta_por_hora")
+    if not isinstance(meta_por_hora, list) or not meta_por_hora:
+        return None
+
+    turno_inicio = str(machine_state.get("turno_inicio") or "").strip()
+    if not turno_inicio:
+        return None
+
+    try:
+        hora_inicio = int(turno_inicio.split(":", 1)[0])
+    except Exception:
+        return None
+
+    if not 0 <= hora_inicio <= 23:
+        return None
+
+    meta24 = [0] * 24
+    for index, value in enumerate(meta_por_hora):
+        hora = (hora_inicio + index) % 24
+        meta24[hora] = max(0, _safe_int(value, 0))
+
+    return meta24
+
+
+def _load_machine_config_json(
+    conn: sqlite3.Connection,
+    machine_id: str,
+    cliente_id: str | None = None,
+) -> dict:
+    """Compatibilidade com o nome antigo do carregador de configuração."""
+    return _load_machine_config(
+        conn,
+        str(cliente_id or "").strip(),
+        machine_id,
+    )
+
+
+def _resolve_effective_machine_id(
+    conn: sqlite3.Connection,
+    machine_id: str,
+    data_ref: str,
+    cliente_id: str | None = None,
+) -> str:
+    """Retorna a representação canônica da máquina dentro do tenant atual."""
+    cid = str(cliente_id or "").strip()
+    mid = _canonical_machine_id(machine_id, cid)
+    if not mid:
+        return ""
+
+    # Verifica primeiro se existe uma representação gravada no dia solicitado.
+    table = "producao_diaria"
+    cols = _get_columns(conn, table)
+    data_col = _resolve_data_col(conn, table)
+    if data_col and "machine_id" in cols:
+        candidates = _matching_machine_ids(conn, table, cid, mid, "machine_id")
+        for candidate in candidates:
+            try:
+                params = []
+                where = []
+                if cid and "cliente_id" in cols:
+                    where.append("cliente_id=?")
+                    params.append(cid)
+                where.append("machine_id=?")
+                params.append(candidate)
+                where.append(f"{data_col}=?")
+                params.append(str(data_ref or "").strip())
+                row = conn.execute(
+                    f"SELECT machine_id FROM {table} WHERE {' AND '.join(where)} LIMIT 1",
+                    tuple(params),
+                ).fetchone()
+                if row:
+                    raw = row["machine_id"] if isinstance(row, sqlite3.Row) else row[0]
+                    return _canonical_machine_id(raw, cid) or mid
+            except Exception:
+                continue
+
+    return mid
+
+
+def _fetch_state_segments_from_state_events(
+    conn: sqlite3.Connection,
+    effective_machine_id: str,
+    data_ref: date,
+    machine_id: str | None = None,
+    cliente_id: str | None = None,
+) -> list[tuple[datetime, datetime, str]]:
+    """Compatibilidade com a leitura consolidada de machine_state_event."""
+    cid = str(cliente_id or "").strip()
+    mid = _canonical_machine_id(machine_id or effective_machine_id, cid)
+    if not mid:
+        return []
+    return _state_segments_for_day(conn, cid, mid, data_ref)
+
+
+def _build_segments_for_hour_from_day_segments(
+    hour_start: datetime,
+    hour_end: datetime,
+    is_np: bool,
+    day_segments: list[tuple[datetime, datetime, str]],
+) -> list[dict]:
+    """Compatibilidade com o recorte horário usado pelos indicadores de paradas."""
+    return _clip_state_segments(
+        day_segments or [],
+        hour_start,
+        hour_end,
+        bool(is_np),
+    )
+
+
+def _fetch_horaria(
+    conn: sqlite3.Connection,
+    machine_id: str,
+    data_ref: date,
+    cliente_id: str | None = None,
+) -> dict[int, dict]:
+    """Lê o consolidado horário no contrato antigo, preservando isolamento por tenant."""
+    out: dict[int, dict] = {
+        hour: {
+            "meta": 0,
+            "produzido": 0,
+            "refugo": 0,
+            "baseline_esp": 0,
+            "esp_last": 0,
+        }
+        for hour in range(24)
+    }
+
+    cid = str(cliente_id or "").strip()
+    mid = _canonical_machine_id(machine_id, cid)
+    table = "producao_horaria"
+    cols = _get_columns(conn, table)
+    data_col = _resolve_data_col(conn, table)
+    hour_col = next(
+        (name for name in ("hora_dia", "hora_idx", "hora", "hora_int") if name in cols),
+        None,
+    )
+    prod_col = next(
+        (name for name in ("produzido", "producao", "count", "qtd") if name in cols),
+        None,
+    )
+    meta_col = next(
+        (name for name in ("meta_hora", "meta", "meta_pcs") if name in cols),
+        None,
+    )
+    base_col = "baseline_esp" if "baseline_esp" in cols else None
+    esp_col = next(
+        (name for name in ("esp_last", "esp_abs", "esp", "contador", "counter") if name in cols),
+        None,
+    )
+
+    if data_col and hour_col and "machine_id" in cols:
+        select_cols = [hour_col]
+        for column in (prod_col, meta_col, base_col, esp_col):
+            if column and column not in select_cols:
+                select_cols.append(column)
+
+        candidates = _matching_machine_ids(conn, table, cid, mid, "machine_id")
+        for candidate in candidates:
+            try:
+                params = []
+                where = []
+                if cid and "cliente_id" in cols:
+                    where.append("cliente_id=?")
+                    params.append(cid)
+                elif cid and "cliente_id" not in cols:
+                    continue
+
+                where.append("machine_id=?")
+                params.append(candidate)
+                where.append(f"{data_col}=?")
+                params.append(data_ref.isoformat())
+
+                rows = conn.execute(
+                    f"SELECT {', '.join(select_cols)} FROM {table} "
+                    f"WHERE {' AND '.join(where)}",
+                    tuple(params),
+                ).fetchall()
+            except Exception:
+                continue
+
+            for row in rows:
+                try:
+                    hour = _safe_int(
+                        row[hour_col] if isinstance(row, sqlite3.Row) else row[0],
+                        -1,
+                    )
+                except Exception:
+                    continue
+                if not 0 <= hour <= 23:
+                    continue
+
+                def _value(column: str | None) -> int:
+                    if not column:
+                        return 0
+                    try:
+                        if isinstance(row, sqlite3.Row):
+                            return _safe_int(row[column], 0)
+                        return _safe_int(row[select_cols.index(column)], 0)
+                    except Exception:
+                        return 0
+
+                out[hour]["produzido"] = max(out[hour]["produzido"], _value(prod_col))
+                out[hour]["meta"] = max(out[hour]["meta"], _value(meta_col))
+                out[hour]["baseline_esp"] = max(out[hour]["baseline_esp"], _value(base_col))
+                out[hour]["esp_last"] = max(out[hour]["esp_last"], _value(esp_col))
+
+    # Refugo usa a rotina consolidada, que já resolve aliases de machine_id e tenant.
+    for hour in range(24):
+        out[hour]["refugo"] = _hourly_refugo(
+            conn,
+            cid,
+            mid,
+            data_ref,
+            hour,
+        )
+
+    return out
 
 
 def _hourly_fallback(
