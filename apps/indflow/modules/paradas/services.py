@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\paradas\services.py
-# Último recode: 2026-08-31 15:47 (America/Bahia)
-# Motivo: Centralizar a lista de máquinas reais em Devices, isolada por tenant e MAC válido.
+# Último recode: 2026-09-02 10:18 (America/Bahia)
+# Motivo: Adicionar séries diárias e paradas por turno aos Indicadores, preservando os cálculos existentes de OEE, MTTR e MTBF.
 
 from __future__ import annotations
 
@@ -831,6 +831,121 @@ def _sum_meta(conn: sqlite3.Connection, cliente_id: str, machine_id: str, start_
     return int(row[0] or 0) if row else 0
 
 
+def _parse_hhmm_minutes(value) -> int | None:
+    try:
+        text = str(value or "").strip()
+        hour_s, minute_s = text.split(":", 1)
+        hour = int(hour_s)
+        minute = int(minute_s)
+        if not (0 <= hour <= 23 and 0 <= minute <= 59):
+            return None
+        return hour * 60 + minute
+    except Exception:
+        return None
+
+
+def _shift_definitions(conn: sqlite3.Connection, cliente_id: str, machine_id: str) -> list[dict]:
+    cfg = _load_machine_config_json(conn, machine_id, cliente_id)
+    cv2 = cfg.get("config_v2") if isinstance(cfg, dict) and isinstance(cfg.get("config_v2"), dict) else cfg
+    shifts = cv2.get("shifts") if isinstance(cv2, dict) else None
+    if not isinstance(shifts, list):
+        return []
+
+    out = []
+    for idx, shift in enumerate(shifts):
+        if not isinstance(shift, dict):
+            continue
+        start_min = _parse_hhmm_minutes(shift.get("start"))
+        end_min = _parse_hhmm_minutes(shift.get("end"))
+        if start_min is None or end_min is None:
+            continue
+        name = str(shift.get("name") or chr(65 + idx)).strip() or chr(65 + idx)
+        out.append(
+            {
+                "nome": name,
+                "inicio": str(shift.get("start") or ""),
+                "fim": str(shift.get("end") or ""),
+                "start_min": start_min,
+                "end_min": end_min,
+            }
+        )
+    return out
+
+
+def _occurrence_shift_breakdown(occurrences: list[dict], shifts: list[dict]) -> list[dict]:
+    buckets = [
+        {
+            "nome": item["nome"],
+            "inicio": item["inicio"],
+            "fim": item["fim"],
+            "tempo_sec": 0,
+            "ocorrencias": 0,
+        }
+        for item in shifts
+    ]
+    outside = {"nome": "Fora de turno", "inicio": "", "fim": "", "tempo_sec": 0, "ocorrencias": 0}
+
+    for occ in occurrences:
+        started_ms = int(occ.get("started_at_ms") or 0)
+        if started_ms <= 0:
+            continue
+        local_dt = datetime.fromtimestamp(started_ms / 1000, TZ_BAHIA)
+        minute = local_dt.hour * 60 + local_dt.minute
+        target = None
+        for idx, shift in enumerate(shifts):
+            start_min = int(shift["start_min"])
+            end_min = int(shift["end_min"])
+            if end_min <= start_min:
+                matches = minute >= start_min or minute < end_min
+            else:
+                matches = start_min <= minute < end_min
+            if matches:
+                target = buckets[idx]
+                break
+        if target is None:
+            target = outside
+        target["tempo_sec"] += max(0, int(occ.get("duration_sec") or 0))
+        target["ocorrencias"] += 1
+
+    out = [item for item in buckets if item["ocorrencias"] > 0 or item["tempo_sec"] > 0]
+    if outside["ocorrencias"] > 0 or outside["tempo_sec"] > 0:
+        out.append(outside)
+    return out
+
+
+def _daily_indicator_row(
+    day: date,
+    run_sec: int,
+    stop_sec: int,
+    production: int,
+    scrap: int,
+    meta: int,
+    ideal: float | None,
+) -> dict:
+    monitored = int(run_sec or 0) + int(stop_sec or 0)
+    availability = (run_sec / monitored) if monitored > 0 else None
+    performance = None
+    if run_sec > 0 and ideal and ideal > 0:
+        performance = min(1.0, max(0.0, (production * ideal) / run_sec))
+    quality = None
+    if production > 0:
+        quality = min(1.0, max(0.0, (production - scrap) / production))
+    oee = availability * performance * quality if None not in (availability, performance, quality) else None
+    return {
+        "data": day.isoformat(),
+        "run_sec": int(run_sec or 0),
+        "stop_sec": int(stop_sec or 0),
+        "producao": int(production or 0),
+        "refugo": int(scrap or 0),
+        "meta": int(meta or 0),
+        "availability": availability,
+        "performance": performance,
+        "quality": quality,
+        "oee": oee,
+        "ideal_sec_per_piece": ideal,
+    }
+
+
 def _ideal_sec(conn: sqlite3.Connection, cliente_id: str, machine_id: str, day: date) -> float | None:
     cfg = _load_machine_config_json(conn, machine_id, cliente_id)
     oee = cfg.get("oee") if isinstance(cfg, dict) else None
@@ -855,11 +970,15 @@ def machine_indicator_summary(cliente_id: str, machine_id: str, start_day: date,
     mid = normalize_machine_id(machine_id, cid)
     run_sec = 0
     stop_sec = 0
+    daily_states: dict[str, dict] = {}
     cursor = start_day
     while cursor <= end_day:
         state = detected_day_state(cid, mid, cursor)
-        run_sec += int(state.get("run_sec") or 0)
-        stop_sec += int(state.get("stop_sec") or 0)
+        day_run = int(state.get("run_sec") or 0)
+        day_stop = int(state.get("stop_sec") or 0)
+        daily_states[cursor.isoformat()] = {"run_sec": day_run, "stop_sec": day_stop}
+        run_sec += day_run
+        stop_sec += day_stop
         cursor += timedelta(days=1)
 
     # Persiste apenas os intervalos derivados do rastro original para classificacao.
@@ -875,12 +994,31 @@ def machine_indicator_summary(cliente_id: str, machine_id: str, start_day: date,
     start_ms = int(datetime(start_day.year, start_day.month, start_day.day, tzinfo=TZ_BAHIA).timestamp() * 1000)
     next_day = end_day + timedelta(days=1)
     end_ms = int(datetime(next_day.year, next_day.month, next_day.day, tzinfo=TZ_BAHIA).timestamp() * 1000)
+    daily_series = []
+    shift_defs = []
+
     if is_test_machine(cid, mid):
         test_totals = test_period_totals(start_day, end_day)
         production = int(test_totals.get("producao") or 0)
         scrap = int(test_totals.get("refugo") or 0)
         meta = int(test_totals.get("meta") or 0)
         ideal = float(test_totals.get("ideal_sec_per_piece") or 3.0)
+        cursor = start_day
+        while cursor <= end_day:
+            totals = test_period_totals(cursor, cursor)
+            state = daily_states.get(cursor.isoformat()) or {}
+            daily_series.append(
+                _daily_indicator_row(
+                    cursor,
+                    int(state.get("run_sec") or 0),
+                    int(state.get("stop_sec") or 0),
+                    int(totals.get("producao") or 0),
+                    int(totals.get("refugo") or 0),
+                    int(totals.get("meta") or 0),
+                    float(totals.get("ideal_sec_per_piece") or ideal or 3.0),
+                )
+            )
+            cursor += timedelta(days=1)
     else:
         conn = get_db()
         try:
@@ -888,6 +1026,26 @@ def machine_indicator_summary(cliente_id: str, machine_id: str, start_day: date,
             scrap = _sum_refugo(conn, cid, mid, start_day, end_day)
             meta = _sum_meta(conn, cid, mid, start_day, end_day)
             ideal = _ideal_sec(conn, cid, mid, end_day)
+            shift_defs = _shift_definitions(conn, cid, mid)
+
+            cursor = start_day
+            while cursor <= end_day:
+                day_start_ms = int(datetime(cursor.year, cursor.month, cursor.day, tzinfo=TZ_BAHIA).timestamp() * 1000)
+                day_end = cursor + timedelta(days=1)
+                day_end_ms = int(datetime(day_end.year, day_end.month, day_end.day, tzinfo=TZ_BAHIA).timestamp() * 1000)
+                state = daily_states.get(cursor.isoformat()) or {}
+                daily_series.append(
+                    _daily_indicator_row(
+                        cursor,
+                        int(state.get("run_sec") or 0),
+                        int(state.get("stop_sec") or 0),
+                        _sum_production(conn, cid, mid, day_start_ms, day_end_ms),
+                        _sum_refugo(conn, cid, mid, cursor, cursor),
+                        _sum_meta(conn, cid, mid, cursor, cursor),
+                        _ideal_sec(conn, cid, mid, cursor),
+                    )
+                )
+                cursor += timedelta(days=1)
         finally:
             conn.close()
 
@@ -934,6 +1092,7 @@ def machine_indicator_summary(cliente_id: str, machine_id: str, start_day: date,
         "paradas": stop_count,
         "paradas_classificadas": len(classified),
         "paradas_nao_classificadas": len(unclassified),
+        "unplanned_stop_count": unplanned_count,
         "classificacao_pct": classified_pct,
         "planned_stop_sec": planned_sec,
         "unplanned_stop_sec": unplanned_sec,
@@ -949,6 +1108,8 @@ def machine_indicator_summary(cliente_id: str, machine_id: str, start_day: date,
         "meta": meta,
         "atingimento": achievement,
         "ideal_sec_per_piece": ideal,
+        "serie_diaria": daily_series,
+        "paradas_turno": _occurrence_shift_breakdown(occurrences, shift_defs),
         "categorias": sorted(category_map.values(), key=lambda x: x["tempo_sec"], reverse=True),
         "motivos": sorted(reason_map.values(), key=lambda x: x["tempo_sec"], reverse=True),
     }
@@ -967,8 +1128,12 @@ def general_indicator_summary(cliente_id: str, start_day: date, end_day: date, m
     meta = sum(int(r["meta"] or 0) for r in rows)
     stops = sum(int(r["paradas"] or 0) for r in rows)
     classified = sum(int(r["paradas_classificadas"] or 0) for r in rows)
+    unplanned_count = sum(int(r.get("unplanned_stop_count") or 0) for r in rows)
+    unplanned_sec = sum(int(r["unplanned_stop_sec"] or 0) for r in rows)
     monitored = run_sec + stop_sec
     availability = (run_sec / monitored) if monitored > 0 else None
+    mttr = (unplanned_sec / unplanned_count) if unplanned_count > 0 else None
+    mtbf = (run_sec / unplanned_count) if unplanned_count > 0 else None
 
     # Performance geral ponderada por tempo ideal de cada maquina.
     theoretical_sec = 0.0
@@ -982,6 +1147,8 @@ def general_indicator_summary(cliente_id: str, start_day: date, end_day: date, m
 
     category_map: dict[str, dict] = {}
     reason_map: dict[str, dict] = {}
+    shift_map: dict[tuple[str, str, str], dict] = {}
+    daily_map: dict[str, dict] = {}
     for row in rows:
         for item in row.get("categorias") or []:
             dst = category_map.setdefault(item["nome"], {"nome": item["nome"], "tempo_sec": 0, "ocorrencias": 0})
@@ -991,6 +1158,71 @@ def general_indicator_summary(cliente_id: str, start_day: date, end_day: date, m
             dst = reason_map.setdefault(item["nome"], {"nome": item["nome"], "tempo_sec": 0, "ocorrencias": 0})
             dst["tempo_sec"] += int(item.get("tempo_sec") or 0)
             dst["ocorrencias"] += int(item.get("ocorrencias") or 0)
+        for item in row.get("paradas_turno") or []:
+            key = (str(item.get("nome") or ""), str(item.get("inicio") or ""), str(item.get("fim") or ""))
+            dst = shift_map.setdefault(
+                key,
+                {
+                    "nome": key[0],
+                    "inicio": key[1],
+                    "fim": key[2],
+                    "tempo_sec": 0,
+                    "ocorrencias": 0,
+                },
+            )
+            dst["tempo_sec"] += int(item.get("tempo_sec") or 0)
+            dst["ocorrencias"] += int(item.get("ocorrencias") or 0)
+        for item in row.get("serie_diaria") or []:
+            day_key = str(item.get("data") or "")
+            if not day_key:
+                continue
+            dst = daily_map.setdefault(
+                day_key,
+                {
+                    "data": day_key,
+                    "run_sec": 0,
+                    "stop_sec": 0,
+                    "producao": 0,
+                    "refugo": 0,
+                    "meta": 0,
+                    "theoretical_sec": 0.0,
+                },
+            )
+            dst["run_sec"] += int(item.get("run_sec") or 0)
+            dst["stop_sec"] += int(item.get("stop_sec") or 0)
+            dst["producao"] += int(item.get("producao") or 0)
+            dst["refugo"] += int(item.get("refugo") or 0)
+            dst["meta"] += int(item.get("meta") or 0)
+            ideal = item.get("ideal_sec_per_piece")
+            if ideal:
+                dst["theoretical_sec"] += float(item.get("producao") or 0) * float(ideal)
+
+    daily_series = []
+    for day_key in sorted(daily_map):
+        item = daily_map[day_key]
+        day_run = int(item["run_sec"] or 0)
+        day_stop = int(item["stop_sec"] or 0)
+        day_prod = int(item["producao"] or 0)
+        day_scrap = int(item["refugo"] or 0)
+        day_monitored = day_run + day_stop
+        day_availability = (day_run / day_monitored) if day_monitored > 0 else None
+        day_performance = min(1.0, item["theoretical_sec"] / day_run) if day_run > 0 and item["theoretical_sec"] > 0 else None
+        day_quality = min(1.0, max(0.0, (day_prod - day_scrap) / day_prod)) if day_prod > 0 else None
+        day_oee = day_availability * day_performance * day_quality if None not in (day_availability, day_performance, day_quality) else None
+        daily_series.append(
+            {
+                "data": day_key,
+                "run_sec": day_run,
+                "stop_sec": day_stop,
+                "producao": day_prod,
+                "refugo": day_scrap,
+                "meta": int(item["meta"] or 0),
+                "availability": day_availability,
+                "performance": day_performance,
+                "quality": day_quality,
+                "oee": day_oee,
+            }
+        )
 
     return {
         "periodo": {"inicio": start_day.isoformat(), "fim": end_day.isoformat()},
@@ -1001,18 +1233,24 @@ def general_indicator_summary(cliente_id: str, start_day: date, end_day: date, m
         "paradas": stops,
         "paradas_classificadas": classified,
         "paradas_nao_classificadas": max(0, stops - classified),
+        "unplanned_stop_count": unplanned_count,
         "classificacao_pct": (classified / stops) if stops > 0 else 1.0,
         "availability": availability,
         "performance": performance,
         "quality": quality,
         "oee": oee,
+        "mttr_sec": mttr,
+        "mtbf_sec": mtbf,
         "producao": production,
         "refugo": scrap,
         "meta": meta,
         "atingimento": (production / meta) if meta > 0 else None,
         "planned_stop_sec": sum(int(r["planned_stop_sec"] or 0) for r in rows),
-        "unplanned_stop_sec": sum(int(r["unplanned_stop_sec"] or 0) for r in rows),
+        "unplanned_stop_sec": unplanned_sec,
         "unclassified_stop_sec": sum(int(r["unclassified_stop_sec"] or 0) for r in rows),
+        "serie_diaria": daily_series,
+        "paradas_turno": sorted(shift_map.values(), key=lambda x: (x["inicio"], x["nome"])),
         "categorias": sorted(category_map.values(), key=lambda x: x["tempo_sec"], reverse=True),
         "motivos": sorted(reason_map.values(), key=lambda x: x["tempo_sec"], reverse=True),
     }
+
