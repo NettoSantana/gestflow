@@ -1,14 +1,14 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\templates\index.html
-Último recode: 2026-09-01 11:48 (America/Bahia)
-Motivo: Padronizar o indicador Atingimento como Progresso da meta no Painel Industrial.
+Último recode: 2026-09-02 09:50 (America/Bahia)
+Motivo: Concentrar o acompanhamento das máquinas no Painel Industrial e remover o acesso redundante à tela Produção.
 #}
 
 {% extends "base.html" %}
 {% block title %}Painel Industrial — IndFlow{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="/static/dashboard.css?v=20260811">
+<link rel="stylesheet" href="/static/dashboard.css?v=20260902">
 
 <style>
 @media (min-width:981px){
@@ -38,7 +38,6 @@ Motivo: Padronizar o indicador Atingimento como Progresso da meta no Painel Indu
   </div>
   <div class="page-actions">
     <a class="btn btn-secondary" href="/producao/historico">Ver histórico</a>
-    <a class="btn btn-primary" href="/producao/">Abrir produção</a>
   </div>
 </div>
 
@@ -79,7 +78,7 @@ Motivo: Padronizar o indicador Atingimento como Progresso da meta no Painel Indu
   <div class="section-shell-header">
     <div>
       <h2>Máquinas monitoradas</h2>
-      <p>Clique em uma máquina para abrir o detalhe operacional, OP, histórico e parâmetros industriais.</p>
+      <p>Acompanhe o turno e use os atalhos de cada máquina para abrir detalhe operacional, indicadores e histórico.</p>
     </div>
     {% if (session.get('role') or '')|lower in ['admin', 'superadmin'] %}<a class="btn btn-ghost" href="/devices/">Devices</a>{% endif %}
   </div>
@@ -91,7 +90,7 @@ Motivo: Padronizar o indicador Atingimento como Progresso da meta no Painel Indu
   Equipamentos, usuários e empresas não são cadastrados novamente no IndFlow. O IndFlow concentra somente monitoramento, produção, histórico, OP/bobinas, utilidades e parâmetros industriais.
 </div>
 
-<script src="/static/dashboard.state.js?v=20260811"></script>
-<script src="/static/dashboard.ui.js?v=20260811"></script>
-<script src="/static/dashboard.update.js?v=20260811"></script>
+<script src="/static/dashboard.state.js?v=20260902"></script>
+<script src="/static/dashboard.ui.js?v=20260902"></script>
+<script src="/static/dashboard.update.js?v=20260902"></script>
 {% endblock %}

@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\templates\base.html
-Último recode: 2026-09-01 20:36 (America/Bahia)
-Motivo: Padronizar a sidebar com o GestFlow: compacta por padrão, expansão por hover e opção de fixar aberta no desktop.
+Último recode: 2026-09-02 09:50 (America/Bahia)
+Motivo: Remover a navegação redundante de Produção, mantendo Painel Industrial, Histórico e detalhe operacional.
 #}
 
 <!DOCTYPE html>
@@ -180,11 +180,6 @@ Motivo: Padronizar a sidebar com o GestFlow: compacta por padrão, expansão por
             <span>Tela Operacional</span>
           </a>
 
-          <a class="industrial-nav-item {% if _path.startswith('/producao') and not _path.startswith('/producao/historico') %}active{% endif %}" href="/producao/">
-            <span class="industrial-nav-icon">▥</span>
-            <span>Produção</span>
-          </a>
-
           <a class="industrial-nav-item {% if _path.startswith('/producao/historico') or _path.startswith('/maquina/') and _path.endswith('/historico') %}active{% endif %}" href="/producao/historico">
             <span class="industrial-nav-icon">◷</span>
             <span>Histórico</span>
@@ -260,7 +255,7 @@ Motivo: Padronizar a sidebar com o GestFlow: compacta por padrão, expansão por
             {% if _path == '/' %}Painel Industrial
             {% elif _path.startswith('/operacao') %}Tela Operacional
             {% elif _path.startswith('/producao/historico') %}Histórico
-            {% elif _path.startswith('/producao') %}Produção
+            {% elif _path.startswith('/producao') %}Detalhe Operacional
             {% elif _path.startswith('/paradas/catalogo') %}Motivos de Parada
             {% elif _path.startswith('/paradas') %}Paradas
             {% elif _path.startswith('/indicadores/maquina') %}Indicadores da Máquina

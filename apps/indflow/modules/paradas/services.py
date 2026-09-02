@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\paradas\services.py
-# Último recode: 2026-08-31 15:47 (America/Bahia)
-# Motivo: Centralizar a lista de máquinas reais em Devices, isolada por tenant e MAC válido.
+# Último recode: 2026-09-02 09:50 (America/Bahia)
+# Motivo: Adicionar MTTR e MTBF consolidados aos Indicadores Gerais usando somente paradas não planejadas classificadas.
 
 from __future__ import annotations
 
@@ -934,6 +934,7 @@ def machine_indicator_summary(cliente_id: str, machine_id: str, start_day: date,
         "paradas": stop_count,
         "paradas_classificadas": len(classified),
         "paradas_nao_classificadas": len(unclassified),
+        "unplanned_stop_count": unplanned_count,
         "classificacao_pct": classified_pct,
         "planned_stop_sec": planned_sec,
         "unplanned_stop_sec": unplanned_sec,
@@ -967,8 +968,12 @@ def general_indicator_summary(cliente_id: str, start_day: date, end_day: date, m
     meta = sum(int(r["meta"] or 0) for r in rows)
     stops = sum(int(r["paradas"] or 0) for r in rows)
     classified = sum(int(r["paradas_classificadas"] or 0) for r in rows)
+    unplanned_count = sum(int(r.get("unplanned_stop_count") or 0) for r in rows)
+    unplanned_sec = sum(int(r["unplanned_stop_sec"] or 0) for r in rows)
     monitored = run_sec + stop_sec
     availability = (run_sec / monitored) if monitored > 0 else None
+    mttr = (unplanned_sec / unplanned_count) if unplanned_count > 0 else None
+    mtbf = (run_sec / unplanned_count) if unplanned_count > 0 else None
 
     # Performance geral ponderada por tempo ideal de cada maquina.
     theoretical_sec = 0.0
@@ -1001,17 +1006,20 @@ def general_indicator_summary(cliente_id: str, start_day: date, end_day: date, m
         "paradas": stops,
         "paradas_classificadas": classified,
         "paradas_nao_classificadas": max(0, stops - classified),
+        "unplanned_stop_count": unplanned_count,
         "classificacao_pct": (classified / stops) if stops > 0 else 1.0,
         "availability": availability,
         "performance": performance,
         "quality": quality,
         "oee": oee,
+        "mttr_sec": mttr,
+        "mtbf_sec": mtbf,
         "producao": production,
         "refugo": scrap,
         "meta": meta,
         "atingimento": (production / meta) if meta > 0 else None,
         "planned_stop_sec": sum(int(r["planned_stop_sec"] or 0) for r in rows),
-        "unplanned_stop_sec": sum(int(r["unplanned_stop_sec"] or 0) for r in rows),
+        "unplanned_stop_sec": unplanned_sec,
         "unclassified_stop_sec": sum(int(r["unclassified_stop_sec"] or 0) for r in rows),
         "categorias": sorted(category_map.values(), key=lambda x: x["tempo_sec"], reverse=True),
         "motivos": sorted(reason_map.values(), key=lambda x: x["tempo_sec"], reverse=True),
