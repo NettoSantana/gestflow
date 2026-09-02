@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\dashboard.update.js
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-09-02 09:50 (America/Bahia)
+Motivo: Atualizar em tempo real o progresso da meta e o tempo parado incorporados ao Painel Industrial.
 */
 
 // static/dashboard.update.js
@@ -200,6 +200,16 @@ function updateMachine(machineId){
       const elHora  = document.getElementById(`percent-hora-${sid}`);
 
       renderPercentWithIndicator(elTurno, pTurno);
+
+      const progressFill = document.getElementById(`progress-fill-${sid}`);
+      const progressPct = document.getElementById(`progress-pct-${sid}`);
+      const pTurnoSafe = Math.max(0, Math.min(100, pTurno));
+      if(progressFill) progressFill.style.width = `${pTurnoSafe}%`;
+      if(progressPct) progressPct.textContent = `${Math.round(pTurno)}%`;
+
+      const paradoResumo = document.getElementById(`parado-resumo-${sid}`);
+      const paradoMin = resolveParadoMin(data);
+      if(paradoResumo) paradoResumo.textContent = `${paradoMin ?? 0} min`;
 
       const metaHora = Number(data.meta_hora_pcs ?? 0);
       const prodHora = Number(data.producao_hora ?? 0);

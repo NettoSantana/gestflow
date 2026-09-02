@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\dashboard.ui.js
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-09-02 09:50 (America/Bahia)
+Motivo: Incorporar ao card do Painel Industrial progresso da meta, tempo parado e atalhos operacionais.
 */
 
 function fmt(n){
@@ -221,12 +221,10 @@ function cardHTML(machineId){
       <div class="machine-header">
         <div style="min-width:0;">
           <div class="machine-name">${upper}</div>
-          <div class="machine-caption">Detalhe operacional</div>
+          <div class="machine-caption">Acompanhamento do turno</div>
         </div>
         <div id="status-badge-${sid}" class="machine-status status-manual">AGUARDANDO</div>
       </div>
-
-      <div id="stopline-${sid}" class="machine-stopline" style="display:none"></div>
 
       <div class="percent-container">
         <div class="percent-block">
@@ -246,6 +244,18 @@ function cardHTML(machineId){
           <div class="stats-sub" id="row-meta-hora-u2-${sid}"><span id="lbl-meta-hora-u2-${sid}">Meta</span><b id="meta-hora-u2-${sid}">0</b></div>
           <div class="stats-sub" id="row-prod-hora-u2-${sid}"><span id="lbl-prod-hora-u2-${sid}">Produzido</span><b id="prod-hora-u2-${sid}">0</b></div>
         </div>
+      </div>
+
+      <div class="machine-progress">
+        <div class="machine-progress-head"><span>Progresso da meta</span><strong id="progress-pct-${sid}">0%</strong></div>
+        <div class="machine-progress-track"><div class="machine-progress-fill" id="progress-fill-${sid}"></div></div>
+      </div>
+      <div class="machine-stop-summary"><span>Tempo parado</span><b id="parado-resumo-${sid}">0 min</b></div>
+
+      <div class="machine-actions" onclick="event.stopPropagation()">
+        <a class="btn btn-primary" href="/producao/config/${encodeURIComponent(machineId)}">Detalhe operacional</a>
+        <a class="btn btn-secondary" href="/indicadores/maquina/${encodeURIComponent(machineId)}">Indicadores</a>
+        <a class="btn btn-secondary" href="/producao/historico?machine_id=${encodeURIComponent(machineId)}">Histórico</a>
       </div>
 
       <div id="wifi-wrap-${sid}" style="position:absolute;left:15px;bottom:14px;width:24px;height:20px;pointer-events:none;">

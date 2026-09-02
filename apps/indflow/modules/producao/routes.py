@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\producao\routes.py
-# Ultimo recode: 2026-09-01 13:20 (America/Bahia)
-# Motivo: Restaurar o Historico Operacional usando a implementacao consolidada tenant-scoped que le os dados persistidos do SQLite.
+# Ultimo recode: 2026-09-02 09:50 (America/Bahia)
+# Motivo: Redirecionar a tela raiz de Produção para o Painel Industrial, preservando detalhe operacional e Histórico.
 
 from flask import Blueprint, render_template, redirect, request, jsonify, session
 from datetime import datetime, timedelta, timezone
@@ -2387,12 +2387,12 @@ def _fetch_ops_for_range(machine_id: str | None, day_min: str, day_max: str, cli
 
 
 # =====================================================
-# TELA OPERACIONAL DE PRODUCAO
+# ACESSO LEGADO DA TELA DE PRODUCAO
 # =====================================================
 @producao_bp.route("/")
 @login_required
 def home():
-    return render_template("producao_home.html")
+    return redirect("/")
 
 
 # =====================================================
