@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\templates\base.html
-Último recode: 2026-09-02 09:50 (America/Bahia)
-Motivo: Remover a navegação redundante de Produção, mantendo Painel Industrial, Histórico e detalhe operacional.
+Último recode: 2026-09-02 11:35 (America/Bahia)
+Motivo: Ocultar o Modo simulação da interface e substituir o e-mail técnico do SSO pela identificação da empresa.
 #}
 
 <!DOCTYPE html>
@@ -14,6 +14,7 @@ Motivo: Remover a navegação redundante de Produção, mantendo Painel Industri
   <link rel="stylesheet" href="/static/style.css?v=20260811">
   <style>
     .sidebar-desktop-hover-zone { display: none; }
+    #simulationBtn, #simulationPanel { display:none !important; }
 
     @media (min-width: 981px) {
       :root {
@@ -270,7 +271,7 @@ Motivo: Remover a navegação redundante de Produção, mantendo Painel Industri
         <div class="industrial-topbar-user">
           <span class="industrial-live-dot" aria-hidden="true"></span>
           <div>
-            <strong>{% if _is_operator %}{{ session.get('operator_name') or 'Operador' }}{% else %}{{ session.get('email') or 'Usuário conectado' }}{% endif %}</strong>
+            <strong>{% if _is_operator %}{{ session.get('operator_name') or 'Operador' }}{% else %}EMPRESA {{ session.get('gestflow_empresa_id') or 'GESTFLOW' }}{% endif %}</strong>
             <span>{% if _is_operator %}OPERADOR{% else %}{{ _role|upper }}{% endif %}</span>
           </div>
         </div>
