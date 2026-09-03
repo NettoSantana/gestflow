@@ -1,10 +1,10 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\teste\routes.py
-# Último recode: 2026-08-21 06:43 (America/Bahia)
-# Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+# Último recode: 2026-09-02 21:45 (America/Bahia)
+# Motivo: Desativar a página Dados de teste, preservando as APIs técnicas internas para não afetar o restante do IndFlow.
 
 from __future__ import annotations
 
-from flask import Blueprint, jsonify, render_template, session
+from flask import Blueprint, jsonify, redirect, render_template, session
 
 from modules.admin.routes import admin_required
 from modules.paradas.services import ensure_catalog_seed
@@ -28,17 +28,7 @@ def _cliente_id() -> str:
 @teste_bp.get("/")
 @admin_required
 def home():
-    cid = _cliente_id()
-    active = is_test_machine(cid, TEST_MACHINE_ID)
-    start, end = test_period()
-    return render_template(
-        "teste_home.html",
-        machine_id=TEST_MACHINE_ID,
-        ativo=active,
-        inicio=start.isoformat(),
-        fim=end.isoformat(),
-        data_teste=test_default_day().isoformat(),
-    )
+    return redirect("/")
 
 
 @teste_bp.post("/api/ativar")

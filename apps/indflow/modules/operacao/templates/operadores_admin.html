@@ -1,13 +1,13 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\operacao\templates\operadores_admin.html
-Último recode: 2026-09-01 18:38 (America/Bahia)
-Motivo: Deixar explícito que PIN e QR identificam o operador somente após autenticação pelo GestFlow.
+Último recode: 2026-09-02 21:45 (America/Bahia)
+Motivo: Transformar operadores em lista compacta com cadastro/edição por modal e exclusão confirmada.
 #}
 {% extends "base.html" %}
 {% block title %}Operadores — IndFlow{% endblock %}
 {% block content %}
 <style>
-.opadm-wrap{display:flex;flex-direction:column;gap:14px}.opadm-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}.opadm-head h1{margin:0;font-size:25px}.opadm-actions{display:flex;gap:8px;flex-wrap:wrap}.opadm-note{padding:12px 14px;border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;font-size:12px;font-weight:700}.opadm-msg{padding:11px 13px;border-radius:10px;font-size:12px;font-weight:800}.opadm-msg.ok{background:#dcfce7;color:#166534}.opadm-msg.err{background:#fee2e2;color:#991b1b}.opadm-panel{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:15px}.opadm-panel h2{margin:0 0 12px;font-size:17px}.opadm-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.opadm-field label{display:block;margin:0 0 5px;color:#64748b;font-size:10px;font-weight:900;text-transform:uppercase}.opadm-field input,.opadm-field select{width:100%;box-sizing:border-box;padding:10px 11px;border:1px solid #cbd5e1;border-radius:9px;background:#fff}.opadm-machines{display:flex;gap:8px;flex-wrap:wrap}.opadm-check{display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:9px;background:#f8fafc;font-size:12px;font-weight:800}.opadm-check input{width:auto}.opadm-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.opadm-card{border:1px solid #e2e8f0;border-radius:13px;padding:14px;background:#fff}.opadm-card-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.opadm-card h3{margin:0;font-size:17px}.opadm-pill{padding:4px 8px;border-radius:999px;font-size:10px;font-weight:900}.opadm-pill.on{background:#dcfce7;color:#166534}.opadm-pill.off{background:#fee2e2;color:#991b1b}.opadm-meta{margin-top:4px;color:#64748b;font-size:11px}.opadm-form{margin-top:12px;padding-top:12px;border-top:1px solid #eef2f7}.opadm-form strong{display:block;margin-bottom:7px;font-size:11px}.opadm-row{display:flex;gap:8px;align-items:end;flex-wrap:wrap}.opadm-row input[type=text]{min-width:150px;padding:9px;border:1px solid #cbd5e1;border-radius:8px}.opadm-empty{color:#64748b;padding:20px;text-align:center}.opadm-submit{margin-top:12px}.opadm-qr-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.opadm-qr-card{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;border:1px solid #dbeafe;background:#f8fbff;border-radius:12px}.opadm-qr-card strong{font-size:13px}.opadm-qr-card span{display:block;margin-top:3px;color:#64748b;font-size:10px}@media(max-width:1000px){.opadm-grid,.opadm-list,.opadm-qr-grid{grid-template-columns:1fr}}
+.opadm-wrap{display:flex;flex-direction:column;gap:14px}.opadm-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}.opadm-head h1{margin:0;font-size:25px}.opadm-actions{display:flex;gap:8px;flex-wrap:wrap}.opadm-note{padding:12px 14px;border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:12px;font-size:12px;font-weight:700}.opadm-msg{padding:11px 13px;border-radius:10px;font-size:12px;font-weight:800}.opadm-msg.ok{background:#dcfce7;color:#166534}.opadm-msg.err{background:#fee2e2;color:#991b1b}.opadm-panel{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:15px}.opadm-panel h2{margin:0 0 12px;font-size:17px}.opadm-field label{display:block;margin:0 0 5px;color:#64748b;font-size:10px;font-weight:900;text-transform:uppercase}.opadm-field input,.opadm-field select{width:100%;box-sizing:border-box;padding:10px 11px;border:1px solid #cbd5e1;border-radius:9px;background:#fff}.opadm-row{display:flex;gap:8px;align-items:end;flex-wrap:wrap}.opadm-empty{color:#64748b;padding:20px;text-align:center}.opadm-qr-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.opadm-qr-card{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;border:1px solid #dbeafe;background:#f8fbff;border-radius:12px}.opadm-qr-card strong{font-size:13px}.opadm-qr-card span{display:block;margin-top:3px;color:#64748b;font-size:10px}.opadm-table-wrap{overflow-x:auto}.opadm-table{width:100%;border-collapse:collapse;min-width:760px}.opadm-table th{padding:10px 11px;border-bottom:1px solid #cbd5e1;background:#f8fafc;color:#64748b;text-align:left;font-size:10px;font-weight:900;text-transform:uppercase}.opadm-table td{padding:12px 11px;border-bottom:1px solid #e2e8f0;vertical-align:middle;font-size:12px;color:#334155}.opadm-table tr:last-child td{border-bottom:0}.opadm-name{font-size:13px;font-weight:900;color:#0f172a}.opadm-machine-tags{display:flex;gap:5px;flex-wrap:wrap}.opadm-machine-tag{display:inline-flex;padding:4px 7px;border-radius:999px;background:#eff6ff;color:#1d4ed8;font-size:9px;font-weight:900}.opadm-muted{color:#94a3b8;font-size:11px}.opadm-pill{display:inline-flex;padding:4px 8px;border-radius:999px;font-size:9px;font-weight:900}.opadm-pill.on{background:#dcfce7;color:#166534}.opadm-pill.off{background:#fee2e2;color:#991b1b}.opadm-table-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}.opadm-delete{border-color:#fecaca!important;color:#b91c1c!important}.opadm-modal-layer{position:fixed;inset:0;z-index:10020;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(15,23,42,.55)}.opadm-modal-layer.open{display:flex}.opadm-modal{width:min(560px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:16px;box-shadow:0 24px 70px rgba(15,23,42,.3)}.opadm-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 17px;border-bottom:1px solid #e2e8f0}.opadm-modal-head h3{margin:0;font-size:17px}.opadm-modal-close{border:0;background:transparent;font-size:26px;cursor:pointer;color:#475569}.opadm-modal-body{padding:17px}.opadm-modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}.opadm-machines{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}.opadm-check{display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:9px;background:#f8fafc;font-size:12px;font-weight:800}.opadm-check input{width:auto}.opadm-modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}.opadm-help{display:block;margin-top:5px;color:#94a3b8;font-size:10px}@media(max-width:1000px){.opadm-qr-grid{grid-template-columns:1fr}}@media(max-width:650px){.opadm-modal-grid{grid-template-columns:1fr}.opadm-actions{width:100%}.opadm-actions .btn{flex:1}}
 </style>
 
 <div class="opadm-wrap">
@@ -15,14 +15,15 @@ Motivo: Deixar explícito que PIN e QR identificam o operador somente após aute
     <div>
       <div class="page-eyebrow">Acesso do chão de fábrica</div>
       <h1>Operadores por máquina</h1>
-      <p class="page-description">O operador entra pelo GestFlow e, dentro do IndFlow, usa o PIN apenas para se identificar na máquina.</p>
+      <p class="page-description">Cadastre os operadores e defina em quais máquinas cada um pode trabalhar.</p>
     </div>
     <div class="opadm-actions">
-      <a class="btn btn-primary" href="/operacao/acesso-operador{% if is_superadmin %}?cliente_id={{ cliente_id }}{% endif %}">Identificar operador por PIN</a>
+      <a class="btn btn-secondary" href="/operacao/acesso-operador{% if is_superadmin %}?cliente_id={{ cliente_id }}{% endif %}">Identificar operador por PIN</a>
+      {% if machines %}<button class="btn btn-primary" id="openCreateOperator" type="button">+ Cadastrar operador</button>{% endif %}
     </div>
   </div>
 
-  <div class="opadm-note">Regra do plano: <strong>até {{ max_per_machine }} operadores ativos por máquina</strong>. PIN e QR não fazem login no IndFlow. Eles funcionam somente depois que o navegador já foi autenticado pelo GestFlow. Sem sessão válida do GestFlow, qualquer tentativa de abrir o acesso do operador volta para o GestFlow. Após 5 tentativas incorretas de PIN, o dispositivo fica bloqueado por 5 minutos.</div>
+  <div class="opadm-note">Regra do plano: <strong>até {{ max_per_machine }} operadores ativos por máquina</strong>. O PIN identifica o operador dentro da operação e permanece individual.</div>
 
   {% if message %}<div class="opadm-msg ok">{{ message }}</div>{% endif %}
   {% if error %}<div class="opadm-msg err">{{ error }}</div>{% endif %}
@@ -55,7 +56,7 @@ Motivo: Deixar explícito que PIN e QR identificam o operador somente após aute
         <div class="opadm-qr-card">
           <div>
             <strong>{{ mid|upper }}</strong>
-            <span>Após GestFlow: PIN → esta máquina</span>
+            <span>PIN → esta máquina</span>
           </div>
           {% if is_superadmin %}
           <a class="btn btn-secondary" href="{{ url_for('operacao.operador_qr_admin', machine_id=mid, cliente_id=cliente_id) }}">Ver / imprimir QR</a>
@@ -69,80 +70,122 @@ Motivo: Deixar explícito que PIN e QR identificam o operador somente após aute
   </section>
 
   <section class="opadm-panel">
-    <h2>Cadastrar operador</h2>
-    {% if not machines %}
-      <div class="opadm-empty">Cadastre/vincule pelo menos uma máquina antes de criar operadores.</div>
-    {% else %}
-    <form method="post" action="/operacao/operadores/criar">
-      {% if is_superadmin %}<input type="hidden" name="cliente_id" value="{{ cliente_id }}">{% endif %}
-      <div class="opadm-grid">
-        <div class="opadm-field"><label>Nome do operador</label><input name="nome" maxlength="80" placeholder="Ex.: João" required></div>
-        <div class="opadm-field"><label>PIN de 4 números</label><input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="0000" required></div>
-        <div class="opadm-field"><label>Limite</label><input value="3 operadores ativos por máquina" disabled></div>
-      </div>
-      <div class="opadm-form">
-        <strong>Máquinas autorizadas</strong>
-        <div class="opadm-machines">
-          {% for mid in machines %}
-          <label class="opadm-check"><input type="checkbox" name="machine_ids" value="{{ mid }}"> {{ mid|upper }}</label>
-          {% endfor %}
-        </div>
-      </div>
-      <button class="btn btn-primary opadm-submit" type="submit">Cadastrar operador</button>
-    </form>
-    {% endif %}
-  </section>
-
-  <section class="opadm-panel">
     <h2>Operadores cadastrados</h2>
     {% if not operadores %}
       <div class="opadm-empty">Nenhum operador cadastrado.</div>
     {% else %}
-    <div class="opadm-list">
-      {% for op in operadores %}
-      <article class="opadm-card">
-        <div class="opadm-card-head">
-          <div>
-            <h3>{{ op.nome }}</h3>
-            <div class="opadm-meta">
-              {% if op.active_machine_id %}Em operação: <strong>{{ op.active_machine_id|upper }}</strong>{% else %}Sem máquina ativa no momento{% endif %}
-            </div>
-          </div>
-          <span class="opadm-pill {% if op.status == 'active' %}on{% else %}off{% endif %}">{% if op.status == 'active' %}ATIVO{% else %}INATIVO{% endif %}</span>
-        </div>
-
-        <form class="opadm-form" method="post" action="/operacao/operadores/maquinas">
-          <input type="hidden" name="operator_id" value="{{ op.id }}">
-          {% if is_superadmin %}<input type="hidden" name="cliente_id" value="{{ cliente_id }}">{% endif %}
-          <strong>Máquinas autorizadas</strong>
-          <div class="opadm-machines">
-            {% for mid in machines %}
-            <label class="opadm-check"><input type="checkbox" name="machine_ids" value="{{ mid }}" {% if mid in op.machines %}checked{% endif %}> {{ mid|upper }}</label>
-            {% endfor %}
-          </div>
-          <button class="btn btn-secondary opadm-submit" type="submit">Salvar máquinas</button>
-        </form>
-
-        <div class="opadm-form">
-          <div class="opadm-row">
-            <form method="post" action="/operacao/operadores/pin">
-              <input type="hidden" name="operator_id" value="{{ op.id }}">
-              {% if is_superadmin %}<input type="hidden" name="cliente_id" value="{{ cliente_id }}">{% endif %}
-              <strong>Trocar PIN</strong>
-              <input type="text" name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="Novo PIN" required>
-              <button class="btn btn-secondary" type="submit">Alterar PIN</button>
-            </form>
-            <form method="post" action="/operacao/operadores/status">
-              <input type="hidden" name="operator_id" value="{{ op.id }}">
-              {% if is_superadmin %}<input type="hidden" name="cliente_id" value="{{ cliente_id }}">{% endif %}
-              <button class="btn {% if op.status == 'active' %}btn-secondary{% else %}btn-primary{% endif %}" type="submit">{% if op.status == 'active' %}Desativar{% else %}Ativar{% endif %}</button>
-            </form>
-          </div>
-        </div>
-      </article>
-      {% endfor %}
+    <div class="opadm-table-wrap">
+      <table class="opadm-table">
+        <thead>
+          <tr>
+            <th>Operador</th>
+            <th>Máquinas autorizadas</th>
+            <th>Em operação</th>
+            <th>Status</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for op in operadores %}
+          <tr>
+            <td><span class="opadm-name">{{ op.nome }}</span></td>
+            <td>
+              <div class="opadm-machine-tags">
+                {% for mid in op.machines %}<span class="opadm-machine-tag">{{ mid|upper }}</span>{% endfor %}
+                {% if not op.machines %}<span class="opadm-muted">Nenhuma</span>{% endif %}
+              </div>
+            </td>
+            <td>{% if op.active_machine_id %}<strong>{{ op.active_machine_id|upper }}</strong>{% else %}<span class="opadm-muted">—</span>{% endif %}</td>
+            <td><span class="opadm-pill {% if op.status == 'active' %}on{% else %}off{% endif %}">{% if op.status == 'active' %}ATIVO{% else %}INATIVO{% endif %}</span></td>
+            <td>
+              <div class="opadm-table-actions">
+                <button class="btn btn-secondary edit-operator" type="button" data-operator-id="{{ op.id }}">Editar</button>
+                <form class="delete-operator-form" method="post" action="/operacao/operadores/excluir" data-name="{{ op.nome|e }}">
+                  <input type="hidden" name="operator_id" value="{{ op.id }}">
+                  {% if is_superadmin %}<input type="hidden" name="cliente_id" value="{{ cliente_id }}">{% endif %}
+                  <button class="btn btn-secondary opadm-delete" type="submit">Excluir</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
     {% endif %}
   </section>
 </div>
+
+{% if machines %}
+<div class="opadm-modal-layer" id="operatorModal" aria-hidden="true">
+  <div class="opadm-modal" role="dialog" aria-modal="true" aria-labelledby="operatorModalTitle">
+    <div class="opadm-modal-head">
+      <h3 id="operatorModalTitle">Cadastrar operador</h3>
+      <button class="opadm-modal-close" id="closeOperatorModal" type="button">×</button>
+    </div>
+    <form id="operatorForm" method="post" action="/operacao/operadores/criar">
+      <div class="opadm-modal-body">
+        <input type="hidden" id="operatorId" name="operator_id" value="">
+        {% if is_superadmin %}<input type="hidden" name="cliente_id" value="{{ cliente_id }}">{% endif %}
+        <div class="opadm-modal-grid">
+          <div class="opadm-field">
+            <label>Nome do operador</label>
+            <input id="operatorName" name="nome" maxlength="80" placeholder="Ex.: João" required>
+          </div>
+          <div class="opadm-field">
+            <label id="operatorPinLabel">PIN de 4 números</label>
+            <input id="operatorPin" name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="0000">
+            <small class="opadm-help" id="operatorPinHelp">Obrigatório no cadastro.</small>
+          </div>
+        </div>
+        <div class="opadm-field" id="operatorStatusField" style="margin-top:11px;display:none">
+          <label>Status</label>
+          <select id="operatorStatus" name="status">
+            <option value="active">Ativo</option>
+            <option value="inactive">Inativo</option>
+          </select>
+        </div>
+        <div class="opadm-field" style="margin-top:13px">
+          <label>Máquinas autorizadas</label>
+          <div class="opadm-machines">
+            {% for mid in machines %}
+            <label class="opadm-check"><input class="operator-machine-check" type="checkbox" name="machine_ids" value="{{ mid }}"> {{ mid|upper }}</label>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="opadm-modal-actions">
+          <button class="btn btn-secondary" id="cancelOperatorModal" type="button">Cancelar</button>
+          <button class="btn btn-primary" id="saveOperator" type="submit">Cadastrar operador</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<script>
+const operatorData={{ operadores|tojson }};
+const operatorModal=document.getElementById('operatorModal');
+const operatorForm=document.getElementById('operatorForm');
+const operatorId=document.getElementById('operatorId');
+const operatorName=document.getElementById('operatorName');
+const operatorPin=document.getElementById('operatorPin');
+const operatorPinLabel=document.getElementById('operatorPinLabel');
+const operatorPinHelp=document.getElementById('operatorPinHelp');
+const operatorStatus=document.getElementById('operatorStatus');
+const operatorStatusField=document.getElementById('operatorStatusField');
+const modalTitle=document.getElementById('operatorModalTitle');
+const saveOperator=document.getElementById('saveOperator');
+function setModalOpen(open){if(!operatorModal)return;operatorModal.classList.toggle('open',open);operatorModal.setAttribute('aria-hidden',open?'false':'true');}
+function clearMachineChecks(){document.querySelectorAll('.operator-machine-check').forEach(el=>{el.checked=false;});}
+function openCreate(){if(!operatorForm)return;operatorForm.action='/operacao/operadores/criar';operatorId.value='';operatorName.value='';operatorPin.value='';operatorPin.required=true;operatorPinLabel.textContent='PIN de 4 números';operatorPinHelp.textContent='Obrigatório no cadastro.';operatorStatusField.style.display='none';operatorStatus.value='active';modalTitle.textContent='Cadastrar operador';saveOperator.textContent='Cadastrar operador';clearMachineChecks();setModalOpen(true);}
+function openEdit(id){const op=(operatorData||[]).find(item=>String(item.id)===String(id));if(!op||!operatorForm)return;operatorForm.action='/operacao/operadores/editar';operatorId.value=op.id||'';operatorName.value=op.nome||'';operatorPin.value='';operatorPin.required=false;operatorPinLabel.textContent='Novo PIN';operatorPinHelp.textContent='Deixe vazio para manter o PIN atual.';operatorStatusField.style.display='block';operatorStatus.value=op.status==='inactive'?'inactive':'active';modalTitle.textContent='Editar operador';saveOperator.textContent='Salvar alterações';const allowed=new Set((op.machines||[]).map(v=>String(v).toLowerCase()));document.querySelectorAll('.operator-machine-check').forEach(el=>{el.checked=allowed.has(String(el.value).toLowerCase());});setModalOpen(true);}
+document.getElementById('openCreateOperator')?.addEventListener('click',openCreate);
+document.querySelectorAll('.edit-operator').forEach(btn=>btn.addEventListener('click',()=>openEdit(btn.dataset.operatorId)));
+document.getElementById('closeOperatorModal')?.addEventListener('click',()=>setModalOpen(false));
+document.getElementById('cancelOperatorModal')?.addEventListener('click',()=>setModalOpen(false));
+operatorModal?.addEventListener('click',event=>{if(event.target===operatorModal)setModalOpen(false);});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&operatorModal?.classList.contains('open'))setModalOpen(false);});
+document.querySelectorAll('.delete-operator-form').forEach(form=>form.addEventListener('submit',event=>{const name=form.dataset.name||'este operador';if(!window.confirm(`Excluir ${name}? Esta ação remove o cadastro do operador.`))event.preventDefault();}));
+</script>
 {% endblock %}

@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\templates\base.html
-Último recode: 2026-09-02 11:35 (America/Bahia)
-Motivo: Ocultar o Modo simulação da interface e substituir o e-mail técnico do SSO pela identificação da empresa.
+Último recode: 2026-09-02 21:45 (America/Bahia)
+Motivo: Remover o acesso à página Dados de teste do menu e do cabeçalho do IndFlow.
 #}
 
 <!DOCTYPE html>
@@ -221,10 +221,6 @@ Motivo: Ocultar o Modo simulação da interface e substituir o e-mail técnico d
             <span>Administração</span>
           </a>
 
-          <a class="industrial-nav-item {% if _path.startswith('/teste') %}active{% endif %}" href="/teste/">
-            <span class="industrial-nav-icon">◇</span>
-            <span>Dados de teste</span>
-          </a>
         </div>
         {% endif %}
         {% endif %}
@@ -263,7 +259,6 @@ Motivo: Ocultar o Modo simulação da interface e substituir o e-mail técnico d
             {% elif _path.startswith('/indicadores') %}Indicadores Gerais
             {% elif _path.startswith('/utilidades') %}Utilidades
             {% elif _path.startswith('/devices') %}Devices
-            {% elif _path.startswith('/teste') %}Dados de Teste
             {% elif _path.startswith('/admin') %}Administração Técnica
             {% else %}IndFlow{% endif %}
           </strong>

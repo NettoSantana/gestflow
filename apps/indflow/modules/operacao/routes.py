@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\operacao\routes.py
-# Último recode: 2026-09-01 19:08 (America/Bahia)
-# Motivo: Restaurar entrada exclusiva da Tela Operacional por QR/PIN sem conta GestFlow, mantendo bloqueados todos os demais módulos do IndFlow.
+# Último recode: 2026-09-02 21:45 (America/Bahia)
+# Motivo: Adicionar edição completa e exclusão de operadores para a nova lista administrativa.
 
 from __future__ import annotations
 
@@ -829,6 +829,117 @@ def operadores_status():
     finally:
         conn.close()
     return redirect(url_for("operacao.operadores_admin", cliente_id=cid, msg="Status atualizado."))
+
+
+@operacao_bp.post("/operadores/editar")
+@admin_required
+def operadores_editar():
+    cid = _operator_admin_cliente_id()
+    oid = str(request.form.get("operator_id") or "").strip()
+    nome = str(request.form.get("nome") or "").strip()
+    pin = str(request.form.get("pin") or "").strip()
+    new_status = str(request.form.get("status") or "active").strip().lower()
+    row = _operator_record(oid)
+
+    if not row or str(row.get("cliente_id") or "") != cid:
+        return redirect(url_for("operacao.operadores_admin", cliente_id=cid, err="Operador não encontrado."))
+    if len(nome) < 2 or len(nome) > 80:
+        return redirect(url_for("operacao.operadores_admin", cliente_id=cid, err="Informe o nome do operador."))
+    if _operator_name_in_use(cid, nome, oid):
+        return redirect(url_for("operacao.operadores_admin", cliente_id=cid, err="Já existe um operador com esse nome."))
+    if new_status not in {"active", "inactive"}:
+        return redirect(url_for("operacao.operadores_admin", cliente_id=cid, err="Status do operador inválido."))
+    if pin and not _operator_pin_ok(pin):
+        return redirect(url_for("operacao.operadores_admin", cliente_id=cid, err="O PIN deve ter exatamente 4 números."))
+    if pin and _pin_in_use(cid, pin, oid):
+        return redirect(url_for("operacao.operadores_admin", cliente_id=cid, err="Esse PIN já está sendo usado por outro operador."))
+
+    selected, err = _validate_operator_machines(
+        cid,
+        request.form.getlist("machine_ids"),
+        operator_id=oid,
+        operator_is_active=new_status == "active",
+    )
+    if err:
+        return redirect(url_for("operacao.operadores_admin", cliente_id=cid, err=err))
+
+    active_machine = normalize_machine_id(row.get("active_machine_id") or "", cid)
+    selected_keys = {mid.casefold() for mid in selected}
+    if new_status != "active" or not active_machine or active_machine.casefold() not in selected_keys:
+        active_machine = None
+
+    now = _now_iso()
+    conn = get_db()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute(
+            """
+            UPDATE operadores
+            SET nome=?, status=?, active_machine_id=?, updated_at=?
+            WHERE id=? AND cliente_id=?
+            """,
+            (nome, new_status, active_machine, now, oid, cid),
+        )
+        if pin:
+            conn.execute(
+                """
+                UPDATE operadores
+                SET pin_lookup=?, pin_hash=?, updated_at=?
+                WHERE id=? AND cliente_id=?
+                """,
+                (_pin_lookup(cid, pin), generate_password_hash(pin), now, oid, cid),
+            )
+        conn.execute(
+            "DELETE FROM operador_maquinas WHERE operador_id=? AND cliente_id=?",
+            (oid, cid),
+        )
+        for mid in selected:
+            conn.execute(
+                """
+                INSERT INTO operador_maquinas (operador_id, cliente_id, machine_id, created_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                (oid, cid, mid, now),
+            )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+    return redirect(url_for("operacao.operadores_admin", cliente_id=cid, msg="Operador atualizado."))
+
+
+@operacao_bp.post("/operadores/excluir")
+@admin_required
+def operadores_excluir():
+    cid = _operator_admin_cliente_id()
+    oid = str(request.form.get("operator_id") or "").strip()
+    row = _operator_record(oid)
+    if not row or str(row.get("cliente_id") or "") != cid:
+        return redirect(url_for("operacao.operadores_admin", cliente_id=cid, err="Operador não encontrado."))
+
+    conn = get_db()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute(
+            "DELETE FROM operador_maquinas WHERE operador_id=? AND cliente_id=?",
+            (oid, cid),
+        )
+        conn.execute(
+            "DELETE FROM operadores WHERE id=? AND cliente_id=?",
+            (oid, cid),
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+    return redirect(url_for("operacao.operadores_admin", cliente_id=cid, msg="Operador excluído."))
+
 
 
 @operacao_bp.get("/operadores/qr/<machine_id>")
