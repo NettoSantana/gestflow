@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\producao\templates\historico.html
-Último recode: 2026-09-01 10:04 (America/Bahia)
-Motivo: Redesenhar o Histórico Operacional de forma didática, com "Todos" pré-selecionado, período, resumo consolidado, histórico por dia e remoção total do reset de produção.
+Último recode: 2026-09-02 21:30 (America/Bahia)
+Motivo: Abrir a classificação de parada em um modal secundário sobre o Detalhe do dia, sem sair do Histórico Operacional.
 #}
 
 {% extends "base.html" %}
@@ -527,6 +527,135 @@ Motivo: Redesenhar o Histórico Operacional de forma didática, com "Todos" pré
     background:#94a3b8;
   }
 
+  .history-classify-backdrop{
+    position:fixed;
+    inset:0;
+    z-index:10050;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+    background:rgba(15,23,42,.48);
+  }
+
+  .history-classify-backdrop.open{
+    display:flex;
+  }
+
+  .history-classify-modal{
+    width:min(560px,96vw);
+    max-height:90vh;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    border-radius:16px;
+    background:#fff;
+    box-shadow:0 24px 70px rgba(15,23,42,.38);
+  }
+
+  .history-classify-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:16px;
+    border-bottom:1px solid #e2e8f0;
+  }
+
+  .history-classify-header h3{
+    margin:0;
+    color:#0f172a;
+    font-size:16px;
+    font-weight:900;
+  }
+
+  .history-classify-close{
+    border:0;
+    background:transparent;
+    color:#0f172a;
+    font-size:24px;
+    line-height:1;
+    cursor:pointer;
+  }
+
+  .history-classify-body{
+    overflow:auto;
+    padding:16px;
+  }
+
+  .history-classify-info{
+    margin:0 0 16px;
+    color:#64748b;
+    font-size:11px;
+    line-height:1.45;
+  }
+
+  .history-classify-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+
+  .history-classify-field{
+    margin-bottom:12px;
+  }
+
+  .history-classify-field label{
+    display:block;
+    margin-bottom:5px;
+    color:#64748b;
+    font-size:10px;
+    font-weight:900;
+    letter-spacing:.05em;
+    text-transform:uppercase;
+  }
+
+  .history-classify-field select,
+  .history-classify-field input,
+  .history-classify-field textarea{
+    width:100%;
+    box-sizing:border-box;
+    border:1px solid #cbd5e1;
+    border-radius:10px;
+    background:#fff;
+    padding:10px 11px;
+    color:#0f172a;
+    font:inherit;
+  }
+
+  .history-classify-field textarea{
+    min-height:84px;
+    resize:vertical;
+  }
+
+  .history-classify-error{
+    display:none;
+    margin:0 0 12px;
+    padding:10px 12px;
+    border:1px solid #fecaca;
+    border-radius:10px;
+    background:#fef2f2;
+    color:#991b1b;
+    font-size:12px;
+    font-weight:800;
+  }
+
+  .history-classify-error.show{
+    display:block;
+  }
+
+  .history-classify-actions{
+    display:flex;
+    justify-content:flex-end;
+    gap:8px;
+    margin-top:4px;
+  }
+
+  .history-classify-actions .btn:disabled{
+    opacity:.6;
+    cursor:wait;
+  }
+
   @media (max-width:1100px){
     .history-summary{
       grid-template-columns:repeat(3,minmax(0,1fr));
@@ -590,6 +719,10 @@ Motivo: Redesenhar o Histórico Operacional de forma didática, com "Todos" pré
     .history-detail-button{
       grid-column:1 / -1;
       width:100%;
+    }
+
+    .history-classify-grid{
+      grid-template-columns:1fr;
     }
   }
 </style>
@@ -742,6 +875,45 @@ Motivo: Redesenhar o Histórico Operacional de forma didática, com "Todos" pré
   </div>
 </div>
 
+<div id="historyClassifyBackdrop" class="history-classify-backdrop" aria-hidden="true">
+  <div class="history-classify-modal" role="dialog" aria-modal="true" aria-labelledby="historyClassifyTitle">
+    <div class="history-classify-header">
+      <h3 id="historyClassifyTitle">Classificar parada</h3>
+      <button id="historyClassifyClose" class="history-classify-close" type="button" aria-label="Fechar">×</button>
+    </div>
+    <div class="history-classify-body">
+      <p id="historyClassifyInfo" class="history-classify-info">Carregando parada...</p>
+      <div id="historyClassifyError" class="history-classify-error"></div>
+
+      <div class="history-classify-grid">
+        <div class="history-classify-field">
+          <label for="historyClassifyCategory">Categoria</label>
+          <select id="historyClassifyCategory"></select>
+        </div>
+        <div class="history-classify-field">
+          <label for="historyClassifyReason">Código - motivo</label>
+          <select id="historyClassifyReason"></select>
+        </div>
+      </div>
+
+      <div class="history-classify-field">
+        <label for="historyClassifyResponsible">Responsável / área</label>
+        <input id="historyClassifyResponsible" placeholder="Opcional">
+      </div>
+
+      <div class="history-classify-field">
+        <label for="historyClassifyNote">Observação</label>
+        <textarea id="historyClassifyNote" rows="3" placeholder="Opcional"></textarea>
+      </div>
+
+      <div class="history-classify-actions">
+        <button id="historyClassifyCancel" class="btn btn-secondary" type="button">Cancelar</button>
+        <button id="historyClassifySave" class="btn btn-primary" type="button">Salvar classificação</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
   "use strict";
@@ -767,10 +939,25 @@ Motivo: Redesenhar o Histórico Operacional de forma didática, com "Todos" pré
   const modalBackdrop = document.getElementById("historyModalBackdrop");
   const modalClose = document.getElementById("historyModalClose");
   const modalTitle = document.getElementById("historyModalTitle");
+  const modalBody = modalBackdrop.querySelector(".history-modal-body");
   const hourBody = document.getElementById("historyHourBody");
+
+  const classifyBackdrop = document.getElementById("historyClassifyBackdrop");
+  const classifyClose = document.getElementById("historyClassifyClose");
+  const classifyCancel = document.getElementById("historyClassifyCancel");
+  const classifySave = document.getElementById("historyClassifySave");
+  const classifyInfo = document.getElementById("historyClassifyInfo");
+  const classifyError = document.getElementById("historyClassifyError");
+  const classifyCategory = document.getElementById("historyClassifyCategory");
+  const classifyReason = document.getElementById("historyClassifyReason");
+  const classifyResponsible = document.getElementById("historyClassifyResponsible");
+  const classifyNote = document.getElementById("historyClassifyNote");
 
   let latestPayload = null;
   let machinesLoaded = false;
+  let activeDayDetail = null;
+  let stopCatalog = {categories:[], reasons:[]};
+  let selectedStopOccurrence = null;
 
   function fmtNum(value){
     const n = Number(value);
@@ -789,6 +976,28 @@ Motivo: Redesenhar o Histórico Operacional de forma didática, com "Todos" pré
     const hours = Math.floor(total / 3600);
     const minutes = Math.floor((total % 3600) / 60);
     return String(hours).padStart(2, "0") + ":" + String(minutes).padStart(2, "0");
+  }
+
+  function fmtDurationDetailed(seconds){
+    const total = Math.max(0, Math.floor(Number(seconds) || 0));
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const secs = total % 60;
+    if(hours) return String(hours) + "h " + String(minutes) + "min " + String(secs) + "s";
+    if(minutes) return String(minutes) + "min " + String(secs) + "s";
+    return String(secs) + "s";
+  }
+
+  function fmtDateTime(ms){
+    return new Intl.DateTimeFormat("pt-BR", {
+      timeZone:TZ,
+      day:"2-digit",
+      month:"2-digit",
+      year:"numeric",
+      hour:"2-digit",
+      minute:"2-digit",
+      second:"2-digit"
+    }).format(new Date(Number(ms)));
   }
 
   function isoToBr(iso){
@@ -1263,21 +1472,254 @@ Motivo: Redesenhar o Histórico Operacional de forma didática, com "Todos" pré
         const endMs = bahiaWallToUtcMs(stopDate, stopEnd);
         if(!Number.isFinite(startMs) || !Number.isFinite(endMs)) return;
 
-        const params = new URLSearchParams({
-          machine_id:stopMachine,
-          date:stopDate,
-          start_ms:String(startMs),
-          end_ms:String(endMs)
-        });
-        if(String(stopMachine).toLowerCase() === "teste01") params.set("teste","1");
-        window.location.href = "/paradas/?" + params.toString();
+        openStopClassification(stopMachine, stopDate, startMs, endMs);
       });
     });
+  }
+
+  function setClassificationError(message){
+    const text = String(message || "");
+    classifyError.textContent = text;
+    classifyError.classList.toggle("show", Boolean(text));
+  }
+
+  function setClassificationLoading(loading){
+    classifyCategory.disabled = loading;
+    classifyReason.disabled = loading;
+    classifyResponsible.disabled = loading;
+    classifyNote.disabled = loading;
+    classifySave.disabled = loading;
+    classifySave.textContent = loading ? "Carregando..." : "Salvar classificação";
+  }
+
+  function closeClassificationModal(){
+    classifyBackdrop.classList.remove("open");
+    classifyBackdrop.setAttribute("aria-hidden","true");
+    selectedStopOccurrence = null;
+    setClassificationError("");
+  }
+
+  function reasonsForCategory(categoryId, machine){
+    return (stopCatalog.reasons || []).filter(reason => {
+      if(String(reason.categoria_id) !== String(categoryId)) return false;
+      if(reason.aplica_todas) return true;
+      if(!machine) return true;
+      return Array.isArray(reason.maquinas) && reason.maquinas.some(item =>
+        String(item).toLowerCase() === String(machine).toLowerCase()
+      );
+    });
+  }
+
+  function fillClassificationReasons(preferredReasonId){
+    const categoryId = classifyCategory.value;
+    const machine = selectedStopOccurrence ? selectedStopOccurrence.machine_id : "";
+    const reasons = reasonsForCategory(categoryId, machine);
+    classifyReason.innerHTML = '<option value="">Selecione</option>' + reasons.map(reason =>
+      '<option value="' + escapeHtml(reason.id) + '">' +
+        escapeHtml(reason.codigo) + ' - ' + escapeHtml(reason.descricao) +
+      '</option>'
+    ).join("");
+
+    if(preferredReasonId){
+      const exists = reasons.some(reason => String(reason.id) === String(preferredReasonId));
+      if(exists) classifyReason.value = String(preferredReasonId);
+    }
+  }
+
+  async function fetchStopCatalog(machine){
+    const params = new URLSearchParams();
+    if(String(machine || "").toLowerCase() === "teste01") params.set("teste","1");
+    const url = "/paradas/api/contexto" + (params.toString() ? ("?" + params.toString()) : "");
+    const response = await fetch(url, {method:"GET", headers:{"Accept":"application/json"}});
+    const payload = await response.json().catch(() => null);
+    if(!response.ok || !payload || payload.ok === false){
+      throw new Error(payload && payload.error ? payload.error : "Falha ao carregar categorias e motivos.");
+    }
+    stopCatalog = {
+      categories:Array.isArray(payload.categories) ? payload.categories : [],
+      reasons:Array.isArray(payload.reasons) ? payload.reasons : []
+    };
+  }
+
+  async function ensureStopOccurrence(machine, startMs, endMs){
+    const response = await fetch("/paradas/api/ocorrencias/garantir", {
+      method:"POST",
+      headers:{"Content-Type":"application/json", "Accept":"application/json"},
+      body:JSON.stringify({
+        machine_id:machine,
+        started_at_ms:startMs,
+        ended_at_ms:endMs
+      })
+    });
+    const payload = await response.json().catch(() => null);
+    if(!response.ok || !payload || payload.ok === false){
+      throw new Error(payload && payload.error ? payload.error : "Não foi possível localizar esta parada.");
+    }
+    return Number(payload.id || 0);
+  }
+
+  async function fetchStopOccurrence(machine, dateIso, occurrenceId){
+    const params = new URLSearchParams({
+      inicio:dateIso,
+      fim:dateIso,
+      machine_id:machine
+    });
+    if(String(machine || "").toLowerCase() === "teste01") params.set("teste","1");
+
+    const response = await fetch("/paradas/api/ocorrencias?" + params.toString(), {
+      method:"GET",
+      headers:{"Accept":"application/json"}
+    });
+    const payload = await response.json().catch(() => null);
+    if(!response.ok || !payload || payload.ok === false){
+      throw new Error(payload && payload.error ? payload.error : "Falha ao carregar a parada.");
+    }
+
+    const occurrence = (payload.rows || []).find(row => Number(row.id) === Number(occurrenceId));
+    if(occurrence) return occurrence;
+
+    const small = (payload.small_stops || []).find(row =>
+      String(row.machine_id || "").toLowerCase() === String(machine || "").toLowerCase()
+    );
+    if(small){
+      const threshold = Math.max(60, Number(small.classification_threshold_sec || 180));
+      throw new Error(
+        "Pequenas paradas abaixo de " + String(Math.max(1, Math.round(threshold / 60))) +
+        " min não exigem classificação."
+      );
+    }
+
+    throw new Error("Parada não encontrada para classificação.");
+  }
+
+  async function openStopClassification(machine, dateIso, startMs, endMs){
+    classifyBackdrop.classList.add("open");
+    classifyBackdrop.setAttribute("aria-hidden","false");
+    classifyInfo.textContent = String(machine || "").toUpperCase() + " · carregando parada...";
+    classifyCategory.innerHTML = '<option value="">Carregando...</option>';
+    classifyReason.innerHTML = '<option value="">Carregando...</option>';
+    classifyResponsible.value = "";
+    classifyNote.value = "";
+    setClassificationError("");
+    setClassificationLoading(true);
+
+    try{
+      const occurrenceId = await ensureStopOccurrence(machine, startMs, endMs);
+      await fetchStopCatalog(machine);
+      const occurrence = await fetchStopOccurrence(machine, dateIso, occurrenceId);
+      selectedStopOccurrence = occurrence;
+
+      if(!occurrence.can_classify){
+        const threshold = Math.max(60, Number(occurrence.classification_threshold_sec || 180));
+        throw new Error(
+          "Pequenas paradas abaixo de " + String(Math.max(1, Math.round(threshold / 60))) +
+          " min não exigem classificação."
+        );
+      }
+
+      const occurrenceStart = Number(occurrence.started_at_ms || startMs);
+      const occurrenceEnd = Number(occurrence.ended_at_ms || endMs || Date.now());
+      const durationSec = Math.max(0, Math.floor((occurrenceEnd - occurrenceStart) / 1000));
+      classifyInfo.textContent =
+        String(occurrence.machine_id || machine).toUpperCase() +
+        " · início " + fmtDateTime(occurrenceStart) +
+        " · " + fmtDurationDetailed(durationSec);
+
+      classifyCategory.innerHTML = '<option value="">Selecione</option>' + (stopCatalog.categories || []).map(category =>
+        '<option value="' + escapeHtml(category.id) + '">' + escapeHtml(category.nome) + '</option>'
+      ).join("");
+
+      let categoryId = occurrence.categoria_id || "";
+      if(!categoryId && occurrence.motivo_id){
+        const currentReason = (stopCatalog.reasons || []).find(reason =>
+          String(reason.id) === String(occurrence.motivo_id)
+        );
+        if(currentReason) categoryId = currentReason.categoria_id || "";
+      }
+      if(categoryId) classifyCategory.value = String(categoryId);
+      fillClassificationReasons(occurrence.motivo_id || "");
+      classifyResponsible.value = occurrence.responsavel || "";
+      classifyNote.value = occurrence.observacao || "";
+      setClassificationLoading(false);
+    }catch(err){
+      selectedStopOccurrence = null;
+      classifyInfo.textContent = String(machine || "").toUpperCase() + " · " + isoToBr(dateIso);
+      classifyCategory.innerHTML = '<option value="">Indisponível</option>';
+      classifyReason.innerHTML = '<option value="">Indisponível</option>';
+      classifyResponsible.value = "";
+      classifyNote.value = "";
+      setClassificationLoading(false);
+      classifyCategory.disabled = true;
+      classifyReason.disabled = true;
+      classifyResponsible.disabled = true;
+      classifyNote.disabled = true;
+      classifySave.disabled = true;
+      setClassificationError(err && err.message ? err.message : String(err));
+    }
+  }
+
+  async function refreshOpenDayDetail(){
+    if(!activeDayDetail) return;
+    const savedScrollTop = modalBody ? modalBody.scrollTop : 0;
+    const params = new URLSearchParams({
+      machine_id:activeDayDetail.machine,
+      date:activeDayDetail.dateIso
+    });
+    const response = await fetch(
+      "/producao/api/producao/detalhe-dia?" + params.toString(),
+      {method:"GET", headers:{"Accept":"application/json"}}
+    );
+    const payload = await response.json().catch(() => null);
+    if(!response.ok || !payload || payload.ok === false){
+      throw new Error(payload && payload.error ? payload.error : "Falha ao atualizar detalhe do dia.");
+    }
+    renderHourDetail(payload);
+    if(modalBody) modalBody.scrollTop = savedScrollTop;
+  }
+
+  async function saveStopClassification(){
+    if(!selectedStopOccurrence) return;
+    const reasonId = Number(classifyReason.value || 0);
+    if(reasonId <= 0){
+      setClassificationError("Selecione o código - motivo da parada.");
+      return;
+    }
+
+    classifySave.disabled = true;
+    classifySave.textContent = "Salvando...";
+    setClassificationError("");
+
+    try{
+      const response = await fetch("/paradas/api/ocorrencias/classificar", {
+        method:"POST",
+        headers:{"Content-Type":"application/json", "Accept":"application/json"},
+        body:JSON.stringify({
+          id:selectedStopOccurrence.id,
+          motivo_id:reasonId,
+          responsavel:classifyResponsible.value,
+          observacao:classifyNote.value
+        })
+      });
+      const payload = await response.json().catch(() => null);
+      if(!response.ok || !payload || payload.ok === false){
+        throw new Error(payload && payload.error ? payload.error : "Não foi possível salvar a classificação.");
+      }
+
+      closeClassificationModal();
+      await refreshOpenDayDetail().catch(function(refreshError){
+        console.error("Classificação salva, mas o detalhe do dia não pôde ser atualizado.", refreshError);
+      });
+    }catch(err){
+      classifySave.disabled = false;
+      classifySave.textContent = "Salvar classificação";
+      setClassificationError(err && err.message ? err.message : String(err));
+    }
   }
 
   async function openDayDetail(machine, dateIso){
     if(!machine || !dateIso) return;
 
+    activeDayDetail = {machine:machine, dateIso:dateIso};
     modalBackdrop.classList.add("open");
     modalBackdrop.setAttribute("aria-hidden","false");
     modalTitle.textContent = "Carregando detalhe...";
@@ -1314,8 +1756,10 @@ Motivo: Redesenhar o Histórico Operacional de forma didática, com "Todos" pré
   }
 
   function closeModal(){
+    closeClassificationModal();
     modalBackdrop.classList.remove("open");
     modalBackdrop.setAttribute("aria-hidden","true");
+    activeDayDetail = null;
   }
 
   periodSelect.addEventListener("change", updateCustomVisibility);
@@ -1327,13 +1771,28 @@ Motivo: Redesenhar o Histórico Operacional de forma didática, com "Todos" pré
   });
 
   modalClose.addEventListener("click", closeModal);
+  classifyClose.addEventListener("click", closeClassificationModal);
+  classifyCancel.addEventListener("click", closeClassificationModal);
+  classifySave.addEventListener("click", saveStopClassification);
+  classifyCategory.addEventListener("change", function(){
+    fillClassificationReasons("");
+  });
 
   modalBackdrop.addEventListener("click", function(event){
     if(event.target === modalBackdrop) closeModal();
   });
 
+  classifyBackdrop.addEventListener("click", function(event){
+    if(event.target === classifyBackdrop) closeClassificationModal();
+  });
+
   document.addEventListener("keydown", function(event){
-    if(event.key === "Escape" && modalBackdrop.classList.contains("open")){
+    if(event.key !== "Escape") return;
+    if(classifyBackdrop.classList.contains("open")){
+      closeClassificationModal();
+      return;
+    }
+    if(modalBackdrop.classList.contains("open")){
       closeModal();
     }
   });
