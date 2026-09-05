@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-31 20:57 (America/Bahia)
-# Motivo: Centralizar no GestFlow o limite de 3 usuários ativos por empresa (Administrador principal + até 2 usuários de gestão), sem contabilizar operadores do IndFlow.
+# Último recode: 2026-09-05 20:37 (America/Bahia)
+# Motivo: Proteger o login contra força bruta com limite combinado por usuário+IP e bloqueio progressivo no ambiente DEV.
 
 from __future__ import annotations
 
@@ -42,6 +42,11 @@ app.secret_key = getattr(config, "SECRET_KEY", "gestflow-dev-secret-key-trocar-e
 app.permanent_session_lifetime = timedelta(days=30)
 GESTFLOW_VERSAO = "1.0.0"
 GESTFLOW_LIMITE_USUARIOS_ATIVOS = 3
+LOGIN_JANELA_FALHAS_SEGUNDOS = 60 * 60
+LOGIN_BLOQUEIOS = {
+    "usuario_ip": ((5, 60), (8, 5 * 60), (10, 15 * 60), (15, 60 * 60)),
+    "ip": ((20, 5 * 60), (40, 15 * 60), (60, 60 * 60)),
+}
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -2714,6 +2719,77 @@ def buscar_usuario_por_email(email: str) -> dict[str, Any] | None:
     return dict(row)
 
 
+def _ip_cliente_login() -> str:
+    encaminhado = str(request.headers.get("X-Forwarded-For") or "").strip()
+    if encaminhado:
+        return encaminhado.split(",", 1)[0].strip()[:128] or "desconhecido"
+    return str(request.remote_addr or "desconhecido").strip()[:128] or "desconhecido"
+
+
+def _escopos_login(email: str, ip: str) -> tuple[tuple[str, str], ...]:
+    email = str(email or "").strip().lower()
+    ip = str(ip or "desconhecido").strip() or "desconhecido"
+    valores = (("usuario_ip", f"{email}|{ip}"), ("ip", ip))
+    return tuple((tipo, hashlib.sha256(f"{tipo}:{valor}".encode()).hexdigest()) for tipo, valor in valores)
+
+
+def verificar_bloqueio_login(email: str, ip: str) -> int:
+    agora = datetime.now(ZoneInfo("UTC")).timestamp()
+    maior_restante = 0
+    with conectar_db() as conn:
+        for tipo, chave in _escopos_login(email, ip):
+            row = conn.execute(
+                "SELECT bloqueado_ate, atualizado_em FROM login_tentativas WHERE chave = ? AND tipo = ?",
+                (chave, tipo),
+            ).fetchone()
+            if row is None:
+                continue
+            if agora - float(row["atualizado_em"] or 0) > LOGIN_JANELA_FALHAS_SEGUNDOS:
+                conn.execute("DELETE FROM login_tentativas WHERE chave = ?", (chave,))
+                continue
+            restante = int(float(row["bloqueado_ate"] or 0) - agora) + 1
+            maior_restante = max(maior_restante, restante)
+        conn.commit()
+    return max(0, maior_restante)
+
+
+def registrar_falha_login(email: str, ip: str) -> int:
+    agora = datetime.now(ZoneInfo("UTC")).timestamp()
+    maior_bloqueio = 0
+    with conectar_db() as conn:
+        for tipo, chave in _escopos_login(email, ip):
+            row = conn.execute(
+                "SELECT falhas, atualizado_em FROM login_tentativas WHERE chave = ? AND tipo = ?",
+                (chave, tipo),
+            ).fetchone()
+            falhas = int(row["falhas"] or 0) if row and agora - float(row["atualizado_em"] or 0) <= LOGIN_JANELA_FALHAS_SEGUNDOS else 0
+            falhas += 1
+            bloqueio = max((segundos for minimo, segundos in LOGIN_BLOQUEIOS[tipo] if falhas >= minimo), default=0)
+            maior_bloqueio = max(maior_bloqueio, bloqueio)
+            conn.execute(
+                """INSERT INTO login_tentativas (chave, tipo, falhas, bloqueado_ate, atualizado_em)
+                   VALUES (?, ?, ?, ?, ?)
+                   ON CONFLICT(chave) DO UPDATE SET falhas=excluded.falhas,
+                   bloqueado_ate=excluded.bloqueado_ate, atualizado_em=excluded.atualizado_em""",
+                (chave, tipo, falhas, agora + bloqueio if bloqueio else 0, agora),
+            )
+        conn.execute("DELETE FROM login_tentativas WHERE atualizado_em < ?", (agora - 86400,))
+        conn.commit()
+    return maior_bloqueio
+
+
+def limpar_falhas_login_usuario_ip(email: str, ip: str) -> None:
+    tipo, chave = _escopos_login(email, ip)[0]
+    with conectar_db() as conn:
+        conn.execute("DELETE FROM login_tentativas WHERE chave = ? AND tipo = ?", (chave, tipo))
+        conn.commit()
+
+
+def _mensagem_bloqueio_login(segundos: int) -> str:
+    minutos = max(1, (int(segundos) + 59) // 60)
+    return f"Muitas tentativas de login. Tente novamente em {minutos} minuto{'s' if minutos != 1 else ''}."
+
+
 def autenticar_usuario(email: str, senha: str) -> dict[str, Any] | None:
     email_normalizado = str(email or "").strip().lower()
     senha_normalizada = str(senha or "").strip()
@@ -5052,6 +5128,19 @@ def iniciar_banco() -> None:
             )
             """
         )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS login_tentativas (
+                chave TEXT PRIMARY KEY,
+                tipo TEXT NOT NULL,
+                falhas INTEGER NOT NULL DEFAULT 0,
+                bloqueado_ate REAL NOT NULL DEFAULT 0,
+                atualizado_em REAL NOT NULL
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_login_tentativas_atualizado_em ON login_tentativas (atualizado_em)")
 
         colunas_usuarios = {
             str(row["name"])
@@ -26524,16 +26613,23 @@ def login() -> str | Response:
     if request.method == "POST":
         email = (request.form.get("email") or "").strip().lower()
         senha = (request.form.get("senha") or "").strip()
+        ip = _ip_cliente_login()
+        bloqueio = verificar_bloqueio_login(email, ip)
+        if bloqueio > 0:
+            return render_template("login.html", erro_login=_mensagem_bloqueio_login(bloqueio), email_login=email), 429
 
         usuario = autenticar_usuario(email, senha)
-
         if usuario is None:
+            bloqueio = registrar_falha_login(email, ip)
+            if bloqueio > 0:
+                return render_template("login.html", erro_login=_mensagem_bloqueio_login(bloqueio), email_login=email), 429
             return render_template(
                 "login.html",
                 erro_login="E-mail ou senha inválidos.",
                 email_login=email,
             ), 401
 
+        limpar_falhas_login_usuario_ip(email, ip)
         entrar_usuario_na_sessao(usuario)
         registrar_atividade_usuario("login", "acesso", "Login realizado", request.path)
 
