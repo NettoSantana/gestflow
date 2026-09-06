@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-09-05 20:59 (America/Bahia)
-# Motivo: Proteger o login do GestFlow contra força bruta com controle por usuário+IP, limite adicional por IP e bloqueio progressivo.
+# Último recode: 2026-09-05 21:23 (America/Bahia)
+# Motivo: Corrigir a proteção do login contra força bruta com contadores independentes por conta, IP e conta+IP, preservando bloqueio progressivo no DEV.
 
 from __future__ import annotations
 
@@ -46,6 +46,7 @@ GESTFLOW_INDFLOW_SSO_SALT = "gestflow-indflow-sso-v1"
 GESTFLOW_INDFLOW_SSO_MIN_SECRET_LENGTH = 32
 
 LOGIN_SEGURANCA_JANELA_MINUTOS = 60
+LOGIN_SEGURANCA_BLOQUEIOS_USUARIO = ((5, 60), (8, 300), (10, 900), (15, 3600))
 LOGIN_SEGURANCA_BLOQUEIOS_USUARIO_IP = ((5, 60), (8, 300), (10, 900), (15, 3600))
 LOGIN_SEGURANCA_BLOQUEIOS_IP = ((20, 60), (30, 300), (50, 900), (80, 3600))
 LOGIN_SEGURANCA_RETENCAO_HORAS = 48
@@ -2724,6 +2725,11 @@ def _ip_origem_login() -> str:
     return str(request.remote_addr or "desconhecido").strip()[:128] or "desconhecido"
 
 
+def _chave_login_usuario(email: str) -> str:
+    identidade = str(email or "").strip().lower()
+    return "usuario:" + hashlib.sha256(identidade.encode("utf-8")).hexdigest()
+
+
 def _chave_login_usuario_ip(email: str, ip: str) -> str:
     identidade = f"{str(email or '').strip().lower()}|{str(ip or '').strip()}"
     return "usuario_ip:" + hashlib.sha256(identidade.encode("utf-8")).hexdigest()
@@ -2754,7 +2760,12 @@ def _agora_utc_login() -> datetime:
 
 
 def _duracao_bloqueio_login(falhas: int, escopo: str) -> int:
-    regras = LOGIN_SEGURANCA_BLOQUEIOS_USUARIO_IP if escopo == "usuario_ip" else LOGIN_SEGURANCA_BLOQUEIOS_IP
+    if escopo == "usuario":
+        regras = LOGIN_SEGURANCA_BLOQUEIOS_USUARIO
+    elif escopo == "usuario_ip":
+        regras = LOGIN_SEGURANCA_BLOQUEIOS_USUARIO_IP
+    else:
+        regras = LOGIN_SEGURANCA_BLOQUEIOS_IP
     duracao = 0
     for limite, segundos in regras:
         if falhas >= limite:
@@ -2825,10 +2836,11 @@ def _registrar_falha_login(chave: str, escopo: str) -> int:
     return duracao
 
 
-def _limpar_falhas_login_usuario_ip(chave_usuario_ip: str) -> None:
+def _limpar_falhas_login(chaves: tuple[str, ...]) -> None:
     with conectar_db() as conn:
         _garantir_tabela_seguranca_login(conn)
-        conn.execute("DELETE FROM seguranca_login_tentativas WHERE chave = ?", (chave_usuario_ip,))
+        for chave in chaves:
+            conn.execute("DELETE FROM seguranca_login_tentativas WHERE chave = ?", (chave,))
         conn.commit()
 
 
@@ -27894,19 +27906,21 @@ def login() -> str | Response:
         email = (request.form.get("email") or "").strip().lower()
         senha = (request.form.get("senha") or "").strip()
         ip = _ip_origem_login()
+        chave_usuario = _chave_login_usuario(email)
         chave_usuario_ip = _chave_login_usuario_ip(email, ip)
         chave_ip = _chave_login_ip(ip)
 
-        segundos_bloqueio = _segundos_bloqueio_login((chave_usuario_ip, chave_ip))
+        segundos_bloqueio = _segundos_bloqueio_login((chave_usuario, chave_usuario_ip, chave_ip))
         if segundos_bloqueio > 0:
             return _resposta_login_bloqueado(email, segundos_bloqueio)
 
         usuario = autenticar_usuario(email, senha)
 
         if usuario is None:
+            bloqueio_usuario = _registrar_falha_login(chave_usuario, "usuario")
             bloqueio_usuario_ip = _registrar_falha_login(chave_usuario_ip, "usuario_ip")
             bloqueio_ip = _registrar_falha_login(chave_ip, "ip")
-            segundos_bloqueio = max(bloqueio_usuario_ip, bloqueio_ip)
+            segundos_bloqueio = max(bloqueio_usuario, bloqueio_usuario_ip, bloqueio_ip)
             if segundos_bloqueio > 0:
                 return _resposta_login_bloqueado(email, segundos_bloqueio)
             return render_template(
@@ -27915,7 +27929,7 @@ def login() -> str | Response:
                 email_login=email,
             ), 401
 
-        _limpar_falhas_login_usuario_ip(chave_usuario_ip)
+        _limpar_falhas_login((chave_usuario, chave_usuario_ip))
         entrar_usuario_na_sessao(usuario)
         registrar_atividade_usuario("login", "acesso", "Login realizado", request.path)
 
