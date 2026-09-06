@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-08-28 16:51 (America/Bahia)
-# Motivo: Exibir na listagem de Vendas a data prevista do próximo recebimento, priorizando títulos financeiros em aberto e preservando a previsão configurada antes da concretização.
+# Último recode: 2026-09-05 20:59 (America/Bahia)
+# Motivo: Proteger o login do GestFlow contra força bruta com controle por usuário+IP, limite adicional por IP e bloqueio progressivo.
 
 from __future__ import annotations
 
@@ -44,6 +44,11 @@ app.permanent_session_lifetime = timedelta(days=30)
 GESTFLOW_VERSAO = "1.0.0"
 GESTFLOW_INDFLOW_SSO_SALT = "gestflow-indflow-sso-v1"
 GESTFLOW_INDFLOW_SSO_MIN_SECRET_LENGTH = 32
+
+LOGIN_SEGURANCA_JANELA_MINUTOS = 60
+LOGIN_SEGURANCA_BLOQUEIOS_USUARIO_IP = ((5, 60), (8, 300), (10, 900), (15, 3600))
+LOGIN_SEGURANCA_BLOQUEIOS_IP = ((20, 60), (30, 300), (50, 900), (80, 3600))
+LOGIN_SEGURANCA_RETENCAO_HORAS = 48
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -2710,6 +2715,131 @@ def buscar_usuario_por_email(email: str) -> dict[str, Any] | None:
         return None
 
     return dict(row)
+
+
+def _ip_origem_login() -> str:
+    encaminhado = str(request.headers.get("X-Forwarded-For") or "").strip()
+    if encaminhado:
+        return encaminhado.split(",", 1)[0].strip()[:128]
+    return str(request.remote_addr or "desconhecido").strip()[:128] or "desconhecido"
+
+
+def _chave_login_usuario_ip(email: str, ip: str) -> str:
+    identidade = f"{str(email or '').strip().lower()}|{str(ip or '').strip()}"
+    return "usuario_ip:" + hashlib.sha256(identidade.encode("utf-8")).hexdigest()
+
+
+def _chave_login_ip(ip: str) -> str:
+    identidade = str(ip or "").strip()
+    return "ip:" + hashlib.sha256(identidade.encode("utf-8")).hexdigest()
+
+
+def _garantir_tabela_seguranca_login(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS seguranca_login_tentativas (
+            chave TEXT PRIMARY KEY,
+            escopo TEXT NOT NULL,
+            falhas INTEGER NOT NULL DEFAULT 0,
+            janela_inicio TEXT NOT NULL,
+            bloqueado_ate TEXT,
+            atualizado_em TEXT NOT NULL
+        )
+        """
+    )
+
+
+def _agora_utc_login() -> datetime:
+    return datetime.now(ZoneInfo("UTC"))
+
+
+def _duracao_bloqueio_login(falhas: int, escopo: str) -> int:
+    regras = LOGIN_SEGURANCA_BLOQUEIOS_USUARIO_IP if escopo == "usuario_ip" else LOGIN_SEGURANCA_BLOQUEIOS_IP
+    duracao = 0
+    for limite, segundos in regras:
+        if falhas >= limite:
+            duracao = segundos
+    return duracao
+
+
+def _segundos_bloqueio_login(chaves: tuple[str, ...]) -> int:
+    agora = _agora_utc_login()
+    maior = 0
+    with conectar_db() as conn:
+        _garantir_tabela_seguranca_login(conn)
+        for chave in chaves:
+            row = conn.execute(
+                "SELECT bloqueado_ate FROM seguranca_login_tentativas WHERE chave = ? LIMIT 1",
+                (chave,),
+            ).fetchone()
+            if row is None or not str(row["bloqueado_ate"] or "").strip():
+                continue
+            try:
+                bloqueado_ate = datetime.fromisoformat(str(row["bloqueado_ate"]))
+            except ValueError:
+                continue
+            restante = int((bloqueado_ate - agora).total_seconds())
+            maior = max(maior, restante)
+    return max(0, maior)
+
+
+def _registrar_falha_login(chave: str, escopo: str) -> int:
+    agora = _agora_utc_login()
+    janela_limite = agora - timedelta(minutes=LOGIN_SEGURANCA_JANELA_MINUTOS)
+    with conectar_db() as conn:
+        _garantir_tabela_seguranca_login(conn)
+        row = conn.execute(
+            "SELECT falhas, janela_inicio FROM seguranca_login_tentativas WHERE chave = ? LIMIT 1",
+            (chave,),
+        ).fetchone()
+
+        falhas = 1
+        janela_inicio = agora
+        if row is not None:
+            try:
+                inicio_anterior = datetime.fromisoformat(str(row["janela_inicio"] or ""))
+            except ValueError:
+                inicio_anterior = janela_limite - timedelta(seconds=1)
+            if inicio_anterior >= janela_limite:
+                falhas = int(row["falhas"] or 0) + 1
+                janela_inicio = inicio_anterior
+
+        duracao = _duracao_bloqueio_login(falhas, escopo)
+        bloqueado_ate = (agora + timedelta(seconds=duracao)).isoformat(timespec="seconds") if duracao else None
+        conn.execute(
+            """
+            INSERT INTO seguranca_login_tentativas (chave, escopo, falhas, janela_inicio, bloqueado_ate, atualizado_em)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(chave) DO UPDATE SET
+                escopo = excluded.escopo,
+                falhas = excluded.falhas,
+                janela_inicio = excluded.janela_inicio,
+                bloqueado_ate = excluded.bloqueado_ate,
+                atualizado_em = excluded.atualizado_em
+            """,
+            (chave, escopo, falhas, janela_inicio.isoformat(timespec="seconds"), bloqueado_ate, agora.isoformat(timespec="seconds")),
+        )
+        retencao = (agora - timedelta(hours=LOGIN_SEGURANCA_RETENCAO_HORAS)).isoformat(timespec="seconds")
+        conn.execute("DELETE FROM seguranca_login_tentativas WHERE atualizado_em < ?", (retencao,))
+        conn.commit()
+    return duracao
+
+
+def _limpar_falhas_login_usuario_ip(chave_usuario_ip: str) -> None:
+    with conectar_db() as conn:
+        _garantir_tabela_seguranca_login(conn)
+        conn.execute("DELETE FROM seguranca_login_tentativas WHERE chave = ?", (chave_usuario_ip,))
+        conn.commit()
+
+
+def _resposta_login_bloqueado(email: str, segundos: int) -> tuple[str, int, dict[str, str]]:
+    minutos = max(1, (int(segundos) + 59) // 60)
+    mensagem = f"Muitas tentativas de acesso. Aguarde {minutos} minuto(s) e tente novamente."
+    return (
+        render_template("login.html", erro_login=mensagem, email_login=email),
+        429,
+        {"Retry-After": str(max(1, int(segundos)))},
+    )
 
 
 def autenticar_usuario(email: str, senha: str) -> dict[str, Any] | None:
@@ -27763,16 +27893,29 @@ def login() -> str | Response:
     if request.method == "POST":
         email = (request.form.get("email") or "").strip().lower()
         senha = (request.form.get("senha") or "").strip()
+        ip = _ip_origem_login()
+        chave_usuario_ip = _chave_login_usuario_ip(email, ip)
+        chave_ip = _chave_login_ip(ip)
+
+        segundos_bloqueio = _segundos_bloqueio_login((chave_usuario_ip, chave_ip))
+        if segundos_bloqueio > 0:
+            return _resposta_login_bloqueado(email, segundos_bloqueio)
 
         usuario = autenticar_usuario(email, senha)
 
         if usuario is None:
+            bloqueio_usuario_ip = _registrar_falha_login(chave_usuario_ip, "usuario_ip")
+            bloqueio_ip = _registrar_falha_login(chave_ip, "ip")
+            segundos_bloqueio = max(bloqueio_usuario_ip, bloqueio_ip)
+            if segundos_bloqueio > 0:
+                return _resposta_login_bloqueado(email, segundos_bloqueio)
             return render_template(
                 "login.html",
                 erro_login="E-mail ou senha inválidos.",
                 email_login=email,
             ), 401
 
+        _limpar_falhas_login_usuario_ip(chave_usuario_ip)
         entrar_usuario_na_sessao(usuario)
         registrar_atividade_usuario("login", "acesso", "Login realizado", request.path)
 
