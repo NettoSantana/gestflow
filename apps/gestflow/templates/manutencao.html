@@ -1,0 +1,785 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\manutencao.html
+Último recode: 2026-09-08 03:49 (America/Bahia)
+Motivo: Criar a interface do módulo Manutenção V1 com dashboard, equipamentos, preventivas, preditivas, corretivas, OS e histórico.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Manutenção</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .manutencao-page .maintenance-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .manutencao-page .maintenance-tab {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 38px;
+            padding: 8px 13px;
+            border: 1px solid #dbe3ec;
+            border-radius: 9px;
+            background: #ffffff;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .manutencao-page .maintenance-tab.active {
+            background: #0f172a;
+            border-color: #0f172a;
+            color: #ffffff;
+        }
+
+        .manutencao-page .maintenance-kpis {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(150px, 1fr));
+            gap: 14px;
+        }
+
+        .manutencao-page .maintenance-kpi {
+            min-height: 126px;
+            padding: 18px;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            background: #ffffff;
+        }
+
+        .manutencao-page .maintenance-kpi strong {
+            display: block;
+            margin-top: 7px;
+            color: #0f172a;
+            font-size: 30px;
+            line-height: 1;
+        }
+
+        .manutencao-page .maintenance-kpi span {
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .manutencao-page .maintenance-kpi small {
+            display: block;
+            margin-top: 10px;
+            color: #64748b;
+            line-height: 1.35;
+        }
+
+        .manutencao-page .maintenance-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .manutencao-page .maintenance-form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .manutencao-page .maintenance-span-2 {
+            grid-column: span 2;
+        }
+
+        .manutencao-page .maintenance-alert {
+            padding: 12px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .manutencao-page .maintenance-alert.success {
+            border: 1px solid #bbf7d0;
+            background: #f0fdf4;
+            color: #166534;
+        }
+
+        .manutencao-page .maintenance-alert.error {
+            border: 1px solid #fecaca;
+            background: #fef2f2;
+            color: #991b1b;
+        }
+
+        .manutencao-page .maintenance-pill {
+            display: inline-flex;
+            align-items: center;
+            min-height: 25px;
+            padding: 4px 9px;
+            border-radius: 999px;
+            background: #e2e8f0;
+            color: #334155;
+            font-size: 11px;
+            font-weight: 900;
+            white-space: nowrap;
+        }
+
+        .manutencao-page .maintenance-pill.vencida,
+        .manutencao-page .maintenance-pill.critica,
+        .manutencao-page .maintenance-pill.aberta {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .manutencao-page .maintenance-pill.proxima,
+        .manutencao-page .maintenance-pill.alta,
+        .manutencao-page .maintenance-pill.aguardando_peca {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .manutencao-page .maintenance-pill.programada,
+        .manutencao-page .maintenance-pill.concluida {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .manutencao-page .maintenance-pill.em_atendimento {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .manutencao-page .maintenance-pill.inativo,
+        .manutencao-page .maintenance-pill.cancelada,
+        .manutencao-page .maintenance-pill.sem_data {
+            background: #e2e8f0;
+            color: #475569;
+        }
+
+        .manutencao-page .maintenance-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px;
+        }
+
+        .manutencao-page .maintenance-button,
+        .manutencao-page .maintenance-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 34px;
+            padding: 7px 11px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: #ffffff;
+            color: #0f172a;
+            font-size: 12px;
+            font-weight: 900;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .manutencao-page .maintenance-button.primary,
+        .manutencao-page .maintenance-link.primary {
+            border-color: #0f172a;
+            background: #0f172a;
+            color: #ffffff;
+        }
+
+        .manutencao-page .maintenance-muted {
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .manutencao-page .maintenance-empty {
+            padding: 28px 18px;
+            text-align: center;
+            color: #64748b;
+        }
+
+        .manutencao-page .maintenance-inline-form {
+            display: grid;
+            grid-template-columns: minmax(140px, 180px) minmax(130px, 1fr) minmax(130px, 1fr) minmax(100px, 130px) auto;
+            gap: 7px;
+            align-items: end;
+            min-width: 680px;
+        }
+
+        .manutencao-page .maintenance-inline-form label {
+            display: block;
+            margin-bottom: 4px;
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .manutencao-page .maintenance-type-note {
+            margin-top: 8px;
+            padding: 10px 12px;
+            border-left: 3px solid #94a3b8;
+            background: #f8fafc;
+            color: #475569;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        @media (max-width: 1250px) {
+            .manutencao-page .maintenance-kpis {
+                grid-template-columns: repeat(3, minmax(150px, 1fr));
+            }
+        }
+
+        @media (max-width: 850px) {
+            .manutencao-page .maintenance-kpis,
+            .manutencao-page .maintenance-grid,
+            .manutencao-page .maintenance-form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .manutencao-page .maintenance-span-2 {
+                grid-column: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+    <main class="content manutencao-page">
+        {% set page_title = 'Manutenção' %}
+        {% include "partials/topbar.html" %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Gestão de ativos</span>
+                    <h3 class="page-title">Manutenção</h3>
+                    <p class="page-subtitle">Planeje preventivas e preditivas, registre corretivas, acompanhe OS e preserve o histórico técnico dos equipamentos.</p>
+                </div>
+                <a href="/manutencao/corretivas" class="btn-primary-green">Abrir corretiva</a>
+            </div>
+
+            <nav class="maintenance-tabs" aria-label="Áreas da manutenção">
+                <a class="maintenance-tab {% if secao == 'dashboard' %}active{% endif %}" href="/manutencao">Visão geral</a>
+                <a class="maintenance-tab {% if secao == 'equipamentos' %}active{% endif %}" href="/manutencao/equipamentos">Equipamentos</a>
+                <a class="maintenance-tab {% if secao == 'preventivas' %}active{% endif %}" href="/manutencao/preventivas">Preventivas</a>
+                <a class="maintenance-tab {% if secao == 'preditivas' %}active{% endif %}" href="/manutencao/preditivas">Preditivas</a>
+                <a class="maintenance-tab {% if secao == 'corretivas' %}active{% endif %}" href="/manutencao/corretivas">Corretivas</a>
+                <a class="maintenance-tab {% if secao == 'ordens' %}active{% endif %}" href="/manutencao/ordens">OS de manutenção</a>
+                <a class="maintenance-tab {% if secao == 'historico' %}active{% endif %}" href="/manutencao/historico">Histórico</a>
+            </nav>
+        </section>
+
+        {% if sucesso %}
+        <section class="page-section">
+            <div class="maintenance-alert success">{{ sucesso }}</div>
+        </section>
+        {% endif %}
+
+        {% if erro %}
+        <section class="page-section">
+            <div class="maintenance-alert error">{{ erro }}</div>
+        </section>
+        {% endif %}
+
+        {% if secao == 'dashboard' %}
+        <section class="maintenance-kpis page-section">
+            <article class="maintenance-kpi">
+                <span>Equipamentos</span>
+                <strong>{{ indicadores.equipamentos }}</strong>
+                <small>Ativos no cadastro técnico.</small>
+            </article>
+            <article class="maintenance-kpi">
+                <span>OS abertas</span>
+                <strong>{{ indicadores.ordens_abertas }}</strong>
+                <small>Ordens ainda não concluídas.</small>
+            </article>
+            <article class="maintenance-kpi">
+                <span>Corretivas abertas</span>
+                <strong>{{ indicadores.corretivas_abertas }}</strong>
+                <small>Falhas aguardando solução.</small>
+            </article>
+            <article class="maintenance-kpi">
+                <span>Planos vencidos</span>
+                <strong>{{ indicadores.planos_vencidos }}</strong>
+                <small>Preventivas ou preditivas atrasadas.</small>
+            </article>
+            <article class="maintenance-kpi">
+                <span>Próximos 7 dias</span>
+                <strong>{{ indicadores.planos_proximos }}</strong>
+                <small>Serviços programados no curto prazo.</small>
+            </article>
+        </section>
+
+        <section class="maintenance-grid page-section">
+            <article class="panel table-panel">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>Próximas manutenções</h3>
+                        <p class="page-subtitle">Planos ativos ordenados pela próxima execução.</p>
+                    </div>
+                </div>
+                <div class="table-shell">
+                    <table class="client-table">
+                        <thead>
+                            <tr>
+                                <th>Equipamento</th>
+                                <th>Tipo</th>
+                                <th>Serviço</th>
+                                <th>Próxima</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for plano in proximos_planos %}
+                            <tr>
+                                <td><strong>{{ plano.equipamento_nome }}</strong><br><small>{{ plano.equipamento_tag or '' }}</small></td>
+                                <td>{{ tipos_plano.get(plano.tipo, plano.tipo) }}</td>
+                                <td>{{ plano.titulo }}</td>
+                                <td>{{ plano.proxima_execucao or 'Por uso' }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="maintenance-empty">Nenhum plano cadastrado.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+
+            <article class="panel table-panel">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>OS em acompanhamento</h3>
+                        <p class="page-subtitle">Últimas ordens de manutenção abertas.</p>
+                    </div>
+                </div>
+                <div class="table-shell">
+                    <table class="client-table">
+                        <thead>
+                            <tr>
+                                <th>OS</th>
+                                <th>Equipamento</th>
+                                <th>Tipo</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ordem in ordens %}
+                            <tr>
+                                <td><strong>{{ ordem.numero }}</strong></td>
+                                <td>{{ ordem.equipamento_nome }}</td>
+                                <td>{{ tipos_plano.get(ordem.tipo, 'Corretiva' if ordem.tipo == 'corretiva' else ordem.tipo) }}</td>
+                                <td><span class="maintenance-pill {{ ordem.status }}">{{ status_ordem.get(ordem.status, ordem.status) }}</span></td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="maintenance-empty">Nenhuma OS de manutenção cadastrada.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+        </section>
+        {% endif %}
+
+        {% if secao == 'equipamentos' %}
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Equipamentos da manutenção</h3>
+                    <p class="page-subtitle">O módulo utiliza o cadastro técnico já existente no GestFlow, evitando equipamentos duplicados.</p>
+                </div>
+                <a href="/equipamentos#novo-equipamento" class="btn-primary-green">Novo equipamento</a>
+            </div>
+            <div class="maintenance-type-note">Nesta primeira versão o equipamento é único no GestFlow. A vinculação automática de horas, ciclos, peças e paradas vindas do IndFlow ficará preparada para a próxima etapa.</div>
+        </section>
+
+        <section class="panel table-panel page-section">
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead>
+                        <tr>
+                            <th>Equipamento</th>
+                            <th>TAG</th>
+                            <th>Marca / Modelo</th>
+                            <th>Local</th>
+                            <th>Status</th>
+                            <th>Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for equipamento in equipamentos %}
+                        <tr>
+                            <td><strong>{{ equipamento.nome }}</strong><br><small>{{ equipamento.cliente_nome or '' }}</small></td>
+                            <td>{{ equipamento.tag or '-' }}</td>
+                            <td>{{ equipamento.marca or '-' }}{% if equipamento.modelo %} / {{ equipamento.modelo }}{% endif %}</td>
+                            <td>{{ equipamento.local_instalacao or '-' }}</td>
+                            <td><span class="maintenance-pill">{{ equipamento.status or 'ativo' }}</span></td>
+                            <td><a class="maintenance-link" href="/equipamentos/{{ equipamento.id }}">Abrir cadastro</a></td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="6" class="maintenance-empty">Nenhum equipamento cadastrado. Cadastre o primeiro equipamento para criar planos de manutenção.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        {% endif %}
+
+        {% if secao in ['preventivas', 'preditivas'] %}
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Nova {{ tipos_plano.get(tipo_plano, tipo_plano) }}</h3>
+                    <p class="page-subtitle">
+                        {% if tipo_plano == 'preventiva' %}
+                        Programe intervenções antes da falha por calendário, horas ou peças.
+                        {% else %}
+                        Programe inspeções e medições para acompanhar a condição do equipamento.
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+
+            <form method="post" class="client-form">
+                <div class="maintenance-form-grid">
+                    <div class="form-group">
+                        <label>Equipamento</label>
+                        <select name="equipamento_id" class="form-control" required>
+                            <option value="">Selecione</option>
+                            {% for equipamento in equipamentos %}
+                            <option value="{{ equipamento.id }}">{{ equipamento.nome }}{% if equipamento.tag %} - {{ equipamento.tag }}{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Serviço / inspeção</label>
+                        <input name="titulo" class="form-control" required placeholder="Ex.: Lubrificar mancais">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Periodicidade</label>
+                        <select name="periodicidade_tipo" class="form-control">
+                            <option value="dias">Dias</option>
+                            <option value="horas">Horas de máquina</option>
+                            <option value="pecas">Peças produzidas</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Intervalo</label>
+                        <input name="periodicidade_valor" type="number" min="1" value="30" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Próxima execução</label>
+                        <input name="proxima_execucao" type="date" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Criticidade</label>
+                        <select name="criticidade" class="form-control">
+                            {% for valor, rotulo in prioridades.items() %}
+                            <option value="{{ valor }}" {% if valor == 'media' %}selected{% endif %}>{{ rotulo }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Responsável</label>
+                        <select name="responsavel_id" class="form-control">
+                            <option value="">Não definido</option>
+                            {% for funcionario in funcionarios %}
+                            <option value="{{ funcionario.id }}">{{ funcionario.nome }}{% if funcionario.cargo %} - {{ funcionario.cargo }}{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group maintenance-span-2">
+                        <label>Descrição / procedimento</label>
+                        <textarea name="descricao" class="form-control textarea-control" placeholder="Descreva o que deve ser verificado ou executado."></textarea>
+                    </div>
+                </div>
+
+                <div class="maintenance-type-note">
+                    Planos por dias já calculam automaticamente a próxima data. Planos por horas ou peças ficam cadastrados desde já; a leitura automática do gatilho virá da integração com o IndFlow.
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary-green">Programar {{ tipos_plano.get(tipo_plano, tipo_plano)|lower }}</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="panel table-panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>{{ tipos_plano.get(tipo_plano, tipo_plano) }}s programadas</h3>
+                    <p class="page-subtitle">Gere uma OS quando chegar o momento da execução.</p>
+                </div>
+            </div>
+
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead>
+                        <tr>
+                            <th>Equipamento</th>
+                            <th>Serviço</th>
+                            <th>Periodicidade</th>
+                            <th>Próxima</th>
+                            <th>Responsável</th>
+                            <th>Situação</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for plano in planos %}
+                        <tr>
+                            <td><strong>{{ plano.equipamento_nome }}</strong><br><small>{{ plano.equipamento_tag or plano.equipamento_local or '' }}</small></td>
+                            <td><strong>{{ plano.titulo }}</strong><br><small>{{ plano.descricao or '' }}</small></td>
+                            <td>{{ plano.periodicidade_valor }} {{ periodicidades.get(plano.periodicidade_tipo, plano.periodicidade_tipo) }}</td>
+                            <td>{{ plano.proxima_execucao or 'Aguardando IndFlow' }}</td>
+                            <td>{{ plano.responsavel_nome or '-' }}</td>
+                            <td><span class="maintenance-pill {{ plano.situacao }}">{{ plano.situacao|replace('_', ' ')|title }}</span></td>
+                            <td>
+                                <div class="maintenance-actions">
+                                    <form method="post" action="/manutencao/planos/{{ plano.id }}/gerar-os">
+                                        <button type="submit" class="maintenance-button primary">Gerar OS</button>
+                                    </form>
+                                    <form method="post" action="/manutencao/planos/{{ plano.id }}/status">
+                                        <button type="submit" class="maintenance-button">{{ 'Pausar' if plano.status == 'ativo' else 'Ativar' }}</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="7" class="maintenance-empty">Nenhum plano cadastrado nesta categoria.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        {% endif %}
+
+        {% if secao == 'corretivas' %}
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Abrir corretiva</h3>
+                    <p class="page-subtitle">Registre rapidamente uma falha e gere a OS de manutenção no mesmo momento.</p>
+                </div>
+            </div>
+
+            <form method="post" class="client-form">
+                <div class="maintenance-form-grid">
+                    <div class="form-group">
+                        <label>Equipamento</label>
+                        <select name="equipamento_id" class="form-control" required>
+                            <option value="">Selecione</option>
+                            {% for equipamento in equipamentos %}
+                            <option value="{{ equipamento.id }}">{{ equipamento.nome }}{% if equipamento.tag %} - {{ equipamento.tag }}{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Problema</label>
+                        <input name="titulo" class="form-control" required placeholder="Ex.: Correia rompida">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Prioridade</label>
+                        <select name="prioridade" class="form-control">
+                            {% for valor, rotulo in prioridades.items() %}
+                            <option value="{{ valor }}" {% if valor == 'alta' %}selected{% endif %}>{{ rotulo }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Responsável</label>
+                        <select name="responsavel_id" class="form-control">
+                            <option value="">Não definido</option>
+                            {% for funcionario in funcionarios %}
+                            <option value="{{ funcionario.id }}">{{ funcionario.nome }}{% if funcionario.cargo %} - {{ funcionario.cargo }}{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Máquina parada?</label>
+                        <select name="maquina_parada" class="form-control">
+                            <option value="1">Sim</option>
+                            <option value="0">Não</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group maintenance-span-2">
+                        <label>Descrição da falha</label>
+                        <textarea name="descricao" class="form-control textarea-control" placeholder="Informe sintomas, contexto e o que já foi verificado."></textarea>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary-green">Abrir corretiva</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="panel table-panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Corretivas</h3>
+                    <p class="page-subtitle">Falhas registradas e seus estados atuais.</p>
+                </div>
+            </div>
+
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead>
+                        <tr>
+                            <th>OS</th>
+                            <th>Equipamento</th>
+                            <th>Problema</th>
+                            <th>Prioridade</th>
+                            <th>Parada</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ordem in ordens %}
+                        <tr>
+                            <td><strong>{{ ordem.numero }}</strong></td>
+                            <td>{{ ordem.equipamento_nome }}</td>
+                            <td><strong>{{ ordem.titulo }}</strong><br><small>{{ ordem.descricao or '' }}</small></td>
+                            <td><span class="maintenance-pill {{ ordem.prioridade }}">{{ prioridades.get(ordem.prioridade, ordem.prioridade) }}</span></td>
+                            <td>{{ 'Sim' if ordem.maquina_parada else 'Não' }}</td>
+                            <td><span class="maintenance-pill {{ ordem.status }}">{{ status_ordem.get(ordem.status, ordem.status) }}</span></td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="6" class="maintenance-empty">Nenhuma corretiva registrada.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        {% endif %}
+
+        {% if secao == 'ordens' %}
+        <section class="panel table-panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>OS de manutenção</h3>
+                    <p class="page-subtitle">Atualize execução, causa, solução, custo e conclusão em um único lugar.</p>
+                </div>
+            </div>
+
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead>
+                        <tr>
+                            <th>OS / Equipamento</th>
+                            <th>Serviço</th>
+                            <th>Tipo</th>
+                            <th>Responsável</th>
+                            <th>Atualização</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ordem in ordens %}
+                        <tr>
+                            <td>
+                                <strong>{{ ordem.numero }}</strong><br>
+                                {{ ordem.equipamento_nome }}<br>
+                                <small>{{ ordem.equipamento_tag or ordem.equipamento_local or '' }}</small>
+                            </td>
+                            <td>
+                                <strong>{{ ordem.titulo }}</strong><br>
+                                <small>{{ ordem.descricao or '' }}</small><br>
+                                <span class="maintenance-pill {{ ordem.prioridade }}">{{ prioridades.get(ordem.prioridade, ordem.prioridade) }}</span>
+                                {% if ordem.maquina_parada %}<span class="maintenance-pill critica">Máquina parada</span>{% endif %}
+                            </td>
+                            <td>
+                                {{ tipos_plano.get(ordem.tipo, 'Corretiva' if ordem.tipo == 'corretiva' else ordem.tipo) }}<br>
+                                <span class="maintenance-pill {{ ordem.status }}">{{ status_ordem.get(ordem.status, ordem.status) }}</span>
+                            </td>
+                            <td>{{ ordem.responsavel_nome or '-' }}</td>
+                            <td>
+                                <form method="post" action="/manutencao/ordens/{{ ordem.id }}/status" class="maintenance-inline-form">
+                                    <div>
+                                        <label>Status</label>
+                                        <select name="status" class="form-control">
+                                            {% for valor, rotulo in status_ordem.items() %}
+                                            <option value="{{ valor }}" {% if ordem.status == valor %}selected{% endif %}>{{ rotulo }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label>Causa</label>
+                                        <input name="causa" class="form-control" value="{{ ordem.causa or '' }}" placeholder="Causa encontrada">
+                                    </div>
+                                    <div>
+                                        <label>Solução</label>
+                                        <input name="solucao" class="form-control" value="{{ ordem.solucao or '' }}" placeholder="Solução executada">
+                                    </div>
+                                    <div>
+                                        <label>Custo</label>
+                                        <input name="custo_total" class="form-control" value="{{ '%.2f'|format(ordem.custo_total or 0) }}">
+                                    </div>
+                                    <div>
+                                        <input type="hidden" name="observacoes" value="{{ ordem.observacoes or '' }}">
+                                        <button type="submit" class="maintenance-button primary">Salvar</button>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="maintenance-empty">Nenhuma OS de manutenção cadastrada.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        {% endif %}
+
+        {% if secao == 'historico' %}
+        <section class="panel table-panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Histórico de manutenção</h3>
+                    <p class="page-subtitle">Registro cronológico das principais ações do módulo.</p>
+                </div>
+            </div>
+
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead>
+                        <tr>
+                            <th>Data / hora</th>
+                            <th>Equipamento</th>
+                            <th>Evento</th>
+                            <th>Descrição</th>
+                            <th>Usuário</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in historico %}
+                        <tr>
+                            <td>{{ item.ocorrido_em|replace('T', ' ') }}</td>
+                            <td>{{ item.equipamento_nome or '-' }}{% if item.equipamento_tag %}<br><small>{{ item.equipamento_tag }}</small>{% endif %}</td>
+                            <td>{{ item.acao|replace('_', ' ')|title }}</td>
+                            <td>{{ item.descricao or '-' }}</td>
+                            <td>{{ item.usuario_nome or '-' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="maintenance-empty">O histórico será preenchido conforme as primeiras ações forem realizadas.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        {% endif %}
+    </main>
+
+    {% include "partials/assistente_ia_widget.html" %}
+</body>
+</html>
