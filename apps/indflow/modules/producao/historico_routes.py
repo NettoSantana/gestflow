@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\producao\historico_routes.py
-# Último recode: 2026-09-01 10:49 (America/Bahia)
-# Motivo: Restaurar compatibilidade das funções legadas usadas por Paradas/Indicadores sem desfazer o novo Histórico Operacional consolidado.
+# Último recode: 2026-09-07 21:29 (America/Bahia)
+# Motivo: Limitar PRODUZINDO/PARADO do Histórico Operacional às janelas planejadas da máquina, excluindo pausas e horários fora do turno.
 
 from __future__ import annotations
 
@@ -972,6 +972,127 @@ def _interval_intersects(
     return a_start < b_end and b_start < a_end
 
 
+def _planned_intervals_for_day(
+    config: dict,
+    day: date,
+) -> list[tuple[datetime, datetime]] | None:
+    if not isinstance(config, dict):
+        return None
+
+    cv2 = config.get("config_v2")
+    if not isinstance(cv2, dict):
+        cv2 = config if isinstance(config.get("shifts"), list) else None
+    if not isinstance(cv2, dict):
+        return None
+
+    shifts = cv2.get("shifts")
+    if not isinstance(shifts, list) or not shifts:
+        return None
+
+    active_days = set()
+    for value in cv2.get("active_days") or [1, 2, 3, 4, 5, 6, 7]:
+        try:
+            weekday = int(value)
+            if weekday == 0:
+                weekday = 7
+            if 1 <= weekday <= 7:
+                active_days.add(weekday)
+        except Exception:
+            continue
+
+    if not active_days:
+        active_days = {1, 2, 3, 4, 5, 6, 7}
+
+    day_start = datetime(day.year, day.month, day.day)
+    day_end = day_start + timedelta(days=1)
+    planned: list[tuple[datetime, datetime]] = []
+
+    for anchor_day in (day - timedelta(days=1), day):
+        if anchor_day.isoweekday() not in active_days:
+            continue
+
+        anchor_start = datetime(anchor_day.year, anchor_day.month, anchor_day.day)
+
+        for shift in shifts:
+            if not isinstance(shift, dict):
+                continue
+
+            start_min = _parse_hhmm(shift.get("start"))
+            end_min = _parse_hhmm(shift.get("end"))
+            if start_min is None or end_min is None:
+                continue
+            if end_min <= start_min:
+                end_min += 1440
+
+            intervals = [
+                (
+                    anchor_start + timedelta(minutes=start_min),
+                    anchor_start + timedelta(minutes=end_min),
+                )
+            ]
+
+            for br in shift.get("breaks") or []:
+                if not isinstance(br, dict):
+                    continue
+                br_start = _parse_hhmm(br.get("start"))
+                br_end = _parse_hhmm(br.get("end"))
+                if br_start is None or br_end is None:
+                    continue
+                if br_start < start_min:
+                    br_start += 1440
+                if br_end < start_min:
+                    br_end += 1440
+                if br_end <= br_start:
+                    br_end += 1440
+
+                break_start = anchor_start + timedelta(minutes=br_start)
+                break_end = anchor_start + timedelta(minutes=br_end)
+                remaining = []
+
+                for interval_start, interval_end in intervals:
+                    if break_end <= interval_start or break_start >= interval_end:
+                        remaining.append((interval_start, interval_end))
+                        continue
+                    if interval_start < break_start:
+                        remaining.append((interval_start, min(break_start, interval_end)))
+                    if break_end < interval_end:
+                        remaining.append((max(break_end, interval_start), interval_end))
+
+                intervals = remaining
+
+            for interval_start, interval_end in intervals:
+                clip_start = max(interval_start, day_start)
+                clip_end = min(interval_end, day_end)
+                if clip_end > clip_start:
+                    planned.append((clip_start, clip_end))
+
+    planned.sort(key=lambda item: item[0])
+    merged: list[tuple[datetime, datetime]] = []
+    for interval_start, interval_end in planned:
+        if merged and interval_start <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], interval_end))
+        else:
+            merged.append((interval_start, interval_end))
+
+    return merged
+
+
+def _clip_state_segments_to_intervals(
+    segments: list[tuple[datetime, datetime, str]],
+    intervals: list[tuple[datetime, datetime]],
+) -> list[tuple[datetime, datetime, str]]:
+    clipped = []
+
+    for interval_start, interval_end in intervals:
+        for segment_start, segment_end, state in segments:
+            clip_start = max(interval_start, segment_start)
+            clip_end = min(interval_end, segment_end)
+            if clip_end > clip_start:
+                clipped.append((clip_start, clip_end, state))
+
+    return clipped
+
+
 def _meta_24_from_config(config: dict, day: date) -> list[int] | None:
     if not isinstance(config, dict):
         return None
@@ -1574,7 +1695,14 @@ def _history_machine_day(
         machine_id,
         day,
     )
-    metrics = _state_metrics(state_segments)
+    config = _load_machine_config(conn, cliente_id, machine_id)
+    planned_intervals = _planned_intervals_for_day(config, day)
+    metric_segments = (
+        state_segments
+        if planned_intervals is None
+        else _clip_state_segments_to_intervals(state_segments, planned_intervals)
+    )
+    metrics = _state_metrics(metric_segments)
 
     produzido = max(0, _safe_int(production.get("produzido"), 0))
     meta = max(0, _safe_int(production.get("meta"), 0))
