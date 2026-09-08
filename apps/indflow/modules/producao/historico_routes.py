@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\producao\historico_routes.py
-# Último recode: 2026-09-07 21:46 (America/Bahia)
-# Motivo: Contabilizar PARADA somente no horário planejado quando houver evidência de comunicação do ESP; sem comunicação permanece SEM DADOS.
+# Último recode: 2026-09-07 21:56 (America/Bahia)
+# Motivo: No horário planejado, classificar todo período sem RUN como PARADA, independentemente da comunicação do ESP; pausas e horários fora do turno permanecem NP.
 
 from __future__ import annotations
 
@@ -26,7 +26,6 @@ except Exception:
 
 
 TZ_BAHIA = ZoneInfo("America/Bahia")
-COMMUNICATION_OFFLINE_THRESHOLD_SEC = 45
 
 historico_bp = Blueprint(
     "historico_bp",
@@ -1094,136 +1093,69 @@ def _clip_state_segments_to_intervals(
     return clipped
 
 
-def _communication_intervals_for_day(
-    conn: sqlite3.Connection,
-    cliente_id: str,
-    machine_id: str,
-    day: date,
-) -> list[tuple[datetime, datetime]]:
-    table = "producao_horaria"
-    cols = _get_columns(conn, table)
-    data_col = _resolve_data_col(conn, table)
-    if not data_col or "machine_id" not in cols or "updated_at" not in cols:
-        return []
-    if cliente_id and "cliente_id" not in cols:
-        return []
-
-    intervals = []
-    for candidate in _matching_machine_ids(
-        conn, table, cliente_id, machine_id, "machine_id"
-    ):
-        try:
-            if cliente_id:
-                rows = conn.execute(
-                    f"SELECT updated_at FROM {table} "
-                    f"WHERE cliente_id=? AND machine_id=? AND {data_col}=?",
-                    (cliente_id, candidate, day.isoformat()),
-                ).fetchall()
-            else:
-                rows = conn.execute(
-                    f"SELECT updated_at FROM {table} "
-                    f"WHERE machine_id=? AND {data_col}=?",
-                    (candidate, day.isoformat()),
-                ).fetchall()
-        except Exception:
-            continue
-
-        for row in rows:
-            try:
-                raw = row["updated_at"] if isinstance(row, sqlite3.Row) else row[0]
-                dt = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
-                if dt.tzinfo is not None:
-                    dt = dt.astimezone(TZ_BAHIA).replace(tzinfo=None)
-            except Exception:
-                continue
-            if dt.date() != day:
-                continue
-
-            hour_start = dt.replace(minute=0, second=0, microsecond=0)
-            hour_end = hour_start + timedelta(hours=1)
-            comm_end = min(
-                hour_end,
-                dt + timedelta(seconds=COMMUNICATION_OFFLINE_THRESHOLD_SEC),
-            )
-            if comm_end > hour_start:
-                intervals.append((hour_start, comm_end))
-
-    intervals.sort(key=lambda item: item[0])
-    merged = []
-    for start, end in intervals:
-        if merged and start <= merged[-1][1]:
-            merged[-1] = (merged[-1][0], max(merged[-1][1], end))
-        else:
-            merged.append((start, end))
-    return merged
-
-
-def _apply_communication_rule(
-    segments: list[tuple[datetime, datetime, str]],
-    communication_intervals: list[tuple[datetime, datetime]],
-) -> list[tuple[datetime, datetime, str]]:
-    out = []
-    for seg_start, seg_end, state in segments:
-        state = str(state or "IDLE").upper()
-        if seg_end <= seg_start:
-            continue
-        if state == "RUN" or state not in {"STOP", "IDLE"}:
-            out.append((seg_start, seg_end, state))
-            continue
-
-        cursor = seg_start
-        for comm_start, comm_end in communication_intervals:
-            start = max(seg_start, comm_start)
-            end = min(seg_end, comm_end)
-            if end <= start:
-                continue
-            if cursor < start:
-                out.append((cursor, start, "IDLE"))
-            out.append((start, end, "STOP"))
-            cursor = max(cursor, end)
-        if cursor < seg_end:
-            out.append((cursor, seg_end, "IDLE"))
-
-    merged = []
-    for start, end, state in sorted(out, key=lambda item: item[0]):
-        if merged and merged[-1][2] == state and merged[-1][1] == start:
-            merged[-1] = (merged[-1][0], end, state)
-        else:
-            merged.append((start, end, state))
-    return merged
-
-
 def _operational_segments_for_range(
     state_segments: list[tuple[datetime, datetime, str]],
     planned_intervals: list[tuple[datetime, datetime]] | None,
-    communication_intervals: list[tuple[datetime, datetime]],
     start: datetime,
     end: datetime,
 ) -> list[tuple[datetime, datetime, str]]:
     if end <= start:
         return []
 
-    planned = [(start, end)] if planned_intervals is None else [
-        (max(start, a), min(end, b))
-        for a, b in planned_intervals
-        if min(end, b) > max(start, a)
+    if planned_intervals is None:
+        clipped = _clip_state_segments_to_intervals(
+            state_segments, [(start, end)]
+        )
+        return clipped or [(start, end, "IDLE")]
+
+    planned = [
+        (max(start, interval_start), min(end, interval_end))
+        for interval_start, interval_end in planned_intervals
+        if min(end, interval_end) > max(start, interval_start)
     ]
     if not planned:
         return [(start, end, "NP")]
 
-    out = []
+    out: list[tuple[datetime, datetime, str]] = []
     cursor = start
+
     for interval_start, interval_end in planned:
         if cursor < interval_start:
             out.append((cursor, interval_start, "NP"))
+
         inside = _clip_state_segments_to_intervals(
             state_segments, [(interval_start, interval_end)]
         ) or [(interval_start, interval_end, "IDLE")]
-        out.extend(_apply_communication_rule(inside, communication_intervals))
+
+        for seg_start, seg_end, state in inside:
+            if seg_end <= seg_start:
+                continue
+            effective_state = (
+                "RUN"
+                if str(state or "IDLE").upper() == "RUN"
+                else "STOP"
+            )
+            out.append((seg_start, seg_end, effective_state))
+
         cursor = interval_end
+
     if cursor < end:
         out.append((cursor, end, "NP"))
-    return out
+
+    merged: list[tuple[datetime, datetime, str]] = []
+    for seg_start, seg_end, state in out:
+        if seg_end <= seg_start:
+            continue
+        if (
+            merged
+            and merged[-1][2] == state
+            and merged[-1][1] == seg_start
+        ):
+            merged[-1] = (merged[-1][0], seg_end, state)
+        else:
+            merged.append((seg_start, seg_end, state))
+
+    return merged
 
 
 def _tuple_segments_to_dict(
@@ -1844,15 +1776,12 @@ def _history_machine_day(
     )
     config = _load_machine_config(conn, cliente_id, machine_id)
     planned_intervals = _planned_intervals_for_day(config, day)
-    communication_intervals = _communication_intervals_for_day(
-        conn, cliente_id, machine_id, day
-    )
     day_start = datetime(day.year, day.month, day.day)
     day_end = day_start + timedelta(days=1)
     now_local = datetime.now(TZ_BAHIA).replace(tzinfo=None)
     range_end = min(day_end, now_local) if day == now_local.date() else day_end
     metric_segments = _operational_segments_for_range(
-        state_segments, planned_intervals, communication_intervals, day_start, range_end
+        state_segments, planned_intervals, day_start, range_end
     )
     metrics = _state_metrics(metric_segments)
 
@@ -2165,9 +2094,6 @@ def api_producao_detalhe_dia():
             data_ref,
         )
         planned_intervals = _planned_intervals_for_day(config, data_ref)
-        communication_intervals = _communication_intervals_for_day(
-            conn, cliente_id, machine_id, data_ref
-        )
 
         now_local = datetime.now(TZ_BAHIA).replace(tzinfo=None)
         hours = []
@@ -2234,7 +2160,6 @@ def api_producao_detalhe_dia():
             operational_segments = _operational_segments_for_range(
                 state_segments,
                 planned_intervals,
-                communication_intervals,
                 start,
                 end_calc,
             )
