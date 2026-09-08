@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\maintenance_runtime.py
-# Último recode: 2026-09-08 03:49 (America/Bahia)
-# Motivo: Criar o módulo Manutenção V1 do GestFlow com equipamentos, preventivas, preditivas, corretivas, OS e histórico.
+# Último recode: 2026-09-08 06:00 (America/Bahia)
+# Motivo: Integrar Manutenção aos Módulos do Sistema, respeitando ativação, menu lateral, acesso direto, permissões e perfil Serviços / Manutenção.
 
 from __future__ import annotations
 
@@ -34,6 +34,106 @@ PERIODICIDADES = {
     "horas": "Horas de máquina",
     "pecas": "Peças produzidas",
 }
+
+
+MODULO_MANUTENCAO = {
+    "codigo": "manutencao",
+    "nome": "Manutenção",
+    "grupo": "Industrial",
+    "descricao": "Preventivas, preditivas, corretivas, OS e histórico de manutenção por equipamento.",
+}
+
+
+def _registrar_modulo_sistema(runtime: Any) -> None:
+    codigo = MODULO_MANUTENCAO["codigo"]
+
+    modulos = getattr(runtime, "GESTFLOW_MODULOS", None)
+    if isinstance(modulos, list) and not any(
+        _texto(item.get("codigo")) == codigo
+        for item in modulos
+        if isinstance(item, dict)
+    ):
+        indice = next(
+            (
+                posicao + 1
+                for posicao, item in enumerate(modulos)
+                if isinstance(item, dict) and _texto(item.get("codigo")) == "equipamentos"
+            ),
+            len(modulos),
+        )
+        modulos.insert(indice, dict(MODULO_MANUTENCAO))
+
+    padrao = getattr(runtime, "GESTFLOW_MODULOS_PADRAO", None)
+    if isinstance(padrao, dict):
+        padrao[codigo] = True
+
+    codigos = getattr(runtime, "GESTFLOW_MODULOS_CODIGOS", None)
+    if isinstance(codigos, set):
+        codigos.add(codigo)
+
+    especializados = getattr(runtime, "GESTFLOW_MODULOS_ESPECIALIZADOS", None)
+    if isinstance(especializados, set):
+        especializados.add(codigo)
+
+    operacionais = getattr(runtime, "GESTFLOW_MODULOS_OPERACIONAIS", None)
+    if isinstance(operacionais, set):
+        operacionais.discard(codigo)
+
+    permissoes_modulos = getattr(runtime, "GESTFLOW_MODULOS_PERMISSOES", None)
+    if isinstance(permissoes_modulos, list) and not any(
+        _texto(item.get("codigo")) == codigo
+        for item in permissoes_modulos
+        if isinstance(item, dict)
+    ):
+        indice_config = next(
+            (
+                posicao
+                for posicao, item in enumerate(permissoes_modulos)
+                if isinstance(item, dict) and _texto(item.get("codigo")) == "configuracoes"
+            ),
+            len(permissoes_modulos),
+        )
+        permissoes_modulos.insert(indice_config, dict(MODULO_MANUTENCAO))
+
+    perfis_modulos = getattr(runtime, "GESTFLOW_PERFIS_MODULOS", None)
+    if isinstance(perfis_modulos, dict):
+        for perfil in ("assistencia", "industrial", "completo"):
+            modulos_perfil = perfis_modulos.get(perfil)
+            if isinstance(modulos_perfil, set):
+                modulos_perfil.add(codigo)
+
+    permissoes_perfil = getattr(runtime, "GESTFLOW_PERMISSOES_PADRAO_PERFIL", None)
+    if isinstance(permissoes_perfil, dict):
+        tecnico = permissoes_perfil.get("tecnico")
+        if isinstance(tecnico, dict):
+            tecnico[codigo] = set(getattr(runtime, "_ACOES_OPERACAO", {"visualizar", "criar", "editar"}))
+        consulta = permissoes_perfil.get("consulta")
+        if isinstance(consulta, dict):
+            consulta[codigo] = set(getattr(runtime, "_ACOES_LEITURA", {"visualizar"}))
+
+    modulo_por_rota_original = getattr(runtime, "modulo_por_rota", None)
+    if callable(modulo_por_rota_original) and not hasattr(runtime, "_manutencao_modulo_por_rota_original"):
+        runtime._manutencao_modulo_por_rota_original = modulo_por_rota_original
+
+        def modulo_por_rota_com_manutencao(path: str) -> str:
+            caminho = _texto(path)
+            if caminho == "/manutencao" or caminho.startswith("/manutencao/"):
+                return codigo
+            return runtime._manutencao_modulo_por_rota_original(path)
+
+        runtime.modulo_por_rota = modulo_por_rota_com_manutencao
+
+    modulo_por_rota_admin_original = getattr(runtime, "modulo_por_rota_admin", None)
+    if callable(modulo_por_rota_admin_original) and not hasattr(runtime, "_manutencao_modulo_por_rota_admin_original"):
+        runtime._manutencao_modulo_por_rota_admin_original = modulo_por_rota_admin_original
+
+        def modulo_por_rota_admin_com_manutencao(path: str) -> str | None:
+            caminho = _texto(path)
+            if caminho == "/manutencao" or caminho.startswith("/manutencao/"):
+                return codigo
+            return runtime._manutencao_modulo_por_rota_admin_original(path)
+
+        runtime.modulo_por_rota_admin = modulo_por_rota_admin_com_manutencao
 
 
 def _texto(valor: Any) -> str:
@@ -923,23 +1023,42 @@ def _injetar_menu_manutencao(runtime: Any, response: Any):
         content_type = _texto(response.headers.get("Content-Type")).lower()
         if "text/html" not in content_type:
             return response
-        html = response.get_data(as_text=True)
-        if 'href="/manutencao"' in html:
-            return response
-        marcador = "</ul>\n    </nav>"
-        if marcador not in html:
-            return response
 
-        active = " active" if _texto(runtime.request.path).startswith("/manutencao") else ""
-        bloco = (
-            f'\n            <li class="menu-item{active}">\n'
-            '                <a href="/manutencao">\n'
-            '                    <span class="menu-icon">M</span>\n'
-            '                    <span>Manutenção</span>\n'
-            '                </a>\n'
-            '            </li>\n'
-        )
-        html = html.replace(marcador, bloco + "        " + marcador, 1)
+        html = response.get_data(as_text=True)
+        caminho = _texto(runtime.request.path)
+
+        if caminho == "/configuracoes/modulos":
+            inicio_perfis = html.find("const perfis = {")
+            if inicio_perfis >= 0:
+                inicio_service = html.find("service: [", inicio_perfis)
+                fim_service = html.find("]", inicio_service)
+                if inicio_service >= 0 and fim_service > inicio_service:
+                    trecho = html[inicio_service:fim_service]
+                    if "'manutencao'" not in trecho:
+                        html = html[:fim_service] + ", 'manutencao'" + html[fim_service:]
+
+        modulo_ativo = True
+        if hasattr(runtime, "modulo_empresa_ativo"):
+            modulo_ativo = bool(runtime.modulo_empresa_ativo("manutencao"))
+
+        modulo_visivel = True
+        if hasattr(runtime, "modulo_usuario_visivel"):
+            modulo_visivel = bool(runtime.modulo_usuario_visivel("manutencao"))
+
+        if modulo_ativo and modulo_visivel and 'href="/manutencao"' not in html:
+            marcador = "</ul>\n    </nav>"
+            if marcador in html:
+                active = " active" if caminho.startswith("/manutencao") else ""
+                bloco = (
+                    f'\n            <li class="menu-item{active}">\n'
+                    '                <a href="/manutencao">\n'
+                    '                    <span class="menu-icon">M</span>\n'
+                    '                    <span>Manutenção</span>\n'
+                    '                </a>\n'
+                    '            </li>\n'
+                )
+                html = html.replace(marcador, bloco + "        " + marcador, 1)
+
         response.set_data(html)
         response.headers["Content-Length"] = str(len(response.get_data()))
     except Exception:
@@ -948,6 +1067,7 @@ def _injetar_menu_manutencao(runtime: Any, response: Any):
 
 
 def instalar_modulo_manutencao(runtime: Any) -> None:
+    _registrar_modulo_sistema(runtime)
     _garantir_tabelas(runtime)
     app = runtime.app
 
