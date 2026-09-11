@@ -1,0 +1,623 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\fiscal.html
+Último recode: 2026-09-11 20:39 (America/Bahia)
+Motivo: Criar o painel inicial do módulo Fiscal no DEV com configuração, rascunhos e acompanhamento de NF-e, NFC-e e NFS-e.
+-->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Fiscal</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .fiscal-page {
+            padding-bottom: 120px;
+        }
+
+        .fiscal-alert {
+            border-radius: 10px;
+            margin: 0 0 16px;
+            padding: 12px 14px;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .fiscal-alert.success {
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            color: #166534;
+        }
+
+        .fiscal-alert.error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+        }
+
+        .fiscal-alert.info {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            color: #1e40af;
+        }
+
+        .fiscal-toolbar,
+        .fiscal-tabs,
+        .fiscal-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .fiscal-toolbar {
+            justify-content: space-between;
+            margin-bottom: 18px;
+        }
+
+        .fiscal-tabs a,
+        .fiscal-button,
+        .fiscal-button-secondary,
+        .fiscal-button-danger {
+            min-height: 38px;
+            border: 0;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 14px;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .fiscal-tabs a,
+        .fiscal-button {
+            background: #0f62fe;
+            color: #ffffff;
+        }
+
+        .fiscal-tabs a.secondary,
+        .fiscal-button-secondary {
+            background: #eef2f7;
+            color: #334155;
+        }
+
+        .fiscal-button-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .fiscal-button[disabled] {
+            background: #e2e8f0;
+            color: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .fiscal-stat-grid {
+            display: grid;
+            gap: 14px;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            margin-bottom: 18px;
+        }
+
+        .fiscal-stat-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 16px;
+        }
+
+        .fiscal-stat-card span {
+            display: block;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .fiscal-stat-card strong {
+            color: #0f172a;
+            font-size: 26px;
+            line-height: 1;
+        }
+
+        .fiscal-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
+            gap: 18px;
+            align-items: start;
+        }
+
+        .fiscal-panel {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 18px;
+            margin-bottom: 18px;
+        }
+
+        .fiscal-panel h3 {
+            margin: 0;
+            color: #0f172a;
+            font-size: 17px;
+        }
+
+        .fiscal-panel p {
+            margin: 7px 0 0;
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .fiscal-panel-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .fiscal-form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .fiscal-field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .fiscal-field.full {
+            grid-column: 1 / -1;
+        }
+
+        .fiscal-field label {
+            color: #475569;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .fiscal-field input,
+        .fiscal-field select {
+            width: 100%;
+            min-height: 40px;
+            border: 1px solid #d8dee9;
+            border-radius: 9px;
+            background: #ffffff;
+            padding: 0 11px;
+            font-family: inherit;
+            font-size: 13px;
+        }
+
+        .fiscal-field small {
+            color: #64748b;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+
+        .fiscal-config-summary {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .fiscal-config-item {
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 11px;
+        }
+
+        .fiscal-config-item span {
+            display: block;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+
+        .fiscal-config-item strong {
+            color: #0f172a;
+            font-size: 13px;
+        }
+
+        .fiscal-table-wrap {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        .fiscal-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 940px;
+        }
+
+        .fiscal-table th,
+        .fiscal-table td {
+            border-bottom: 1px solid #e2e8f0;
+            padding: 12px 10px;
+            text-align: left;
+            vertical-align: middle;
+            font-size: 12px;
+        }
+
+        .fiscal-table th {
+            color: #64748b;
+            font-weight: 900;
+            background: #f8fafc;
+        }
+
+        .fiscal-table td {
+            color: #334155;
+        }
+
+        .fiscal-status {
+            display: inline-flex;
+            align-items: center;
+            min-height: 24px;
+            border-radius: 999px;
+            padding: 0 9px;
+            font-size: 11px;
+            font-weight: 900;
+            background: #e2e8f0;
+            color: #475569;
+        }
+
+        .fiscal-status.autorizada {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .fiscal-status.rejeitada {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .fiscal-status.processando {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .fiscal-status.cancelada {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+
+        .fiscal-empty {
+            padding: 28px 12px;
+            text-align: center;
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        .fiscal-separator {
+            border: 0;
+            border-top: 1px solid #e2e8f0;
+            margin: 18px 0;
+        }
+
+        @media (max-width: 1180px) {
+            .fiscal-stat-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .fiscal-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .fiscal-stat-grid,
+            .fiscal-form-grid,
+            .fiscal-config-summary {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+    <main class="content fiscal-page gf-module-page">
+        {% set page_title = 'Fiscal' %}
+        {% include "partials/topbar.html" %}
+
+        {% if request.args.get('sucesso') %}
+            <div class="fiscal-alert success">{{ request.args.get('sucesso') }}</div>
+        {% endif %}
+        {% if request.args.get('erro') %}
+            <div class="fiscal-alert error">{{ request.args.get('erro') }}</div>
+        {% endif %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Fiscal</span>
+                    <h3 class="page-title">Fiscal</h3>
+                    <p class="page-subtitle">Centralize NF-e, NFC-e e NFS-e e prepare as operações para transmissão fiscal dentro do GestFlow.</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="fiscal-toolbar">
+            <nav class="fiscal-tabs" aria-label="Filtro de documentos fiscais">
+                <a class="{% if tipo_filtro %}secondary{% endif %}" href="/fiscal">Todos</a>
+                <a class="{% if tipo_filtro != 'nfe' %}secondary{% endif %}" href="/fiscal?tipo=nfe">NF-e</a>
+                <a class="{% if tipo_filtro != 'nfce' %}secondary{% endif %}" href="/fiscal?tipo=nfce">NFC-e</a>
+                <a class="{% if tipo_filtro != 'nfse' %}secondary{% endif %}" href="/fiscal?tipo=nfse">NFS-e</a>
+            </nav>
+        </div>
+
+        <section class="fiscal-stat-grid" aria-label="Resumo fiscal">
+            <div class="fiscal-stat-card"><span>Total de documentos</span><strong>{{ painel.total }}</strong></div>
+            <div class="fiscal-stat-card"><span>Rascunhos</span><strong>{{ painel.rascunhos }}</strong></div>
+            <div class="fiscal-stat-card"><span>Processando</span><strong>{{ painel.processando }}</strong></div>
+            <div class="fiscal-stat-card"><span>Autorizadas</span><strong>{{ painel.autorizadas }}</strong></div>
+            <div class="fiscal-stat-card"><span>Rejeitadas</span><strong>{{ painel.rejeitadas }}</strong></div>
+        </section>
+
+        <div class="fiscal-alert info">
+            Esta primeira etapa cria a estrutura fiscal e os rascunhos. A transmissão para SEFAZ ou prefeitura permanece bloqueada até a escolha e integração do provedor fiscal. O arquivo A1 e a senha do certificado ainda não são armazenados pelo GestFlow nesta versão.
+        </div>
+
+        <div class="fiscal-grid">
+            <div>
+                <section class="fiscal-panel">
+                    <div class="fiscal-panel-header">
+                        <div>
+                            <h3>Novo rascunho fiscal</h3>
+                            <p>Crie o documento a partir de uma Venda ou Ordem de Serviço já existente.</p>
+                        </div>
+                    </div>
+
+                    <form action="/fiscal/rascunhos" method="post" id="fiscal-rascunho-form">
+                        <div class="fiscal-form-grid">
+                            <div class="fiscal-field">
+                                <label for="fiscal_tipo_documento">Documento</label>
+                                <select id="fiscal_tipo_documento" name="fiscal_tipo_documento" required>
+                                    <option value="nfe">NF-e</option>
+                                    <option value="nfce">NFC-e</option>
+                                    <option value="nfse">NFS-e</option>
+                                </select>
+                            </div>
+
+                            <div class="fiscal-field">
+                                <label for="fiscal_origem_tipo">Origem</label>
+                                <select id="fiscal_origem_tipo" name="fiscal_origem_tipo" required>
+                                    <option value="venda">Venda</option>
+                                    <option value="ordem_servico">Ordem de Serviço</option>
+                                </select>
+                                <small>NF-e e NFC-e usam Venda nesta etapa. NFS-e pode usar Venda ou Ordem de Serviço.</small>
+                            </div>
+
+                            <div class="fiscal-field full">
+                                <label for="fiscal_origem_id">Venda ou Ordem de Serviço</label>
+                                <select id="fiscal_origem_id" name="fiscal_origem_id" required>
+                                    <option value="">Selecione uma origem</option>
+                                    {% for venda in origens.vendas %}
+                                        <option value="{{ venda.id }}" data-origem="venda">
+                                            Venda {{ venda.numero or venda.id }} - {{ venda.cliente or 'Cliente não informado' }} - R$ {{ venda.valor_total or '0,00' }}
+                                        </option>
+                                    {% endfor %}
+                                    {% for ordem in origens.ordens_servico %}
+                                        <option value="{{ ordem.id }}" data-origem="ordem_servico">
+                                            OS {{ ordem.numero or ordem.id }} - {{ ordem.cliente or 'Cliente não informado' }} - R$ {{ ordem.valor_total or '0,00' }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="fiscal-actions" style="margin-top:16px; justify-content:flex-end;">
+                            <button class="fiscal-button" type="submit">Criar rascunho</button>
+                        </div>
+                    </form>
+                </section>
+
+                <section class="fiscal-panel">
+                    <div class="fiscal-panel-header">
+                        <div>
+                            <h3>Documentos fiscais</h3>
+                            <p>Acompanhe o estado dos documentos preparados pelo GestFlow.</p>
+                        </div>
+                    </div>
+
+                    <div class="fiscal-table-wrap">
+                        <table class="fiscal-table">
+                            <thead>
+                                <tr>
+                                    <th>Tipo</th>
+                                    <th>Origem</th>
+                                    <th>Cliente</th>
+                                    <th>Série</th>
+                                    <th>Número</th>
+                                    <th>Valor</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for documento in documentos %}
+                                    <tr>
+                                        <td><strong>{{ documento.tipo_nome }}</strong></td>
+                                        <td>
+                                            {% if documento.origem_tipo == 'venda' %}
+                                                <a href="/vendas/{{ documento.origem_id }}">Venda {{ documento.origem_numero or documento.origem_id }}</a>
+                                            {% else %}
+                                                <a href="/ordens-servico/{{ documento.origem_id }}">OS {{ documento.origem_numero or documento.origem_id }}</a>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ documento.cliente_nome or '-' }}</td>
+                                        <td>{{ documento.serie or '-' }}</td>
+                                        <td>{{ documento.numero or '-' }}</td>
+                                        <td>R$ {{ documento.valor_total or '0,00' }}</td>
+                                        <td><span class="fiscal-status {{ documento.status }}">{{ documento.status_nome }}</span></td>
+                                        <td>
+                                            <div class="fiscal-actions">
+                                                <button class="fiscal-button-secondary" type="button" disabled title="Disponível após integração fiscal">Transmitir</button>
+                                                {% if documento.status in ['rascunho', 'rejeitada'] %}
+                                                    <form action="/fiscal/documentos/{{ documento.id }}/cancelar" method="post" onsubmit="return confirm('Cancelar este documento fiscal?');">
+                                                        <button class="fiscal-button-danger" type="submit">Cancelar</button>
+                                                    </form>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% if documento.mensagem_status %}
+                                        <tr>
+                                            <td colspan="8" style="padding-top:0;color:#64748b;">{{ documento.mensagem_status }}</td>
+                                        </tr>
+                                    {% endif %}
+                                {% else %}
+                                    <tr><td colspan="8"><div class="fiscal-empty">Nenhum documento fiscal cadastrado neste filtro.</div></td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+            <aside>
+                <section class="fiscal-panel">
+                    <div class="fiscal-panel-header">
+                        <div>
+                            <h3>Configuração fiscal</h3>
+                            <p>Dados usados para preparar a emissão. Confirme essas informações com a contabilidade da empresa.</p>
+                        </div>
+                    </div>
+
+                    <div class="fiscal-config-summary">
+                        <div class="fiscal-config-item"><span>Ambiente</span><strong>{{ 'Produção' if configuracao.ambiente == 'producao' else 'Homologação' }}</strong></div>
+                        <div class="fiscal-config-item"><span>Provedor</span><strong>{{ configuracao.provedor or 'Não configurado' }}</strong></div>
+                        <div class="fiscal-config-item"><span>Certificado</span><strong>{{ configuracao.certificado_status|replace('_', ' ')|title }}</strong></div>
+                        <div class="fiscal-config-item"><span>Tipo</span><strong>{{ configuracao.certificado_tipo or 'A1' }}</strong></div>
+                    </div>
+
+                    {% if usuario_eh_admin_empresa %}
+                        <hr class="fiscal-separator">
+                        <form action="/fiscal/configuracoes" method="post">
+                            <div class="fiscal-form-grid">
+                                <div class="fiscal-field full">
+                                    <label for="fiscal_razao_social">Razão social</label>
+                                    <input id="fiscal_razao_social" name="fiscal_razao_social" type="text" value="{{ configuracao.razao_social or '' }}">
+                                </div>
+                                <div class="fiscal-field">
+                                    <label for="fiscal_cnpj">CNPJ</label>
+                                    <input id="fiscal_cnpj" name="fiscal_cnpj" type="text" value="{{ configuracao.cnpj or '' }}">
+                                </div>
+                                <div class="fiscal-field">
+                                    <label for="fiscal_cnae">CNAE</label>
+                                    <input id="fiscal_cnae" name="fiscal_cnae" type="text" value="{{ configuracao.cnae or '' }}">
+                                </div>
+                                <div class="fiscal-field">
+                                    <label for="fiscal_inscricao_estadual">Inscrição estadual</label>
+                                    <input id="fiscal_inscricao_estadual" name="fiscal_inscricao_estadual" type="text" value="{{ configuracao.inscricao_estadual or '' }}">
+                                </div>
+                                <div class="fiscal-field">
+                                    <label for="fiscal_inscricao_municipal">Inscrição municipal</label>
+                                    <input id="fiscal_inscricao_municipal" name="fiscal_inscricao_municipal" type="text" value="{{ configuracao.inscricao_municipal or '' }}">
+                                </div>
+                                <div class="fiscal-field">
+                                    <label for="fiscal_crt">CRT</label>
+                                    <input id="fiscal_crt" name="fiscal_crt" type="text" value="{{ configuracao.crt or '' }}" placeholder="Conforme orientação contábil">
+                                </div>
+                                <div class="fiscal-field">
+                                    <label for="fiscal_ambiente">Ambiente</label>
+                                    <select id="fiscal_ambiente" name="fiscal_ambiente">
+                                        <option value="homologacao" {% if configuracao.ambiente != 'producao' %}selected{% endif %}>Homologação</option>
+                                        <option value="producao" {% if configuracao.ambiente == 'producao' %}selected{% endif %}>Produção</option>
+                                    </select>
+                                </div>
+                                <div class="fiscal-field full">
+                                    <label for="fiscal_provedor">Provedor fiscal</label>
+                                    <input id="fiscal_provedor" name="fiscal_provedor" type="text" value="{{ configuracao.provedor or 'nao_configurado' }}" placeholder="Será definido na etapa de integração">
+                                </div>
+                                <div class="fiscal-field">
+                                    <label for="fiscal_serie_nfe">Série NF-e</label>
+                                    <input id="fiscal_serie_nfe" name="fiscal_serie_nfe" type="text" value="{{ configuracao.serie_nfe or '1' }}">
+                                </div>
+                                <div class="fiscal-field">
+                                    <label for="fiscal_serie_nfce">Série NFC-e</label>
+                                    <input id="fiscal_serie_nfce" name="fiscal_serie_nfce" type="text" value="{{ configuracao.serie_nfce or '1' }}">
+                                </div>
+                                <div class="fiscal-field">
+                                    <label for="fiscal_serie_nfse">Série NFS-e</label>
+                                    <input id="fiscal_serie_nfse" name="fiscal_serie_nfse" type="text" value="{{ configuracao.serie_nfse or '1' }}">
+                                </div>
+                                <div class="fiscal-field">
+                                    <label>Status do certificado</label>
+                                    <input type="text" value="{{ configuracao.certificado_status|replace('_', ' ')|title }}" readonly>
+                                    <small>O status válido será confirmado automaticamente quando o provedor fiscal e o A1 forem integrados.</small>
+                                </div>
+                                <div class="fiscal-field full">
+                                    <label for="fiscal_certificado_titular">Titular do certificado A1</label>
+                                    <input id="fiscal_certificado_titular" name="fiscal_certificado_titular" type="text" value="{{ configuracao.certificado_titular or '' }}">
+                                </div>
+                                <div class="fiscal-field">
+                                    <label for="fiscal_certificado_cnpj">CNPJ do certificado</label>
+                                    <input id="fiscal_certificado_cnpj" name="fiscal_certificado_cnpj" type="text" value="{{ configuracao.certificado_cnpj or '' }}">
+                                </div>
+                                <div class="fiscal-field">
+                                    <label for="fiscal_certificado_validade">Validade</label>
+                                    <input id="fiscal_certificado_validade" name="fiscal_certificado_validade" type="date" value="{{ configuracao.certificado_validade or '' }}">
+                                </div>
+                            </div>
+                            <div class="fiscal-actions" style="margin-top:16px; justify-content:flex-end;">
+                                <button class="fiscal-button" type="submit">Salvar configuração</button>
+                            </div>
+                        </form>
+                    {% else %}
+                        <div class="fiscal-alert info" style="margin-top:16px;margin-bottom:0;">Somente administradores podem alterar a configuração fiscal.</div>
+                    {% endif %}
+                </section>
+            </aside>
+        </div>
+    </main>
+
+    <script>
+        (function () {
+            const tipoDocumento = document.getElementById('fiscal_tipo_documento');
+            const origemTipo = document.getElementById('fiscal_origem_tipo');
+            const origemId = document.getElementById('fiscal_origem_id');
+
+            if (!tipoDocumento || !origemTipo || !origemId) {
+                return;
+            }
+
+            function atualizarOrigens() {
+                if (tipoDocumento.value === 'nfe' || tipoDocumento.value === 'nfce') {
+                    origemTipo.value = 'venda';
+                }
+
+                const origemAtual = origemTipo.value;
+                let primeiroDisponivel = '';
+                Array.from(origemId.options).forEach(function (option) {
+                    if (!option.value) {
+                        option.hidden = false;
+                        return;
+                    }
+                    const exibir = option.dataset.origem === origemAtual;
+                    option.hidden = !exibir;
+                    option.disabled = !exibir;
+                    if (exibir && !primeiroDisponivel) {
+                        primeiroDisponivel = option.value;
+                    }
+                });
+
+                const selecionada = origemId.options[origemId.selectedIndex];
+                if (!selecionada || selecionada.disabled || selecionada.hidden) {
+                    origemId.value = primeiroDisponivel;
+                }
+            }
+
+            tipoDocumento.addEventListener('change', atualizarOrigens);
+            origemTipo.addEventListener('change', atualizarOrigens);
+            atualizarOrigens();
+        })();
+    </script>
+</body>
+</html>

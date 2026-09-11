@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-09-05 21:23 (America/Bahia)
-# Motivo: Corrigir a proteção do login contra força bruta com contadores independentes por conta, IP e conta+IP, preservando bloqueio progressivo no DEV.
+# Último recode: 2026-09-11 20:39 (America/Bahia)
+# Motivo: Criar a base do módulo Fiscal no DEV com configuração da empresa, rascunhos e estrutura para NF-e, NFC-e e NFS-e.
 
 from __future__ import annotations
 
@@ -110,6 +110,7 @@ GESTFLOW_MODULOS = [
     {"codigo": "painel_os", "nome": "Painel de OS", "grupo": "Serviços", "descricao": "Painel operacional das ordens de serviço."},
     {"codigo": "estoque", "nome": "Estoque", "grupo": "Gestão", "descricao": "Movimentações, ajustes, compras e saldos de produtos."},
     {"codigo": "financeiro", "nome": "Financeiro", "grupo": "Gestão", "descricao": "Contas a pagar, contas a receber e fluxo de caixa."},
+    {"codigo": "fiscal", "nome": "Fiscal", "grupo": "Gestão", "descricao": "NF-e, NFC-e e NFS-e vinculadas a vendas e ordens de serviço."},
     {"codigo": "emprestimos", "nome": "Empréstimos", "grupo": "Gestão", "descricao": "Contratos de empréstimos recebidos e concedidos, parcelas, saldos e renegociações."},
     {"codigo": "agendamentos", "nome": "Agendamentos", "grupo": "Serviços", "descricao": "Agenda de atendimentos por cliente, profissional, data e horário."},
     {"codigo": "registro_ponto", "nome": "Registro de Ponto", "grupo": "Equipe", "descricao": "Entrada, intervalo, retorno, saída e espelho de ponto dos funcionários."},
@@ -200,6 +201,7 @@ GESTFLOW_PERMISSOES_PADRAO_PERFIL: dict[str, dict[str, set[str]]] = {
         "gerador_orcamentos": set(_ACOES_OPERACAO),
         "contratos": set(_ACOES_OPERACAO),
         "vendas": set(_ACOES_OPERACAO),
+        "fiscal": set(_ACOES_OPERACAO),
         "pdv": set(_ACOES_OPERACAO),
         "agendamentos": set(_ACOES_OPERACAO),
         "produtos": set(_ACOES_LEITURA),
@@ -212,6 +214,7 @@ GESTFLOW_PERMISSOES_PADRAO_PERFIL: dict[str, dict[str, set[str]]] = {
     "financeiro": {
         "dashboard": {"visualizar"},
         "financeiro": set(_ACOES_TOTAIS),
+        "fiscal": set(_ACOES_TOTAIS),
         "emprestimos": set(_ACOES_TOTAIS),
         "clientes": set(_ACOES_LEITURA),
         "fornecedores": set(_ACOES_LEITURA),
@@ -232,6 +235,7 @@ GESTFLOW_PERMISSOES_PADRAO_PERFIL: dict[str, dict[str, set[str]]] = {
         "vendas": set(_ACOES_LEITURA),
         "ordens_servico": set(_ACOES_LEITURA),
         "financeiro": set(_ACOES_LEITURA),
+        "fiscal": set(_ACOES_LEITURA),
     },
     "tecnico": {
         "dashboard": {"visualizar"},
@@ -248,6 +252,7 @@ GESTFLOW_PERMISSOES_PADRAO_PERFIL: dict[str, dict[str, set[str]]] = {
         "agendamentos": set(_ACOES_LEITURA),
         "gestao_atividades": set(_ACOES_OPERACAO),
         "indflow": set(_ACOES_LEITURA),
+        "fiscal": set(_ACOES_LEITURA),
     },
     "consulta": {
         modulo["codigo"]: set(_ACOES_LEITURA)
@@ -1625,12 +1630,12 @@ GESTFLOW_SEGMENTOS = [
 GESTFLOW_SEGMENTOS_POR_CODIGO = {segmento["codigo"]: segmento for segmento in GESTFLOW_SEGMENTOS}
 
 GESTFLOW_PERFIS_MODULOS = {
-    "comercio": {"clientes", "fornecedores", "produtos", "vendas", "vitrine", "pdv", "devolucoes", "estoque", "financeiro"},
-    "servicos": {"clientes", "servicos", "orcamentos", "contratos", "vendas", "vitrine", "financeiro", "agendamentos"},
-    "assistencia": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "contratos", "vendas", "vitrine", "ordens_servico", "estoque", "financeiro", "agendamentos", "registro_ponto", "gestao_atividades"},
-    "industrial": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "contratos", "vendas", "ordens_servico", "painel_os", "estoque", "financeiro", "registro_ponto", "gestao_atividades", "indflow"},
-    "distribuicao": {"clientes", "fornecedores", "produtos", "vendas", "vitrine", "devolucoes", "estoque", "financeiro"},
-    "locacao": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "contratos", "vendas", "ordens_servico", "estoque", "financeiro"},
+    "comercio": {"clientes", "fornecedores", "produtos", "vendas", "vitrine", "pdv", "devolucoes", "estoque", "financeiro", "fiscal"},
+    "servicos": {"clientes", "servicos", "orcamentos", "contratos", "vendas", "vitrine", "financeiro", "fiscal", "agendamentos"},
+    "assistencia": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "contratos", "vendas", "vitrine", "ordens_servico", "estoque", "financeiro", "fiscal", "agendamentos", "registro_ponto", "gestao_atividades"},
+    "industrial": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "contratos", "vendas", "ordens_servico", "painel_os", "estoque", "financeiro", "fiscal", "registro_ponto", "gestao_atividades", "indflow"},
+    "distribuicao": {"clientes", "fornecedores", "produtos", "vendas", "vitrine", "devolucoes", "estoque", "financeiro", "fiscal"},
+    "locacao": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "contratos", "vendas", "ordens_servico", "estoque", "financeiro", "fiscal"},
     "completo": set(GESTFLOW_MODULOS_CODIGOS),
 }
 
@@ -1781,6 +1786,7 @@ def sugerir_modulos_por_anamnese(dados: dict[str, Any]) -> dict[str, bool]:
     if "indflow" in ativos:
         ativos.add("produtos")
 
+    ativos.add("fiscal")
     ativos.update(GESTFLOW_MODULOS_NUCLEO)
     return {codigo: codigo in ativos for codigo in GESTFLOW_MODULOS_CODIGOS}
 
@@ -1878,6 +1884,7 @@ def modulo_por_rota(path: str) -> str:
         ("/servicos", "servicos"),
         ("/estoque", "estoque"),
         ("/financeiro", "financeiro"),
+        ("/fiscal", "fiscal"),
         ("/emprestimos", "emprestimos"),
         ("/agendamentos", "agendamentos"),
         ("/registro-ponto", "registro_ponto"),
@@ -5151,6 +5158,93 @@ def iniciar_banco() -> None:
 
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS fiscal_configuracoes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL UNIQUE,
+                ambiente TEXT NOT NULL DEFAULT 'homologacao',
+                provedor TEXT NOT NULL DEFAULT 'nao_configurado',
+                razao_social TEXT,
+                cnpj TEXT,
+                inscricao_estadual TEXT,
+                inscricao_municipal TEXT,
+                crt TEXT,
+                cnae TEXT,
+                serie_nfe TEXT NOT NULL DEFAULT '1',
+                serie_nfce TEXT NOT NULL DEFAULT '1',
+                serie_nfse TEXT NOT NULL DEFAULT '1',
+                proximo_numero_nfe INTEGER NOT NULL DEFAULT 1,
+                proximo_numero_nfce INTEGER NOT NULL DEFAULT 1,
+                proximo_numero_nfse INTEGER NOT NULL DEFAULT 1,
+                certificado_tipo TEXT NOT NULL DEFAULT 'A1',
+                certificado_status TEXT NOT NULL DEFAULT 'nao_configurado',
+                certificado_titular TEXT,
+                certificado_cnpj TEXT,
+                certificado_validade TEXT,
+                atualizado_em TEXT,
+                criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (empresa_id) REFERENCES empresas (id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS fiscal_documentos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                tipo_documento TEXT NOT NULL,
+                origem_tipo TEXT NOT NULL,
+                origem_id INTEGER NOT NULL,
+                origem_numero TEXT,
+                cliente_nome TEXT,
+                numero INTEGER,
+                serie TEXT,
+                status TEXT NOT NULL DEFAULT 'rascunho',
+                valor_total TEXT,
+                chave_acesso TEXT,
+                protocolo TEXT,
+                mensagem_status TEXT,
+                xml_path TEXT,
+                pdf_path TEXT,
+                autorizado_em TEXT,
+                cancelado_em TEXT,
+                atualizado_em TEXT,
+                criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (empresa_id) REFERENCES empresas (id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_fiscal_documentos_empresa_status
+            ON fiscal_documentos (empresa_id, status, criado_em)
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_fiscal_documentos_origem
+            ON fiscal_documentos (empresa_id, origem_tipo, origem_id)
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS fiscal_eventos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                documento_id INTEGER NOT NULL,
+                tipo TEXT NOT NULL,
+                status_anterior TEXT,
+                status_novo TEXT,
+                mensagem TEXT,
+                responsavel TEXT,
+                criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (empresa_id) REFERENCES empresas (id),
+                FOREIGN KEY (documento_id) REFERENCES fiscal_documentos (id)
+            )
+            """
+        )
+
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS caixa_aberturas (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 empresa_id INTEGER,
@@ -6733,6 +6827,9 @@ def iniciar_banco() -> None:
             "estoque_movimentacoes",
             "financeiro_titulos",
             "financeiro_titulo_historico",
+            "fiscal_configuracoes",
+            "fiscal_documentos",
+            "fiscal_eventos",
             "centros_custo",
             "atividades_financeiras",
             "caixa_aberturas",
@@ -20758,6 +20855,334 @@ def montar_dashboard() -> dict[str, Any]:
 
 
 
+FISCAL_TIPOS_DOCUMENTO = {"nfe": "NF-e", "nfce": "NFC-e", "nfse": "NFS-e"}
+FISCAL_STATUS = {
+    "rascunho": "Rascunho",
+    "processando": "Processando",
+    "autorizada": "Autorizada",
+    "rejeitada": "Rejeitada",
+    "cancelada": "Cancelada",
+}
+
+
+def buscar_configuracao_fiscal() -> dict[str, Any]:
+    empresa = buscar_empresa_configuracoes() if "buscar_empresa_configuracoes" in globals() else {}
+    empresa_id = empresa_logada_id()
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM fiscal_configuracoes
+            WHERE empresa_id = ?
+            LIMIT 1
+            """,
+            (empresa_id,),
+        ).fetchone()
+
+    if row is not None:
+        return dict(row)
+
+    return {
+        "empresa_id": empresa_id,
+        "ambiente": "homologacao",
+        "provedor": "nao_configurado",
+        "razao_social": str(empresa.get("razao_social") or empresa.get("nome_fantasia") or ""),
+        "cnpj": str(empresa.get("documento") or ""),
+        "inscricao_estadual": "",
+        "inscricao_municipal": "",
+        "crt": "",
+        "cnae": "",
+        "serie_nfe": "1",
+        "serie_nfce": "1",
+        "serie_nfse": "1",
+        "proximo_numero_nfe": 1,
+        "proximo_numero_nfce": 1,
+        "proximo_numero_nfse": 1,
+        "certificado_tipo": "A1",
+        "certificado_status": "nao_configurado",
+        "certificado_titular": "",
+        "certificado_cnpj": "",
+        "certificado_validade": "",
+    }
+
+
+def salvar_configuracao_fiscal(dados: dict[str, Any]) -> None:
+    empresa_id = empresa_logada_id()
+    agora = agora_empresa().isoformat(timespec="seconds")
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO fiscal_configuracoes (
+                empresa_id, ambiente, provedor, razao_social, cnpj,
+                inscricao_estadual, inscricao_municipal, crt, cnae,
+                serie_nfe, serie_nfce, serie_nfse,
+                certificado_tipo, certificado_status, certificado_titular,
+                certificado_cnpj, certificado_validade, atualizado_em, criado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(empresa_id) DO UPDATE SET
+                ambiente = excluded.ambiente,
+                provedor = excluded.provedor,
+                razao_social = excluded.razao_social,
+                cnpj = excluded.cnpj,
+                inscricao_estadual = excluded.inscricao_estadual,
+                inscricao_municipal = excluded.inscricao_municipal,
+                crt = excluded.crt,
+                cnae = excluded.cnae,
+                serie_nfe = excluded.serie_nfe,
+                serie_nfce = excluded.serie_nfce,
+                serie_nfse = excluded.serie_nfse,
+                certificado_tipo = excluded.certificado_tipo,
+                certificado_status = excluded.certificado_status,
+                certificado_titular = excluded.certificado_titular,
+                certificado_cnpj = excluded.certificado_cnpj,
+                certificado_validade = excluded.certificado_validade,
+                atualizado_em = excluded.atualizado_em
+            """,
+            (
+                empresa_id,
+                str(dados.get("ambiente") or "homologacao"),
+                str(dados.get("provedor") or "nao_configurado"),
+                str(dados.get("razao_social") or "").strip(),
+                str(dados.get("cnpj") or "").strip(),
+                str(dados.get("inscricao_estadual") or "").strip(),
+                str(dados.get("inscricao_municipal") or "").strip(),
+                str(dados.get("crt") or "").strip(),
+                str(dados.get("cnae") or "").strip(),
+                str(dados.get("serie_nfe") or "1").strip() or "1",
+                str(dados.get("serie_nfce") or "1").strip() or "1",
+                str(dados.get("serie_nfse") or "1").strip() or "1",
+                "A1",
+                str(dados.get("certificado_status") or "nao_configurado"),
+                str(dados.get("certificado_titular") or "").strip(),
+                str(dados.get("certificado_cnpj") or "").strip(),
+                str(dados.get("certificado_validade") or "").strip(),
+                agora,
+                agora,
+            ),
+        )
+        conn.commit()
+
+
+def listar_origens_fiscais(limite: int = 60) -> dict[str, list[dict[str, Any]]]:
+    empresa_id = empresa_logada_id()
+    limite = max(10, min(int(limite or 60), 200))
+    with conectar_db() as conn:
+        vendas_rows = conn.execute(
+            """
+            SELECT id, numero, cliente, valor_total, status, data
+            FROM vendas
+            WHERE empresa_id = ?
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (empresa_id, limite),
+        ).fetchall()
+        os_rows = conn.execute(
+            """
+            SELECT id, numero, cliente, valor_total, status, data_abertura
+            FROM ordens_servico
+            WHERE empresa_id = ?
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (empresa_id, limite),
+        ).fetchall()
+    return {
+        "vendas": [dict(row) for row in vendas_rows],
+        "ordens_servico": [dict(row) for row in os_rows],
+    }
+
+
+def _buscar_origem_fiscal(origem_tipo: str, origem_id: int) -> dict[str, Any] | None:
+    empresa_id = empresa_logada_id()
+    origem_tipo = str(origem_tipo or "").strip().lower()
+    tabela = "vendas" if origem_tipo == "venda" else "ordens_servico" if origem_tipo == "ordem_servico" else ""
+    if not tabela or int(origem_id or 0) <= 0:
+        return None
+    data_coluna = "data" if tabela == "vendas" else "data_abertura"
+    with conectar_db() as conn:
+        row = conn.execute(
+            f"""
+            SELECT id, numero, cliente, valor_total, status, {data_coluna} AS data_documento
+            FROM {tabela}
+            WHERE empresa_id = ? AND id = ?
+            LIMIT 1
+            """,
+            (empresa_id, int(origem_id)),
+        ).fetchone()
+    return dict(row) if row is not None else None
+
+
+def criar_rascunho_fiscal(tipo_documento: str, origem_tipo: str, origem_id: int) -> tuple[int | None, str]:
+    tipo_documento = str(tipo_documento or "").strip().lower()
+    origem_tipo = str(origem_tipo or "").strip().lower()
+    if tipo_documento not in FISCAL_TIPOS_DOCUMENTO:
+        return None, "Tipo de documento fiscal inválido."
+    if origem_tipo not in {"venda", "ordem_servico"}:
+        return None, "Origem fiscal inválida."
+    if tipo_documento in {"nfe", "nfce"} and origem_tipo != "venda":
+        return None, "NF-e e NFC-e devem partir de uma Venda nesta etapa."
+
+    origem = _buscar_origem_fiscal(origem_tipo, int(origem_id or 0))
+    if origem is None:
+        return None, "Venda ou Ordem de Serviço não encontrada."
+
+    modulo_origem = "vendas" if origem_tipo == "venda" else "ordens_servico"
+    if not status_final_operacional(modulo_origem, origem.get("status")):
+        return None, "A operação de origem precisa estar finalizada antes de gerar o documento fiscal."
+
+    empresa_id = empresa_logada_id()
+    config_fiscal = buscar_configuracao_fiscal()
+    serie = str(config_fiscal.get(f"serie_{tipo_documento}") or "1")
+    agora = agora_empresa().isoformat(timespec="seconds")
+    with conectar_db() as conn:
+        existente = conn.execute(
+            """
+            SELECT id
+            FROM fiscal_documentos
+            WHERE empresa_id = ?
+              AND tipo_documento = ?
+              AND origem_tipo = ?
+              AND origem_id = ?
+              AND status <> 'cancelada'
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (empresa_id, tipo_documento, origem_tipo, int(origem_id)),
+        ).fetchone()
+        if existente is not None:
+            return None, "Já existe um documento fiscal ativo para esta origem."
+
+        cursor = conn.execute(
+            """
+            INSERT INTO fiscal_documentos (
+                empresa_id, tipo_documento, origem_tipo, origem_id, origem_numero,
+                cliente_nome, serie, status, valor_total, mensagem_status,
+                atualizado_em, criado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'rascunho', ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                tipo_documento,
+                origem_tipo,
+                int(origem_id),
+                str(origem.get("numero") or origem.get("id") or ""),
+                str(origem.get("cliente") or "").strip(),
+                serie,
+                str(origem.get("valor_total") or "0,00"),
+                "Rascunho criado. A transmissão será liberada após a integração com o provedor fiscal.",
+                agora,
+                agora,
+            ),
+        )
+        documento_id = int(cursor.lastrowid)
+        conn.execute(
+            """
+            INSERT INTO fiscal_eventos (
+                empresa_id, documento_id, tipo, status_anterior, status_novo,
+                mensagem, responsavel, criado_em
+            ) VALUES (?, ?, 'criacao', '', 'rascunho', ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                documento_id,
+                "Rascunho fiscal criado a partir da operação de origem.",
+                str((usuario_logado() or {}).get("nome") or "Usuário"),
+                agora,
+            ),
+        )
+        conn.commit()
+    return documento_id, "Rascunho fiscal criado."
+
+
+def listar_documentos_fiscais(tipo: str = "", limite: int = 100) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+    tipo = str(tipo or "").strip().lower()
+    limite = max(10, min(int(limite or 100), 300))
+    parametros: list[Any] = [empresa_id]
+    filtro = ""
+    if tipo in FISCAL_TIPOS_DOCUMENTO:
+        filtro = " AND tipo_documento = ?"
+        parametros.append(tipo)
+    parametros.append(limite)
+    with conectar_db() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT *
+            FROM fiscal_documentos
+            WHERE empresa_id = ?{filtro}
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            tuple(parametros),
+        ).fetchall()
+    documentos = [dict(row) for row in rows]
+    for documento in documentos:
+        documento["tipo_nome"] = FISCAL_TIPOS_DOCUMENTO.get(str(documento.get("tipo_documento") or ""), "Documento")
+        documento["status_nome"] = FISCAL_STATUS.get(str(documento.get("status") or ""), str(documento.get("status") or "").title())
+        documento["origem_nome"] = "Venda" if documento.get("origem_tipo") == "venda" else "Ordem de Serviço"
+    return documentos
+
+
+def montar_painel_fiscal() -> dict[str, Any]:
+    empresa_id = empresa_logada_id()
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN status = 'rascunho' THEN 1 ELSE 0 END) AS rascunhos,
+                SUM(CASE WHEN status = 'processando' THEN 1 ELSE 0 END) AS processando,
+                SUM(CASE WHEN status = 'autorizada' THEN 1 ELSE 0 END) AS autorizadas,
+                SUM(CASE WHEN status = 'rejeitada' THEN 1 ELSE 0 END) AS rejeitadas,
+                SUM(CASE WHEN status = 'cancelada' THEN 1 ELSE 0 END) AS canceladas
+            FROM fiscal_documentos
+            WHERE empresa_id = ?
+            """,
+            (empresa_id,),
+        ).fetchone()
+    dados = dict(row) if row is not None else {}
+    return {chave: int(dados.get(chave) or 0) for chave in ("total", "rascunhos", "processando", "autorizadas", "rejeitadas", "canceladas")}
+
+
+def cancelar_rascunho_fiscal(documento_id: int) -> bool:
+    empresa_id = empresa_logada_id()
+    agora = agora_empresa().isoformat(timespec="seconds")
+    with conectar_db() as conn:
+        atual = conn.execute(
+            "SELECT id, status FROM fiscal_documentos WHERE empresa_id = ? AND id = ? LIMIT 1",
+            (empresa_id, int(documento_id)),
+        ).fetchone()
+        if atual is None or str(atual["status"] or "") not in {"rascunho", "rejeitada"}:
+            return False
+        conn.execute(
+            """
+            UPDATE fiscal_documentos
+            SET status = 'cancelada', cancelado_em = ?, atualizado_em = ?, mensagem_status = ?
+            WHERE empresa_id = ? AND id = ?
+            """,
+            (agora, agora, "Documento cancelado antes da transmissão fiscal.", empresa_id, int(documento_id)),
+        )
+        conn.execute(
+            """
+            INSERT INTO fiscal_eventos (
+                empresa_id, documento_id, tipo, status_anterior, status_novo,
+                mensagem, responsavel, criado_em
+            ) VALUES (?, ?, 'cancelamento', ?, 'cancelada', ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                int(documento_id),
+                str(atual["status"] or ""),
+                "Documento fiscal cancelado antes da transmissão.",
+                str((usuario_logado() or {}).get("nome") or "Usuário"),
+                agora,
+            ),
+        )
+        conn.commit()
+    return True
+
+
 def buscar_empresa_configuracoes() -> dict[str, Any]:
     with conectar_db() as conn:
         row = conn.execute(
@@ -24414,6 +24839,7 @@ def modulo_por_rota_admin(rota: str) -> str | None:
         "/ordens-servico": "ordens_servico",
         "/estoque": "estoque",
         "/financeiro": "financeiro",
+        "/fiscal": "fiscal",
         "/configuracoes": "configuracoes",
         "/admin": "admin",
     }
@@ -36806,6 +37232,99 @@ def excluir_servico(servico_id: int) -> Response:
         )
         return redirect(url_for("servicos", sucesso=mensagem))
     return redirect(url_for("servicos", erro=mensagem))
+
+
+@app.get("/fiscal")
+def fiscal() -> str:
+    tipo = str(request.args.get("tipo") or "").strip().lower()
+    if tipo not in FISCAL_TIPOS_DOCUMENTO:
+        tipo = ""
+    return render_template(
+        "fiscal.html",
+        painel=montar_painel_fiscal(),
+        documentos=listar_documentos_fiscais(tipo=tipo),
+        configuracao=buscar_configuracao_fiscal(),
+        origens=listar_origens_fiscais(),
+        tipo_filtro=tipo,
+        tipos_documento=FISCAL_TIPOS_DOCUMENTO,
+        status_documento=FISCAL_STATUS,
+    )
+
+
+@app.post("/fiscal/configuracoes")
+def salvar_fiscal_configuracoes() -> Response:
+    if not usuario_logado_eh_administrador_empresa():
+        return Response("Acesso negado às configurações fiscais da empresa.", status=403)
+
+    ambiente = str(request.form.get("fiscal_ambiente") or "homologacao").strip().lower()
+    if ambiente not in {"homologacao", "producao"}:
+        ambiente = "homologacao"
+
+    certificado_titular = str(request.form.get("fiscal_certificado_titular") or "").strip()
+    certificado_cnpj = str(request.form.get("fiscal_certificado_cnpj") or "").strip()
+    certificado_validade = str(request.form.get("fiscal_certificado_validade") or "").strip()
+    certificado_status = "aguardando_integracao" if any((certificado_titular, certificado_cnpj, certificado_validade)) else "nao_configurado"
+
+    dados = {
+        "ambiente": ambiente,
+        "provedor": str(request.form.get("fiscal_provedor") or "nao_configurado").strip() or "nao_configurado",
+        "razao_social": request.form.get("fiscal_razao_social"),
+        "cnpj": request.form.get("fiscal_cnpj"),
+        "inscricao_estadual": request.form.get("fiscal_inscricao_estadual"),
+        "inscricao_municipal": request.form.get("fiscal_inscricao_municipal"),
+        "crt": request.form.get("fiscal_crt"),
+        "cnae": request.form.get("fiscal_cnae"),
+        "serie_nfe": request.form.get("fiscal_serie_nfe"),
+        "serie_nfce": request.form.get("fiscal_serie_nfce"),
+        "serie_nfse": request.form.get("fiscal_serie_nfse"),
+        "certificado_status": certificado_status,
+        "certificado_titular": certificado_titular,
+        "certificado_cnpj": certificado_cnpj,
+        "certificado_validade": certificado_validade,
+    }
+    salvar_configuracao_fiscal(dados)
+    registrar_atividade_usuario(
+        "edicao",
+        "fiscal",
+        "Atualizou a configuração fiscal da empresa",
+        request.path,
+    )
+    return redirect(url_for("fiscal", sucesso="Configuração fiscal salva."))
+
+
+@app.post("/fiscal/rascunhos")
+def criar_fiscal_rascunho() -> Response:
+    tipo_documento = str(request.form.get("fiscal_tipo_documento") or "").strip().lower()
+    origem_tipo = str(request.form.get("fiscal_origem_tipo") or "").strip().lower()
+    try:
+        origem_id = int(request.form.get("fiscal_origem_id") or 0)
+    except (TypeError, ValueError):
+        origem_id = 0
+
+    documento_id, mensagem = criar_rascunho_fiscal(tipo_documento, origem_tipo, origem_id)
+    if documento_id is None:
+        return redirect(url_for("fiscal", erro=mensagem))
+
+    registrar_atividade_usuario(
+        "criacao",
+        "fiscal",
+        f"Criou rascunho fiscal {documento_id}",
+        request.path,
+    )
+    return redirect(url_for("fiscal", sucesso=mensagem))
+
+
+@app.post("/fiscal/documentos/<int:documento_id>/cancelar")
+def cancelar_fiscal_documento(documento_id: int) -> Response:
+    if not cancelar_rascunho_fiscal(documento_id):
+        return redirect(url_for("fiscal", erro="Somente rascunhos ou documentos rejeitados podem ser cancelados nesta etapa."))
+    registrar_atividade_usuario(
+        "cancelamento",
+        "fiscal",
+        f"Cancelou documento fiscal {documento_id}",
+        request.path,
+    )
+    return redirect(url_for("fiscal", sucesso="Documento fiscal cancelado."))
 
 
 @app.get("/financeiro")

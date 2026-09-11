@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\partials\sidebar.html
-Último recode: 2026-08-22 11:56 (America/Bahia)
-Motivo: Integrar o IndFlow ao controle de módulos especializados definido pela nova anamnese.
+Último recode: 2026-09-11 20:39 (America/Bahia)
+Motivo: Adicionar o módulo Fiscal na navegação do GestFlow DEV.
 #}
 
 {% set _path = request.path if request is defined else '' %}
@@ -231,6 +231,21 @@ Motivo: Integrar o IndFlow ao controle de módulos especializados definido pela 
             </li>
             {% endif %}
 
+
+            {% if _modulos.get('fiscal', true) and modulo_usuario_visivel('fiscal') %}
+            <li class="menu-group {% if _path.startswith('/fiscal') or _config_grupo == 'fiscal' %}active{% endif %}">
+                <details {% if _path.startswith('/fiscal') or _config_grupo == 'fiscal' %}open{% endif %}>
+                    <summary>
+                        <span class="menu-label"><span class="menu-icon">NF</span><span>Fiscal</span></span>
+                        <span class="arrow">⌄</span>
+                    </summary>
+                    <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Fiscal</strong></li>
+                        <li class="{% if _path == '/fiscal' %}submenu-active{% endif %}"><a href="/fiscal">Painel Fiscal</a></li>
+                    </ul>
+                </details>
+            </li>
+            {% endif %}
 
             {% if _modulos.get('emprestimos', true) and modulo_usuario_visivel('emprestimos') %}
             <li class="menu-group {% if _path.startswith('/emprestimos') or _config_grupo == 'emprestimos' %}active{% endif %}">
