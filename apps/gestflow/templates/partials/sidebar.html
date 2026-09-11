@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\partials\sidebar.html
-Último recode: 2026-09-11 20:39 (America/Bahia)
-Motivo: Adicionar o módulo Fiscal na navegação do GestFlow DEV.
+Último recode: 2026-09-11 20:48 (America/Bahia)
+Motivo: Reorganizar o menu Fiscal no DEV com páginas de notas e opções auxiliares.
 #}
 
 {% set _path = request.path if request is defined else '' %}
@@ -241,7 +241,20 @@ Motivo: Adicionar o módulo Fiscal na navegação do GestFlow DEV.
                     </summary>
                     <ul class="submenu">
                         <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Fiscal</strong></li>
-                        <li class="{% if _path == '/fiscal' %}submenu-active{% endif %}"><a href="/fiscal">Painel Fiscal</a></li>
+                        <li class="{% if _path == '/fiscal' %}submenu-active{% endif %}"><a href="/fiscal">Painel fiscal</a></li>
+                        <li class="{% if _path == '/fiscal/produtos' %}submenu-active{% endif %}"><a href="/fiscal/produtos">Notas de produtos</a></li>
+                        <li class="{% if _path == '/fiscal/servicos' %}submenu-active{% endif %}"><a href="/fiscal/servicos">Notas de serviços</a></li>
+                        <li class="{% if _path == '/fiscal/consumidor' %}submenu-active{% endif %}"><a href="/fiscal/consumidor">Notas do consumidor</a></li>
+                        <li class="{% if _path == '/fiscal/compras' %}submenu-active{% endif %}"><a href="/fiscal/compras">Notas de compras</a></li>
+                        <li style="margin-top:6px; padding:7px 14px 5px; color:#64748b; font-size:11px; font-weight:900; text-transform:uppercase; letter-spacing:.04em;">Opções auxiliares</li>
+                        <li class="{% if _path == '/fiscal/importar-xml' %}submenu-active{% endif %}"><a href="/fiscal/importar-xml">Importar XML</a></li>
+                        <li class="{% if _path == '/fiscal/certificado-digital' %}submenu-active{% endif %}"><a href="/fiscal/certificado-digital">Certificado digital</a></li>
+                        <li class="{% if _path == '/fiscal/naturezas-operacao' %}submenu-active{% endif %}"><a href="/fiscal/naturezas-operacao">Naturezas de operação</a></li>
+                        <li class="{% if _path == '/fiscal/tributacoes' %}submenu-active{% endif %}"><a href="/fiscal/tributacoes">Tributações</a></li>
+                        <li class="{% if _path == '/fiscal/atividades-servicos' %}submenu-active{% endif %}"><a href="/fiscal/atividades-servicos">Atividades de serviços</a></li>
+                        <li class="{% if _path == '/fiscal/modelos-email' %}submenu-active{% endif %}"><a href="/fiscal/modelos-email">Modelos de e-mail</a></li>
+                        <li class="{% if _path == '/fiscal/integracoes' %}submenu-active{% endif %}"><a href="/fiscal/integracoes">Integrações fiscais</a></li>
+                        <li class="{% if _path == '/fiscal/configuracoes' %}submenu-active{% endif %}"><a href="/fiscal/configuracoes">Configurações fiscais</a></li>
                     </ul>
                 </details>
             </li>

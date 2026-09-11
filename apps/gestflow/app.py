@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-09-11 20:39 (America/Bahia)
-# Motivo: Criar a base do módulo Fiscal no DEV com configuração da empresa, rascunhos e estrutura para NF-e, NFC-e e NFS-e.
+# Último recode: 2026-09-11 20:48 (America/Bahia)
+# Motivo: Reorganizar o módulo Fiscal no DEV em páginas operacionais e opções auxiliares, mantendo a base fiscal existente.
 
 from __future__ import annotations
 
@@ -20856,6 +20856,86 @@ def montar_dashboard() -> dict[str, Any]:
 
 
 FISCAL_TIPOS_DOCUMENTO = {"nfe": "NF-e", "nfce": "NFC-e", "nfse": "NFS-e"}
+FISCAL_SECOES = {
+    "": {
+        "titulo": "Painel Fiscal",
+        "subtitulo": "Acompanhe emissões, pendências e a configuração fiscal da empresa.",
+        "tipo": "",
+        "grupo": "painel",
+    },
+    "produtos": {
+        "titulo": "Notas de produtos",
+        "subtitulo": "Emissão e acompanhamento de NF-e vinculadas às vendas de produtos.",
+        "tipo": "nfe",
+        "grupo": "documentos",
+    },
+    "servicos": {
+        "titulo": "Notas de serviços",
+        "subtitulo": "Emissão e acompanhamento de NFS-e vinculadas às ordens de serviço e operações de serviços.",
+        "tipo": "nfse",
+        "grupo": "documentos",
+    },
+    "consumidor": {
+        "titulo": "Notas do consumidor",
+        "subtitulo": "Emissão e acompanhamento de NFC-e para vendas ao consumidor final.",
+        "tipo": "nfce",
+        "grupo": "documentos",
+    },
+    "compras": {
+        "titulo": "Notas de compras",
+        "subtitulo": "Central de documentos fiscais recebidos de fornecedores.",
+        "tipo": "",
+        "grupo": "compras",
+    },
+    "importar-xml": {
+        "titulo": "Importar XML",
+        "subtitulo": "Entrada de documentos fiscais recebidos por arquivo XML.",
+        "tipo": "",
+        "grupo": "auxiliar",
+    },
+    "certificado-digital": {
+        "titulo": "Certificado digital",
+        "subtitulo": "Dados do certificado A1 usado nas futuras transmissões fiscais.",
+        "tipo": "",
+        "grupo": "auxiliar",
+    },
+    "naturezas-operacao": {
+        "titulo": "Naturezas de operação",
+        "subtitulo": "Cadastros fiscais para venda, devolução, remessa, bonificação e outras operações.",
+        "tipo": "",
+        "grupo": "auxiliar",
+    },
+    "tributacoes": {
+        "titulo": "Tributações",
+        "subtitulo": "Regras de ICMS, PIS, COFINS, IPI e enquadramentos fiscais.",
+        "tipo": "",
+        "grupo": "auxiliar",
+    },
+    "atividades-servicos": {
+        "titulo": "Atividades de serviços",
+        "subtitulo": "Códigos de serviço, CNAE, ISS e parâmetros usados na NFS-e.",
+        "tipo": "",
+        "grupo": "auxiliar",
+    },
+    "modelos-email": {
+        "titulo": "Modelos de e-mail",
+        "subtitulo": "Mensagens padrão para envio de documentos fiscais aos clientes.",
+        "tipo": "",
+        "grupo": "auxiliar",
+    },
+    "integracoes": {
+        "titulo": "Integrações fiscais",
+        "subtitulo": "Configuração do provedor fiscal e do ambiente de comunicação.",
+        "tipo": "",
+        "grupo": "auxiliar",
+    },
+    "configuracoes": {
+        "titulo": "Configurações fiscais",
+        "subtitulo": "Dados fiscais da empresa, séries e parâmetros gerais de emissão.",
+        "tipo": "",
+        "grupo": "auxiliar",
+    },
+}
 FISCAL_STATUS = {
     "rascunho": "Rascunho",
     "processando": "Processando",
@@ -37235,19 +37315,26 @@ def excluir_servico(servico_id: int) -> Response:
 
 
 @app.get("/fiscal")
-def fiscal() -> str:
-    tipo = str(request.args.get("tipo") or "").strip().lower()
-    if tipo not in FISCAL_TIPOS_DOCUMENTO:
-        tipo = ""
+@app.get("/fiscal/<secao>")
+def fiscal(secao: str = "") -> str:
+    secao = str(secao or "").strip().lower()
+    if secao not in FISCAL_SECOES:
+        return redirect(url_for("fiscal"))
+
+    secao_info = FISCAL_SECOES[secao]
+    tipo = str(secao_info.get("tipo") or "")
     return render_template(
         "fiscal.html",
         painel=montar_painel_fiscal(),
-        documentos=listar_documentos_fiscais(tipo=tipo),
+        documentos=listar_documentos_fiscais(tipo=tipo) if secao_info.get("grupo") in {"painel", "documentos"} else [],
         configuracao=buscar_configuracao_fiscal(),
         origens=listar_origens_fiscais(),
+        secao_fiscal=secao,
+        secao_info=secao_info,
         tipo_filtro=tipo,
         tipos_documento=FISCAL_TIPOS_DOCUMENTO,
         status_documento=FISCAL_STATUS,
+        secoes_fiscal=FISCAL_SECOES,
     )
 
 
@@ -37256,27 +37343,39 @@ def salvar_fiscal_configuracoes() -> Response:
     if not usuario_logado_eh_administrador_empresa():
         return Response("Acesso negado às configurações fiscais da empresa.", status=403)
 
-    ambiente = str(request.form.get("fiscal_ambiente") or "homologacao").strip().lower()
+    atual = buscar_configuracao_fiscal()
+
+    def valor_formulario(nome: str, chave_atual: str, padrao: str = "") -> str:
+        if nome in request.form:
+            return str(request.form.get(nome) or "").strip()
+        return str(atual.get(chave_atual) or padrao).strip()
+
+    certificado_titular = valor_formulario("fiscal_certificado_titular", "certificado_titular")
+    certificado_cnpj = valor_formulario("fiscal_certificado_cnpj", "certificado_cnpj")
+    certificado_validade = valor_formulario("fiscal_certificado_validade", "certificado_validade")
+    if any((certificado_titular, certificado_cnpj, certificado_validade)):
+        certificado_status = str(atual.get("certificado_status") or "aguardando_integracao")
+        if certificado_status == "nao_configurado":
+            certificado_status = "aguardando_integracao"
+    else:
+        certificado_status = "nao_configurado"
+
+    ambiente = valor_formulario("fiscal_ambiente", "ambiente", "homologacao").lower() or "homologacao"
     if ambiente not in {"homologacao", "producao"}:
         ambiente = "homologacao"
 
-    certificado_titular = str(request.form.get("fiscal_certificado_titular") or "").strip()
-    certificado_cnpj = str(request.form.get("fiscal_certificado_cnpj") or "").strip()
-    certificado_validade = str(request.form.get("fiscal_certificado_validade") or "").strip()
-    certificado_status = "aguardando_integracao" if any((certificado_titular, certificado_cnpj, certificado_validade)) else "nao_configurado"
-
     dados = {
         "ambiente": ambiente,
-        "provedor": str(request.form.get("fiscal_provedor") or "nao_configurado").strip() or "nao_configurado",
-        "razao_social": request.form.get("fiscal_razao_social"),
-        "cnpj": request.form.get("fiscal_cnpj"),
-        "inscricao_estadual": request.form.get("fiscal_inscricao_estadual"),
-        "inscricao_municipal": request.form.get("fiscal_inscricao_municipal"),
-        "crt": request.form.get("fiscal_crt"),
-        "cnae": request.form.get("fiscal_cnae"),
-        "serie_nfe": request.form.get("fiscal_serie_nfe"),
-        "serie_nfce": request.form.get("fiscal_serie_nfce"),
-        "serie_nfse": request.form.get("fiscal_serie_nfse"),
+        "provedor": valor_formulario("fiscal_provedor", "provedor", "nao_configurado") or "nao_configurado",
+        "razao_social": valor_formulario("fiscal_razao_social", "razao_social"),
+        "cnpj": valor_formulario("fiscal_cnpj", "cnpj"),
+        "inscricao_estadual": valor_formulario("fiscal_inscricao_estadual", "inscricao_estadual"),
+        "inscricao_municipal": valor_formulario("fiscal_inscricao_municipal", "inscricao_municipal"),
+        "crt": valor_formulario("fiscal_crt", "crt"),
+        "cnae": valor_formulario("fiscal_cnae", "cnae"),
+        "serie_nfe": valor_formulario("fiscal_serie_nfe", "serie_nfe", "1") or "1",
+        "serie_nfce": valor_formulario("fiscal_serie_nfce", "serie_nfce", "1") or "1",
+        "serie_nfse": valor_formulario("fiscal_serie_nfse", "serie_nfse", "1") or "1",
         "certificado_status": certificado_status,
         "certificado_titular": certificado_titular,
         "certificado_cnpj": certificado_cnpj,
@@ -37289,7 +37388,10 @@ def salvar_fiscal_configuracoes() -> Response:
         "Atualizou a configuração fiscal da empresa",
         request.path,
     )
-    return redirect(url_for("fiscal", sucesso="Configuração fiscal salva."))
+    retorno = str(request.form.get("fiscal_retorno") or "configuracoes").strip().lower()
+    if retorno not in FISCAL_SECOES:
+        retorno = "configuracoes"
+    return redirect(url_for("fiscal", secao=retorno, sucesso="Configuração fiscal salva."))
 
 
 @app.post("/fiscal/rascunhos")
@@ -37303,7 +37405,8 @@ def criar_fiscal_rascunho() -> Response:
 
     documento_id, mensagem = criar_rascunho_fiscal(tipo_documento, origem_tipo, origem_id)
     if documento_id is None:
-        return redirect(url_for("fiscal", erro=mensagem))
+        secao_retorno = {"nfe": "produtos", "nfce": "consumidor", "nfse": "servicos"}.get(tipo_documento, "")
+        return redirect(url_for("fiscal", secao=secao_retorno, erro=mensagem))
 
     registrar_atividade_usuario(
         "criacao",
@@ -37311,20 +37414,30 @@ def criar_fiscal_rascunho() -> Response:
         f"Criou rascunho fiscal {documento_id}",
         request.path,
     )
-    return redirect(url_for("fiscal", sucesso=mensagem))
+    secao_retorno = {"nfe": "produtos", "nfce": "consumidor", "nfse": "servicos"}.get(tipo_documento, "")
+    return redirect(url_for("fiscal", secao=secao_retorno, sucesso=mensagem))
 
 
 @app.post("/fiscal/documentos/<int:documento_id>/cancelar")
 def cancelar_fiscal_documento(documento_id: int) -> Response:
+    retorno = str(request.form.get("fiscal_retorno") or "").strip().lower()
+    if retorno not in FISCAL_SECOES:
+        retorno = ""
     if not cancelar_rascunho_fiscal(documento_id):
-        return redirect(url_for("fiscal", erro="Somente rascunhos ou documentos rejeitados podem ser cancelados nesta etapa."))
+        return redirect(
+            url_for(
+                "fiscal",
+                secao=retorno,
+                erro="Somente rascunhos ou documentos rejeitados podem ser cancelados nesta etapa.",
+            )
+        )
     registrar_atividade_usuario(
         "cancelamento",
         "fiscal",
         f"Cancelou documento fiscal {documento_id}",
         request.path,
     )
-    return redirect(url_for("fiscal", sucesso="Documento fiscal cancelado."))
+    return redirect(url_for("fiscal", secao=retorno, sucesso="Documento fiscal cancelado."))
 
 
 @app.get("/financeiro")
