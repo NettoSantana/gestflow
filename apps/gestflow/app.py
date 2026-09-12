@@ -1,5 +1,5 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-09-11 20:48 (America/Bahia)
+# Último recode: 2026-09-11 21:05 (America/Bahia)
 # Motivo: Reorganizar o módulo Fiscal no DEV em páginas operacionais e opções auxiliares, mantendo a base fiscal existente.
 
 from __future__ import annotations
@@ -20930,7 +20930,7 @@ FISCAL_SECOES = {
         "grupo": "auxiliar",
     },
     "configuracoes": {
-        "titulo": "Configurações fiscais",
+        "titulo": "Configurações",
         "subtitulo": "Dados fiscais da empresa, séries e parâmetros gerais de emissão.",
         "tipo": "",
         "grupo": "auxiliar",

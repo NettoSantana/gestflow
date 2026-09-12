@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\partials\sidebar.html
-Último recode: 2026-09-11 20:48 (America/Bahia)
-Motivo: Reorganizar o menu Fiscal no DEV com páginas de notas e opções auxiliares.
+Último recode: 2026-09-11 21:05 (America/Bahia)
+Motivo: Tornar Opções auxiliares expansível no menu Fiscal e renomear Configurações fiscais para Configurações.
 #}
 
 {% set _path = request.path if request is defined else '' %}
@@ -246,15 +246,25 @@ Motivo: Reorganizar o menu Fiscal no DEV com páginas de notas e opções auxili
                         <li class="{% if _path == '/fiscal/servicos' %}submenu-active{% endif %}"><a href="/fiscal/servicos">Notas de serviços</a></li>
                         <li class="{% if _path == '/fiscal/consumidor' %}submenu-active{% endif %}"><a href="/fiscal/consumidor">Notas do consumidor</a></li>
                         <li class="{% if _path == '/fiscal/compras' %}submenu-active{% endif %}"><a href="/fiscal/compras">Notas de compras</a></li>
-                        <li style="margin-top:6px; padding:7px 14px 5px; color:#64748b; font-size:11px; font-weight:900; text-transform:uppercase; letter-spacing:.04em;">Opções auxiliares</li>
-                        <li class="{% if _path == '/fiscal/importar-xml' %}submenu-active{% endif %}"><a href="/fiscal/importar-xml">Importar XML</a></li>
-                        <li class="{% if _path == '/fiscal/certificado-digital' %}submenu-active{% endif %}"><a href="/fiscal/certificado-digital">Certificado digital</a></li>
-                        <li class="{% if _path == '/fiscal/naturezas-operacao' %}submenu-active{% endif %}"><a href="/fiscal/naturezas-operacao">Naturezas de operação</a></li>
-                        <li class="{% if _path == '/fiscal/tributacoes' %}submenu-active{% endif %}"><a href="/fiscal/tributacoes">Tributações</a></li>
-                        <li class="{% if _path == '/fiscal/atividades-servicos' %}submenu-active{% endif %}"><a href="/fiscal/atividades-servicos">Atividades de serviços</a></li>
-                        <li class="{% if _path == '/fiscal/modelos-email' %}submenu-active{% endif %}"><a href="/fiscal/modelos-email">Modelos de e-mail</a></li>
-                        <li class="{% if _path == '/fiscal/integracoes' %}submenu-active{% endif %}"><a href="/fiscal/integracoes">Integrações fiscais</a></li>
-                        <li class="{% if _path == '/fiscal/configuracoes' %}submenu-active{% endif %}"><a href="/fiscal/configuracoes">Configurações fiscais</a></li>
+                        {% set _fiscal_auxiliar_ativo = _path in ['/fiscal/importar-xml', '/fiscal/certificado-digital', '/fiscal/naturezas-operacao', '/fiscal/tributacoes', '/fiscal/atividades-servicos', '/fiscal/modelos-email', '/fiscal/integracoes', '/fiscal/configuracoes'] %}
+                        <li style="margin-top:6px;">
+                            <details {% if _fiscal_auxiliar_ativo %}open{% endif %} style="margin:0;">
+                                <summary style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 14px; cursor:pointer; color:#cbd5e1; font-size:12px; font-weight:800; list-style:none;">
+                                    <span>Opções auxiliares</span>
+                                    <span aria-hidden="true" style="font-size:12px;">⌄</span>
+                                </summary>
+                                <ul style="list-style:none; margin:0; padding:0 0 2px 12px; border-left:1px solid rgba(148,163,184,.22);">
+                                    <li class="{% if _path == '/fiscal/importar-xml' %}submenu-active{% endif %}"><a href="/fiscal/importar-xml">Importar XML</a></li>
+                                    <li class="{% if _path == '/fiscal/certificado-digital' %}submenu-active{% endif %}"><a href="/fiscal/certificado-digital">Certificado digital</a></li>
+                                    <li class="{% if _path == '/fiscal/naturezas-operacao' %}submenu-active{% endif %}"><a href="/fiscal/naturezas-operacao">Naturezas de operação</a></li>
+                                    <li class="{% if _path == '/fiscal/tributacoes' %}submenu-active{% endif %}"><a href="/fiscal/tributacoes">Tributações</a></li>
+                                    <li class="{% if _path == '/fiscal/atividades-servicos' %}submenu-active{% endif %}"><a href="/fiscal/atividades-servicos">Atividades de serviços</a></li>
+                                    <li class="{% if _path == '/fiscal/modelos-email' %}submenu-active{% endif %}"><a href="/fiscal/modelos-email">Modelos de e-mail</a></li>
+                                    <li class="{% if _path == '/fiscal/integracoes' %}submenu-active{% endif %}"><a href="/fiscal/integracoes">Integrações fiscais</a></li>
+                                    <li class="{% if _path == '/fiscal/configuracoes' %}submenu-active{% endif %}"><a href="/fiscal/configuracoes">Configurações</a></li>
+                                </ul>
+                            </details>
+                        </li>
                     </ul>
                 </details>
             </li>
