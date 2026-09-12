@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\admin_empresas.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-09-12 11:25 (America/Bahia)
+Motivo: Adicionar gestão SaaS por cliente, cobrança PIX Mercado Pago e ações manuais de assinatura no Super Admin DEV.
 #}
 
 <!DOCTYPE html>
@@ -64,6 +64,98 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
             border-color: #fca5a5;
         }
 
+
+        .saas-charge-card {
+            border: 1px solid #dbe4f0;
+            border-radius: 16px;
+            background: #ffffff;
+            padding: 18px;
+            margin-bottom: 18px;
+        }
+
+        .saas-charge-grid {
+            display: grid;
+            grid-template-columns: 190px minmax(0, 1fr);
+            gap: 18px;
+            align-items: start;
+        }
+
+        .saas-qr {
+            width: 180px;
+            height: 180px;
+            object-fit: contain;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: #ffffff;
+            padding: 8px;
+        }
+
+        .saas-pix-code {
+            width: 100%;
+            min-height: 88px;
+            resize: vertical;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .saas-cell {
+            min-width: 150px;
+        }
+
+        .saas-cell strong,
+        .saas-cell span {
+            display: block;
+        }
+
+        .saas-cell span {
+            margin-top: 4px;
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .saas-details {
+            min-width: 310px;
+        }
+
+        .saas-details summary {
+            cursor: pointer;
+            font-weight: 900;
+            color: #0f62fe;
+        }
+
+        .saas-admin-box {
+            margin-top: 10px;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: #f8fafc;
+        }
+
+        .saas-admin-box .form-control {
+            min-width: 100px;
+        }
+
+        .saas-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: end;
+            margin-bottom: 8px;
+        }
+
+        .saas-row label {
+            display: grid;
+            gap: 4px;
+            color: #475569;
+            font-size: 11px;
+            font-weight: 900;
+        }
+
+        @media (max-width: 720px) {
+            .saas-charge-grid {
+                grid-template-columns: 1fr;
+            }
+        }
 
         .list-toolbar-paginada {
             display: flex;
@@ -423,7 +515,8 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
 
                 <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                     <a href="/admin/indicacoes" class="btn-primary-green">Indicações</a>
-                    <span class="badge-info">Login e senha</span>
+                    <span class="badge-info">Mercado Pago: {{ 'Configurado' if mercado_pago_configurado else 'Pendente' }}</span>
+                    {% if mercado_pago_modo_teste %}<span class="badge-info">Modo teste</span>{% endif %}
                 </div>
             </div>
 
@@ -433,6 +526,41 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
 
             {% if sucesso %}
                 <div class="alert alert-success">{{ sucesso }}</div>
+            {% endif %}
+
+            {% if cobranca %}
+                <div class="saas-charge-card">
+                    <div class="panel-header page-header">
+                        <div>
+                            <span class="page-kicker">Cobrança PIX</span>
+                            <h3 class="page-title">{{ cobranca.empresa_nome }}</h3>
+                            <p class="page-subtitle">{{ cobranca.valor_texto }} · Status GestFlow: {{ cobranca.status }} · Mercado Pago: {{ cobranca.status_mp or '-' }}</p>
+                        </div>
+                        <div class="client-toolbar">
+                            <form action="/admin/pagamentos/{{ cobranca.id }}/consultar" method="post">
+                                <button type="submit" class="btn-light">Consultar status</button>
+                            </form>
+                            {% if cobranca.ticket_url %}<a href="{{ cobranca.ticket_url }}" target="_blank" rel="noopener" class="btn-primary-green">Abrir pagamento</a>{% endif %}
+                        </div>
+                    </div>
+                    <div class="saas-charge-grid">
+                        <div>
+                            {% if cobranca.qr_code_base64 %}
+                                <img src="data:image/png;base64,{{ cobranca.qr_code_base64 }}" alt="QR Code PIX" class="saas-qr">
+                            {% else %}
+                                <div class="saas-qr" style="display:grid;place-items:center;text-align:center;color:#64748b;">QR Code não retornado</div>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <label for="pixCopiaCola" style="font-weight:900;display:block;margin-bottom:6px;">PIX copia e cola</label>
+                            <textarea id="pixCopiaCola" class="form-control saas-pix-code" readonly>{{ cobranca.qr_code or '' }}</textarea>
+                            <div class="form-actions" style="margin-top:10px;">
+                                <button type="button" class="btn-dark" onclick="copiarPixGestFlow()">Copiar PIX</button>
+                                <span class="badge-info">Order {{ cobranca.mp_order_id or '-' }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             {% endif %}
 
             <form action="/admin/empresas" method="post" class="client-form">
@@ -513,6 +641,9 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
                             <th><a href="{{ url_for('admin_empresas', pagina=1, por_pagina=por_pagina, ordenar='email', direcao='desc' if ordenar == 'email' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Login {% if ordenar == 'email' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
                             <th><a href="{{ url_for('admin_empresas', pagina=1, por_pagina=por_pagina, ordenar='plano', direcao='desc' if ordenar == 'plano' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Plano {% if ordenar == 'plano' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
                             <th><a href="{{ url_for('admin_empresas', pagina=1, por_pagina=por_pagina, ordenar='status', direcao='desc' if ordenar == 'status' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Status {% if ordenar == 'status' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th>Assinatura</th>
+                            <th>Mensalidade</th>
+                            <th>Pagamento</th>
                             <th><a href="{{ url_for('admin_empresas', pagina=1, por_pagina=por_pagina, ordenar='trial_fim', direcao='desc' if ordenar == 'trial_fim' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Fim do teste {% if ordenar == 'trial_fim' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
                             <th>Dias</th>
                             <th><a href="{{ url_for('admin_empresas', pagina=1, por_pagina=por_pagina, ordenar='total_usuarios', direcao='desc' if ordenar == 'total_usuarios' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Usuários {% if ordenar == 'total_usuarios' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
@@ -533,6 +664,32 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
                                     <td>{{ empresa.email or '-' }}</td>
                                     <td>{{ empresa.plano }}</td>
                                     <td><span class="status-pill {{ empresa.status }}">{{ empresa.status }}</span></td>
+                                    <td class="saas-cell">
+                                        {% if empresa.id == usuario_logado.empresa_id %}
+                                            <strong>Interna</strong><span>Super Admin</span>
+                                        {% else %}
+                                            <strong>{{ empresa.assinatura_status }}</strong>
+                                            <span>{{ 'Cobrança ativa' if empresa.assinatura_cobranca_ativa else 'Sem cobrança automática' }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="saas-cell">
+                                        {% if empresa.id == usuario_logado.empresa_id %}
+                                            <strong>-</strong>
+                                        {% else %}
+                                            <strong>{{ empresa.assinatura_valor_texto }}</strong>
+                                            <span>Vence: {{ empresa.assinatura_vencimento or '-' }}</span>
+                                            <span>Tolerância: {{ empresa.assinatura_tolerancia_dias }} dia(s)</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="saas-cell">
+                                        {% if empresa.id == usuario_logado.empresa_id %}
+                                            <strong>-</strong>
+                                        {% else %}
+                                            <strong>{{ empresa.ultimo_pagamento_status or 'Nenhum' }}</strong>
+                                            <span>{{ empresa.ultimo_pagamento_valor_texto }}</span>
+                                            <span>{{ empresa.ultimo_pagamento_em or '-' }}</span>
+                                        {% endif %}
+                                    </td>
                                     <td>{{ empresa.trial_fim or '-' }}</td>
                                     <td>{{ empresa.trial_dias_texto or '-' }}</td>
                                     <td>{{ empresa.total_usuarios }}</td>
@@ -551,6 +708,44 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
                                             </form>
 
                                             {% if empresa.id != usuario_logado.empresa_id %}
+                                                <details class="saas-details">
+                                                    <summary>Assinatura / cobrança</summary>
+                                                    <div class="saas-admin-box">
+                                                        <form action="/admin/empresas/{{ empresa.id }}/assinatura" method="post">
+                                                            <input type="hidden" name="acao" value="salvar">
+                                                            <div class="saas-row">
+                                                                <label>Plano
+                                                                    <select name="plano" class="form-control">
+                                                                        <option value="Start" {% if empresa.plano == 'Start' %}selected{% endif %}>Start</option>
+                                                                        <option value="Pro" {% if empresa.plano == 'Pro' %}selected{% endif %}>Pro</option>
+                                                                        <option value="Business" {% if empresa.plano == 'Business' %}selected{% endif %}>Business</option>
+                                                                    </select>
+                                                                </label>
+                                                                <label>Mensalidade
+                                                                    <input name="valor_mensal" class="form-control" value="{{ empresa.assinatura_valor_mensal or '' }}" placeholder="29,90">
+                                                                </label>
+                                                                <label>Vencimento
+                                                                    <input type="date" name="data_vencimento" class="form-control" value="{{ empresa.assinatura_vencimento or '' }}">
+                                                                </label>
+                                                                <label>Tolerância
+                                                                    <input type="number" min="0" max="30" name="tolerancia_dias" class="form-control" value="{{ empresa.assinatura_tolerancia_dias }}">
+                                                                </label>
+                                                                <button type="submit" class="btn-light">Salvar assinatura</button>
+                                                            </div>
+                                                        </form>
+                                                        <form action="/admin/empresas/{{ empresa.id }}/cobranca-pix" method="post" class="saas-row">
+                                                            <input type="hidden" name="valor_mensal" value="{{ empresa.assinatura_valor_mensal or '' }}">
+                                                            <button type="submit" class="btn-primary-green" {% if not mercado_pago_configurado %}disabled title="Configure MERCADO_PAGO_ACCESS_TOKEN no Railway"{% endif %}>Gerar PIX</button>
+                                                        </form>
+                                                        <div class="saas-row">
+                                                            <form action="/admin/empresas/{{ empresa.id }}/assinatura" method="post"><input type="hidden" name="acao" value="liberar_7"><button type="submit" class="btn-light">Liberar 7 dias</button></form>
+                                                            <form action="/admin/empresas/{{ empresa.id }}/assinatura" method="post"><input type="hidden" name="acao" value="liberar_30"><button type="submit" class="btn-light">Liberar 30 dias</button></form>
+                                                            <form action="/admin/empresas/{{ empresa.id }}/assinatura" method="post"><input type="hidden" name="acao" value="reativar"><button type="submit" class="btn-light">Reativar</button></form>
+                                                            <form action="/admin/empresas/{{ empresa.id }}/assinatura" method="post" onsubmit="return confirm('Bloquear o acesso desta empresa por assinatura?');"><input type="hidden" name="acao" value="bloquear"><button type="submit" class="btn-danger-light">Bloquear</button></form>
+                                                        </div>
+                                                    </div>
+                                                </details>
+
                                                 <form action="/admin/empresas/{{ empresa.id }}/excluir" method="post" class="admin-delete-form" onsubmit="return confirm('Tem certeza que deseja excluir este acesso/cliente? Esta ação apagará usuários, lojas e dados vinculados a esta empresa e não poderá ser desfeita.');">
                                                     <button type="submit" class="btn-danger-light">Excluir</button>
                                                 </form>
@@ -561,7 +756,7 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="11" class="empty-table empty-table-box">
+                                <td colspan="14" class="empty-table empty-table-box">
                                     <div class="empty-table-content">
                                         <div class="empty-table-icon">◆</div>
                                         <strong>Nenhum acesso criado.</strong>
@@ -582,6 +777,17 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
     </main>
 
     <script>
+        async function copiarPixGestFlow() {
+            const campo = document.getElementById("pixCopiaCola");
+            if (!campo || !campo.value) return;
+            try {
+                await navigator.clipboard.writeText(campo.value);
+            } catch (erro) {
+                campo.select();
+                document.execCommand("copy");
+            }
+        }
+
         function gerarSenhaGestFlow() {
             const letrasMaiusculas = "ABCDEFGHJKLMNPQRSTUVWXYZ";
             const letrasMinusculas = "abcdefghijkmnopqrstuvwxyz";

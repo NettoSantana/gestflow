@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\admin_dashboard.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-09-12 11:25 (America/Bahia)
+Motivo: Acrescentar ao Super Admin os indicadores SaaS de assinaturas e recebimentos Mercado Pago no DEV.
 #}
 
 <!DOCTYPE html>
@@ -367,6 +367,65 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
                     <p>{{ resumo.usuarios_ativos_7_dias|default(0) }}</p>
                     <h3>Ativos 7 dias</h3>
                     <span>{{ resumo.atividades_7_dias|default(0) }} atividades recentes</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">GestFlow SaaS</span>
+                    <h3 class="page-title">Assinaturas e recebimentos</h3>
+                    <p class="page-subtitle">Visão financeira dos clientes do GestFlow e situação da integração Mercado Pago.</p>
+                </div>
+                <div class="client-toolbar">
+                    <span class="badge-info">Mercado Pago: {{ 'Configurado' if resumo.mercado_pago_configurado else 'Pendente' }}</span>
+                    {% if resumo.mercado_pago_modo_teste %}<span class="badge-info">Modo teste</span>{% endif %}
+                </div>
+            </div>
+        </section>
+
+        <section class="cards cards-secondary page-section">
+            <div class="card stat-card">
+                <div class="card-info">
+                    <p>{{ resumo.assinaturas_ativas|default(0) }}</p>
+                    <h3>Assinaturas ativas</h3>
+                    <span>Clientes com cobrança SaaS ativa</span>
+                </div>
+            </div>
+            <div class="card stat-card">
+                <div class="card-info">
+                    <p>{{ resumo.assinaturas_inadimplentes|default(0) }}</p>
+                    <h3>Inadimplentes</h3>
+                    <span>Dentro do período de tolerância</span>
+                </div>
+            </div>
+            <div class="card stat-card">
+                <div class="card-info">
+                    <p>{{ resumo.assinaturas_bloqueadas|default(0) }}</p>
+                    <h3>Bloqueados</h3>
+                    <span>Acesso suspenso por assinatura</span>
+                </div>
+            </div>
+            <div class="card stat-card">
+                <div class="card-info">
+                    <p>{{ resumo.receita_prevista_texto|default('R$ 0,00') }}</p>
+                    <h3>Receita mensal prevista</h3>
+                    <span>Mensalidades com cobrança ativa</span>
+                </div>
+            </div>
+            <div class="card stat-card">
+                <div class="card-info">
+                    <p>{{ resumo.recebido_mes_texto|default('R$ 0,00') }}</p>
+                    <h3>Recebido no mês</h3>
+                    <span>Pagamentos confirmados</span>
+                </div>
+            </div>
+            <div class="card stat-card">
+                <div class="card-info">
+                    <p>{{ resumo.pagamentos_pendentes_texto|default('R$ 0,00') }}</p>
+                    <h3>PIX pendentes</h3>
+                    <span>Cobranças aguardando confirmação</span>
                 </div>
             </div>
         </section>

@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-09-11 21:05 (America/Bahia)
-# Motivo: Reorganizar o módulo Fiscal no DEV em páginas operacionais e opções auxiliares, mantendo a base fiscal existente.
+# Último recode: 2026-09-12 11:25 (America/Bahia)
+# Motivo: Criar no DEV o controle SaaS do Super Admin com assinaturas, cobrança PIX Mercado Pago, webhook e bloqueio/liberação automática.
 
 from __future__ import annotations
 
@@ -37,6 +37,15 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
 import config
+from mercado_pago_runtime import (
+    MercadoPagoErro,
+    consultar_order,
+    criar_order_pix,
+    integracao_mercado_pago_configurada,
+    modo_teste_mercado_pago,
+    obter_webhook_secret,
+    validar_assinatura_webhook,
+)
 
 app = Flask(__name__)
 app.secret_key = getattr(config, "SECRET_KEY", "gestflow-dev-secret-key-trocar-em-producao")
@@ -44,6 +53,14 @@ app.permanent_session_lifetime = timedelta(days=30)
 GESTFLOW_VERSAO = "1.0.0"
 GESTFLOW_INDFLOW_SSO_SALT = "gestflow-indflow-sso-v1"
 GESTFLOW_INDFLOW_SSO_MIN_SECRET_LENGTH = 32
+
+GESTFLOW_SAAS_PLANOS = {
+    "Start": Decimal("29.90"),
+    "Pro": Decimal("49.90"),
+    "Business": Decimal("99.90"),
+}
+GESTFLOW_SAAS_TOLERANCIA_DIAS = 5
+GESTFLOW_SAAS_STATUS_PENDENTES_MP = {"created", "processing", "action_required", "in_review"}
 
 LOGIN_SEGURANCA_JANELA_MINUTOS = 60
 LOGIN_SEGURANCA_BLOQUEIOS_USUARIO = ((5, 60), (8, 300), (10, 900), (15, 3600))
@@ -2870,6 +2887,13 @@ def autenticar_usuario(email: str, senha: str) -> dict[str, Any] | None:
     if usuario is None:
         return None
 
+    if normalizar_perfil_usuario(usuario.get("perfil")) != "super_admin":
+        try:
+            sincronizar_status_assinatura_empresa_db(int(usuario.get("empresa_id") or 0))
+            usuario = buscar_usuario_por_email(email_normalizado) or usuario
+        except (TypeError, ValueError, sqlite3.Error):
+            pass
+
     if str(usuario.get("status") or "").strip().lower() != "ativo":
         return None
 
@@ -4166,6 +4190,7 @@ def exigir_login_rotas_internas() -> Response | None:
         "health",
         "whatsapp_webhook",
         "twilio_webhook",
+        "mercado_pago_webhook_saas",
         "acompanhamento_os_publico",
         "os_cliente_publico",
         "os_campo_publico",
@@ -4187,6 +4212,12 @@ def exigir_login_rotas_internas() -> Response | None:
 
     if not session.get("usuario_id"):
         return redirect(url_for("login"))
+
+    if normalizar_perfil_usuario(session.get("usuario_perfil")) != "super_admin":
+        try:
+            sincronizar_status_assinatura_empresa_db(int(session.get("empresa_id") or 0))
+        except (TypeError, ValueError, sqlite3.Error):
+            pass
 
     sessao_valida, mensagem_sessao = revalidar_sessao_usuario()
     if not sessao_valida:
@@ -5313,6 +5344,59 @@ def iniciar_banco() -> None:
                 status TEXT NOT NULL DEFAULT 'ativo',
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS saas_assinaturas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL UNIQUE,
+                plano TEXT NOT NULL DEFAULT 'Start',
+                valor_mensal TEXT NOT NULL DEFAULT '29.90',
+                status TEXT NOT NULL DEFAULT 'sem_cobranca',
+                data_vencimento TEXT,
+                tolerancia_dias INTEGER NOT NULL DEFAULT 5,
+                cobranca_ativa INTEGER NOT NULL DEFAULT 0,
+                bloqueio_manual INTEGER NOT NULL DEFAULT 0,
+                liberacao_manual_ate TEXT,
+                ultimo_pagamento_em TEXT,
+                atualizado_em TEXT,
+                criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (empresa_id) REFERENCES empresas (id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS saas_pagamentos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                assinatura_id INTEGER NOT NULL,
+                competencia TEXT,
+                valor TEXT NOT NULL,
+                metodo TEXT NOT NULL DEFAULT 'pix',
+                status TEXT NOT NULL DEFAULT 'pendente',
+                mp_order_id TEXT UNIQUE,
+                mp_payment_id TEXT,
+                external_reference TEXT NOT NULL UNIQUE,
+                qr_code TEXT,
+                qr_code_base64 TEXT,
+                ticket_url TEXT,
+                status_mp TEXT,
+                detalhe_mp TEXT,
+                pago_em TEXT,
+                atualizado_em TEXT,
+                criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (empresa_id) REFERENCES empresas (id),
+                FOREIGN KEY (assinatura_id) REFERENCES saas_assinaturas (id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_saas_pagamentos_empresa_status
+            ON saas_pagamentos (empresa_id, status, criado_em)
             """
         )
 
@@ -12834,7 +12918,7 @@ ADMIN_EMPRESAS_ORDENACAO = {
 def montar_contexto_admin_empresas_paginado() -> dict[str, Any]:
     return montar_contexto_lista_memoria(
         listar_empresas_admin(),
-        ["nome_fantasia", "razao_social", "documento", "email", "telefone", "plano", "status", "trial_fim", "criado_em"],
+        ["nome_fantasia", "razao_social", "documento", "email", "telefone", "plano", "status", "trial_fim", "criado_em", "assinatura_status", "assinatura_vencimento", "ultimo_pagamento_status"],
         ADMIN_EMPRESAS_ORDENACAO,
         "id",
     )
@@ -24959,7 +25043,506 @@ def registrar_acesso_modulo_usuario() -> None:
     )
 
 
+def valor_plano_saas(plano: Any) -> Decimal:
+    nome = str(plano or "Start").strip() or "Start"
+    return GESTFLOW_SAAS_PLANOS.get(nome, GESTFLOW_SAAS_PLANOS["Start"])
+
+
+def _decimal_saas(valor: Any, padrao: Decimal | None = None) -> Decimal:
+    texto = str(valor or "").strip().replace("R$", "").replace(" ", "")
+    if "," in texto and "." in texto:
+        texto = texto.replace(".", "").replace(",", ".")
+    else:
+        texto = texto.replace(",", ".")
+    try:
+        numero = Decimal(texto).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    except (InvalidOperation, TypeError, ValueError):
+        numero = padrao if padrao is not None else Decimal("0.00")
+    return numero.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def _data_saas(valor: Any) -> date | None:
+    texto = str(valor or "").strip()
+    if not texto:
+        return None
+    try:
+        return date.fromisoformat(texto[:10])
+    except ValueError:
+        return None
+
+
+def _adicionar_um_mes_saas(data_base: date) -> date:
+    ano = data_base.year + (1 if data_base.month == 12 else 0)
+    mes = 1 if data_base.month == 12 else data_base.month + 1
+    dias_mes = [31, 29 if ano % 4 == 0 and (ano % 100 != 0 or ano % 400 == 0) else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    return date(ano, mes, min(data_base.day, dias_mes[mes - 1]))
+
+
+def _empresa_super_admin_db(empresa_id: int, conn: sqlite3.Connection | None = None) -> bool:
+    if empresa_id <= 0:
+        return False
+    gerenciar = conn is None
+    conexao = conn or conectar_db()
+    try:
+        row = conexao.execute(
+            """
+            SELECT 1
+            FROM usuarios
+            WHERE empresa_id = ? AND LOWER(TRIM(COALESCE(perfil, ''))) = 'super_admin'
+            LIMIT 1
+            """,
+            (empresa_id,),
+        ).fetchone()
+        return row is not None
+    finally:
+        if gerenciar:
+            conexao.close()
+
+
+def garantir_assinatura_empresa_saas_db(empresa_id: int) -> dict[str, Any]:
+    with conectar_db() as conn:
+        row = conn.execute(
+            "SELECT * FROM saas_assinaturas WHERE empresa_id = ? LIMIT 1",
+            (empresa_id,),
+        ).fetchone()
+        if row is not None:
+            return dict(row)
+
+        empresa = conn.execute(
+            "SELECT plano, status, trial_fim FROM empresas WHERE id = ? LIMIT 1",
+            (empresa_id,),
+        ).fetchone()
+        if empresa is None:
+            raise ValueError("Empresa não encontrada.")
+
+        plano = str(empresa["plano"] or "Start").strip() or "Start"
+        valor = valor_plano_saas(plano)
+        status_empresa = str(empresa["status"] or "ativo").strip().lower()
+        status_assinatura = "trial" if status_empresa == "trial" else "sem_cobranca"
+        vencimento = str(empresa["trial_fim"] or "").strip() if status_assinatura == "trial" else ""
+        agora = datetime.now(ZoneInfo(TIMEZONE_PADRAO_GESTFLOW)).isoformat(timespec="seconds")
+        cursor = conn.execute(
+            """
+            INSERT INTO saas_assinaturas (
+                empresa_id, plano, valor_mensal, status, data_vencimento,
+                tolerancia_dias, cobranca_ativa, atualizado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, 0, ?)
+            """,
+            (empresa_id, plano, f"{valor:.2f}", status_assinatura, vencimento, GESTFLOW_SAAS_TOLERANCIA_DIAS, agora),
+        )
+        conn.commit()
+        assinatura_id = int(cursor.lastrowid)
+        row = conn.execute("SELECT * FROM saas_assinaturas WHERE id = ?", (assinatura_id,)).fetchone()
+        return dict(row)
+
+
+def buscar_assinatura_empresa_saas_db(empresa_id: int) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute(
+            "SELECT * FROM saas_assinaturas WHERE empresa_id = ? LIMIT 1",
+            (empresa_id,),
+        ).fetchone()
+    return dict(row) if row is not None else None
+
+
+def sincronizar_status_assinatura_empresa_db(empresa_id: int) -> dict[str, Any] | None:
+    try:
+        empresa_id = int(empresa_id)
+    except (TypeError, ValueError):
+        return None
+    if empresa_id <= 0:
+        return None
+
+    hoje = datetime.now(ZoneInfo(TIMEZONE_PADRAO_GESTFLOW)).date()
+    agora = datetime.now(ZoneInfo(TIMEZONE_PADRAO_GESTFLOW)).isoformat(timespec="seconds")
+
+    with conectar_db() as conn:
+        if _empresa_super_admin_db(empresa_id, conn):
+            return None
+
+        row = conn.execute(
+            "SELECT * FROM saas_assinaturas WHERE empresa_id = ? LIMIT 1",
+            (empresa_id,),
+        ).fetchone()
+        if row is None:
+            return None
+
+        assinatura = dict(row)
+        if int(assinatura.get("cobranca_ativa") or 0) != 1:
+            return assinatura
+
+        status = str(assinatura.get("status") or "").strip().lower()
+        if int(assinatura.get("bloqueio_manual") or 0) == 1:
+            conn.execute("UPDATE empresas SET status = 'bloqueado' WHERE id = ?", (empresa_id,))
+            if status != "bloqueado":
+                conn.execute(
+                    "UPDATE saas_assinaturas SET status = 'bloqueado', atualizado_em = ? WHERE id = ?",
+                    (agora, int(assinatura["id"])),
+                )
+            conn.commit()
+            assinatura["status"] = "bloqueado"
+            return assinatura
+
+        if status == "cancelado":
+            conn.execute("UPDATE empresas SET status = 'cancelado' WHERE id = ?", (empresa_id,))
+            conn.commit()
+            assinatura["status"] = "cancelado"
+            return assinatura
+
+        liberacao_manual = _data_saas(assinatura.get("liberacao_manual_ate"))
+        if liberacao_manual and liberacao_manual >= hoje:
+            if status != "ativo":
+                conn.execute(
+                    "UPDATE saas_assinaturas SET status = 'ativo', atualizado_em = ? WHERE id = ?",
+                    (agora, int(assinatura["id"])),
+                )
+            conn.execute("UPDATE empresas SET status = 'ativo' WHERE id = ?", (empresa_id,))
+            conn.commit()
+            assinatura["status"] = "ativo"
+            return assinatura
+
+        vencimento = _data_saas(assinatura.get("data_vencimento"))
+        if vencimento is None:
+            return assinatura
+
+        tolerancia = max(int(assinatura.get("tolerancia_dias") or GESTFLOW_SAAS_TOLERANCIA_DIAS), 0)
+        limite = vencimento + timedelta(days=tolerancia)
+        novo_status = "ativo"
+        novo_status_empresa = "ativo"
+        if hoje > limite:
+            novo_status = "bloqueado"
+            novo_status_empresa = "bloqueado"
+        elif hoje > vencimento:
+            novo_status = "inadimplente"
+
+        if novo_status != status:
+            conn.execute(
+                "UPDATE saas_assinaturas SET status = ?, atualizado_em = ? WHERE id = ?",
+                (novo_status, agora, int(assinatura["id"])),
+            )
+        conn.execute("UPDATE empresas SET status = ? WHERE id = ?", (novo_status_empresa, empresa_id))
+        conn.commit()
+        assinatura["status"] = novo_status
+        return assinatura
+
+
+def _status_pagamento_saas(info: dict[str, Any]) -> tuple[str, str, str]:
+    status_mp = str(info.get("payment_status") or info.get("order_status") or "created").strip().lower()
+    detalhe = str(info.get("payment_status_detail") or info.get("order_status_detail") or "").strip()
+    if status_mp == "processed":
+        return "pago", status_mp, detalhe
+    if status_mp in GESTFLOW_SAAS_STATUS_PENDENTES_MP:
+        return "pendente", status_mp, detalhe
+    mapa = {
+        "canceled": "cancelado",
+        "expired": "expirado",
+        "failed": "falhou",
+        "refunded": "estornado",
+        "charged_back": "contestado",
+    }
+    return mapa.get(status_mp, "pendente"), status_mp, detalhe
+
+
+def aplicar_retorno_pagamento_saas_db(pagamento_id: int, info: dict[str, Any]) -> dict[str, Any] | None:
+    agora_dt = datetime.now(ZoneInfo(TIMEZONE_PADRAO_GESTFLOW))
+    agora = agora_dt.isoformat(timespec="seconds")
+    novo_status, status_mp, detalhe = _status_pagamento_saas(info)
+
+    with conectar_db() as conn:
+        row = conn.execute("SELECT * FROM saas_pagamentos WHERE id = ? LIMIT 1", (pagamento_id,)).fetchone()
+        if row is None:
+            return None
+        pagamento = dict(row)
+        ja_pago = str(pagamento.get("status") or "").strip().lower() == "pago"
+        status_final = "pago" if ja_pago else novo_status
+        pago_em = str(pagamento.get("pago_em") or "").strip()
+        if status_final == "pago" and not pago_em:
+            pago_em = agora
+
+        conn.execute(
+            """
+            UPDATE saas_pagamentos
+            SET status = ?, mp_order_id = COALESCE(NULLIF(?, ''), mp_order_id),
+                mp_payment_id = COALESCE(NULLIF(?, ''), mp_payment_id),
+                qr_code = COALESCE(NULLIF(?, ''), qr_code),
+                qr_code_base64 = COALESCE(NULLIF(?, ''), qr_code_base64),
+                ticket_url = COALESCE(NULLIF(?, ''), ticket_url),
+                status_mp = ?, detalhe_mp = ?, pago_em = ?, atualizado_em = ?
+            WHERE id = ?
+            """,
+            (
+                status_final,
+                str(info.get("order_id") or ""),
+                str(info.get("payment_id") or ""),
+                str(info.get("qr_code") or ""),
+                str(info.get("qr_code_base64") or ""),
+                str(info.get("ticket_url") or ""),
+                status_mp,
+                detalhe,
+                pago_em,
+                agora,
+                pagamento_id,
+            ),
+        )
+
+        if status_final == "pago" and not ja_pago:
+            assinatura = conn.execute(
+                "SELECT * FROM saas_assinaturas WHERE id = ? LIMIT 1",
+                (int(pagamento["assinatura_id"]),),
+            ).fetchone()
+            if assinatura is not None:
+                assinatura_dict = dict(assinatura)
+                vencimento_atual = _data_saas(assinatura_dict.get("data_vencimento"))
+                base_vencimento = max(vencimento_atual or agora_dt.date(), agora_dt.date())
+                proximo_vencimento = _adicionar_um_mes_saas(base_vencimento)
+                conn.execute(
+                    """
+                    UPDATE saas_assinaturas
+                    SET status = 'ativo', cobranca_ativa = 1, bloqueio_manual = 0, data_vencimento = ?,
+                        liberacao_manual_ate = NULL, ultimo_pagamento_em = ?, atualizado_em = ?
+                    WHERE id = ?
+                    """,
+                    (proximo_vencimento.isoformat(), agora, agora, int(assinatura_dict["id"])),
+                )
+                conn.execute(
+                    "UPDATE empresas SET status = 'ativo', plano = ? WHERE id = ?",
+                    (str(assinatura_dict.get("plano") or "Start"), int(pagamento["empresa_id"])),
+                )
+
+        conn.commit()
+        atualizado = conn.execute("SELECT * FROM saas_pagamentos WHERE id = ?", (pagamento_id,)).fetchone()
+        return dict(atualizado) if atualizado is not None else None
+
+
+def criar_cobranca_pix_saas_db(empresa_id: int, valor_informado: Any = None) -> dict[str, Any]:
+    empresa = buscar_empresa_admin_por_id(empresa_id)
+    if empresa is None:
+        raise ValueError("Empresa não encontrada.")
+    if _empresa_super_admin_db(empresa_id):
+        raise ValueError("A empresa do Super Admin não recebe cobrança SaaS.")
+
+    assinatura = garantir_assinatura_empresa_saas_db(empresa_id)
+    plano = str(assinatura.get("plano") or empresa.get("plano") or "Start").strip() or "Start"
+    valor_padrao = _decimal_saas(assinatura.get("valor_mensal"), valor_plano_saas(plano))
+    valor = _decimal_saas(valor_informado, valor_padrao)
+    if valor <= 0:
+        raise ValueError("Informe um valor de mensalidade maior que zero.")
+
+    email = str(empresa.get("email") or "").strip()
+    if not email:
+        raise ValueError("A empresa precisa ter um e-mail antes de gerar a cobrança PIX.")
+
+    agora_dt = datetime.now(ZoneInfo(TIMEZONE_PADRAO_GESTFLOW))
+    agora = agora_dt.isoformat(timespec="seconds")
+    competencia = agora_dt.strftime("%Y-%m")
+
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO saas_pagamentos (
+                empresa_id, assinatura_id, competencia, valor, metodo, status,
+                external_reference, atualizado_em
+            ) VALUES (?, ?, ?, ?, 'pix', 'pendente', ?, ?)
+            """,
+            (empresa_id, int(assinatura["id"]), competencia, f"{valor:.2f}", f"gestflow_saas_tmp_{secrets.token_hex(8)}", agora),
+        )
+        pagamento_id = int(cursor.lastrowid)
+        referencia = f"gestflow_saas_{pagamento_id}"
+        conn.execute(
+            "UPDATE saas_pagamentos SET external_reference = ? WHERE id = ?",
+            (referencia, pagamento_id),
+        )
+        conn.commit()
+
+    try:
+        info = criar_order_pix(
+            valor=valor,
+            email=email,
+            referencia_externa=referencia,
+            nome_pagador=str(empresa.get("nome_fantasia") or empresa.get("razao_social") or "Cliente GestFlow"),
+            modo_teste=modo_teste_mercado_pago(),
+            expiracao="PT30M",
+        )
+    except Exception:
+        with conectar_db() as conn:
+            conn.execute(
+                "UPDATE saas_pagamentos SET status = 'falhou', atualizado_em = ? WHERE id = ?",
+                (agora, pagamento_id),
+            )
+            conn.commit()
+        raise
+
+    order_id = str(info.get("order_id") or "").strip()
+    if not order_id:
+        raise MercadoPagoErro("Mercado Pago não retornou o ID da cobrança.")
+
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE saas_assinaturas
+            SET plano = ?, valor_mensal = ?, status = 'aguardando_pagamento',
+                cobranca_ativa = 1,
+                data_vencimento = CASE WHEN TRIM(COALESCE(data_vencimento, '')) = '' THEN ? ELSE data_vencimento END,
+                atualizado_em = ?
+            WHERE id = ?
+            """,
+            (plano, f"{valor:.2f}", agora_dt.date().isoformat(), agora, int(assinatura["id"])),
+        )
+        conn.commit()
+
+    atualizado = aplicar_retorno_pagamento_saas_db(pagamento_id, info)
+    if atualizado is None:
+        raise RuntimeError("Cobrança criada, mas não foi possível atualizar o registro local.")
+    return atualizado
+
+
+def consultar_pagamento_saas_db(pagamento_id: int) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute("SELECT * FROM saas_pagamentos WHERE id = ? LIMIT 1", (pagamento_id,)).fetchone()
+    if row is None:
+        return None
+    pagamento = dict(row)
+    order_id = str(pagamento.get("mp_order_id") or "").strip()
+    if not order_id:
+        return pagamento
+    info = consultar_order(order_id)
+    return aplicar_retorno_pagamento_saas_db(pagamento_id, info)
+
+
+def buscar_pagamento_saas_db(pagamento_id: int) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT p.*, e.nome_fantasia AS empresa_nome, a.plano AS assinatura_plano,
+                   a.data_vencimento AS assinatura_vencimento
+            FROM saas_pagamentos p
+            JOIN empresas e ON e.id = p.empresa_id
+            JOIN saas_assinaturas a ON a.id = p.assinatura_id
+            WHERE p.id = ?
+            LIMIT 1
+            """,
+            (pagamento_id,),
+        ).fetchone()
+    if row is None:
+        return None
+    pagamento = dict(row)
+    pagamento["valor_texto"] = _formatar_moeda_brl(float(_decimal_saas(pagamento.get("valor"))))
+    return pagamento
+
+
+def salvar_assinatura_empresa_admin_db(empresa_id: int, dados: dict[str, Any]) -> dict[str, Any]:
+    assinatura = garantir_assinatura_empresa_saas_db(empresa_id)
+    plano = str(dados.get("plano") or assinatura.get("plano") or "Start").strip() or "Start"
+    if plano not in GESTFLOW_SAAS_PLANOS:
+        plano = "Start"
+    valor = _decimal_saas(dados.get("valor_mensal"), valor_plano_saas(plano))
+    if valor <= 0:
+        valor = valor_plano_saas(plano)
+    try:
+        tolerancia = max(min(int(dados.get("tolerancia_dias") or GESTFLOW_SAAS_TOLERANCIA_DIAS), 30), 0)
+    except (TypeError, ValueError):
+        tolerancia = GESTFLOW_SAAS_TOLERANCIA_DIAS
+    vencimento = str(dados.get("data_vencimento") or assinatura.get("data_vencimento") or "").strip()
+    if vencimento and _data_saas(vencimento) is None:
+        raise ValueError("Data de vencimento inválida.")
+    agora = datetime.now(ZoneInfo(TIMEZONE_PADRAO_GESTFLOW)).isoformat(timespec="seconds")
+
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE saas_assinaturas
+            SET plano = ?, valor_mensal = ?, data_vencimento = ?, tolerancia_dias = ?, atualizado_em = ?
+            WHERE id = ?
+            """,
+            (plano, f"{valor:.2f}", vencimento, tolerancia, agora, int(assinatura["id"])),
+        )
+        conn.execute("UPDATE empresas SET plano = ? WHERE id = ?", (plano, empresa_id))
+        conn.commit()
+    return buscar_assinatura_empresa_saas_db(empresa_id) or assinatura
+
+
+def acao_assinatura_empresa_admin_db(empresa_id: int, acao: str) -> None:
+    assinatura = garantir_assinatura_empresa_saas_db(empresa_id)
+    if _empresa_super_admin_db(empresa_id):
+        raise ValueError("A empresa do Super Admin não pode ser bloqueada pela assinatura SaaS.")
+
+    agora_dt = datetime.now(ZoneInfo(TIMEZONE_PADRAO_GESTFLOW))
+    agora = agora_dt.isoformat(timespec="seconds")
+    acao = str(acao or "").strip().lower()
+
+    with conectar_db() as conn:
+        if acao in {"liberar_7", "liberar_30"}:
+            dias = 7 if acao == "liberar_7" else 30
+            ate = (agora_dt.date() + timedelta(days=dias)).isoformat()
+            conn.execute(
+                """
+                UPDATE saas_assinaturas
+                SET status = 'ativo', cobranca_ativa = 1, bloqueio_manual = 0, liberacao_manual_ate = ?, atualizado_em = ?
+                WHERE id = ?
+                """,
+                (ate, agora, int(assinatura["id"])),
+            )
+            conn.execute("UPDATE empresas SET status = 'ativo' WHERE id = ?", (empresa_id,))
+        elif acao == "bloquear":
+            conn.execute(
+                "UPDATE saas_assinaturas SET status = 'bloqueado', cobranca_ativa = 1, bloqueio_manual = 1, liberacao_manual_ate = NULL, atualizado_em = ? WHERE id = ?",
+                (agora, int(assinatura["id"])),
+            )
+            conn.execute("UPDATE empresas SET status = 'bloqueado' WHERE id = ?", (empresa_id,))
+        elif acao == "reativar":
+            vencimento = _adicionar_um_mes_saas(agora_dt.date()).isoformat()
+            conn.execute(
+                """
+                UPDATE saas_assinaturas
+                SET status = 'ativo', cobranca_ativa = 1, bloqueio_manual = 0, data_vencimento = ?,
+                    liberacao_manual_ate = NULL, atualizado_em = ?
+                WHERE id = ?
+                """,
+                (vencimento, agora, int(assinatura["id"])),
+            )
+            conn.execute("UPDATE empresas SET status = 'ativo' WHERE id = ?", (empresa_id,))
+        else:
+            raise ValueError("Ação de assinatura inválida.")
+        conn.commit()
+
+
+def sincronizar_assinaturas_saas_todas_db() -> None:
+    with conectar_db() as conn:
+        rows = conn.execute(
+            "SELECT empresa_id FROM saas_assinaturas WHERE cobranca_ativa = 1"
+        ).fetchall()
+    for row in rows:
+        try:
+            sincronizar_status_assinatura_empresa_db(int(row["empresa_id"]))
+        except (TypeError, ValueError, sqlite3.Error):
+            continue
+
+
+def _resumo_financeiro_saas_admin(conn: sqlite3.Connection) -> dict[str, Any]:
+    competencia = datetime.now(ZoneInfo(TIMEZONE_PADRAO_GESTFLOW)).strftime("%Y-%m")
+    row = conn.execute(
+        """
+        SELECT
+            (SELECT COUNT(*) FROM saas_assinaturas WHERE cobranca_ativa = 1 AND status = 'ativo') AS assinaturas_ativas,
+            (SELECT COUNT(*) FROM saas_assinaturas WHERE cobranca_ativa = 1 AND status = 'inadimplente') AS assinaturas_inadimplentes,
+            (SELECT COUNT(*) FROM saas_assinaturas WHERE cobranca_ativa = 1 AND status = 'bloqueado') AS assinaturas_bloqueadas,
+            (SELECT COALESCE(SUM(CAST(valor_mensal AS REAL)), 0) FROM saas_assinaturas WHERE cobranca_ativa = 1 AND status <> 'cancelado') AS receita_prevista,
+            (SELECT COALESCE(SUM(CAST(valor AS REAL)), 0) FROM saas_pagamentos WHERE status = 'pago' AND substr(COALESCE(pago_em, ''), 1, 7) = ?) AS recebido_mes,
+            (SELECT COALESCE(SUM(CAST(valor AS REAL)), 0) FROM saas_pagamentos WHERE status = 'pendente') AS pagamentos_pendentes
+        """,
+        (competencia,),
+    ).fetchone()
+    resumo = dict(row or {})
+    resumo["receita_prevista_texto"] = _formatar_moeda_brl(float(resumo.get("receita_prevista") or 0))
+    resumo["recebido_mes_texto"] = _formatar_moeda_brl(float(resumo.get("recebido_mes") or 0))
+    resumo["pagamentos_pendentes_texto"] = _formatar_moeda_brl(float(resumo.get("pagamentos_pendentes") or 0))
+    resumo["mercado_pago_configurado"] = integracao_mercado_pago_configurada()
+    resumo["mercado_pago_modo_teste"] = modo_teste_mercado_pago()
+    return resumo
+
+
 def montar_dashboard_admin() -> dict[str, Any]:
+    sincronizar_assinaturas_saas_todas_db()
     agora = agora_empresa()
     limite_7_dias = (agora - timedelta(days=7)).isoformat(timespec="seconds")
 
@@ -25040,6 +25623,8 @@ def montar_dashboard_admin() -> dict[str, Any]:
         ).fetchall()
 
     resumo = dict(resumo_row or {})
+    with conectar_db() as conn_saas:
+        resumo.update(_resumo_financeiro_saas_admin(conn_saas))
     usuarios = []
 
     for row in usuarios_rows:
@@ -25224,6 +25809,7 @@ def chamar_assistente_ia(pergunta: str) -> tuple[str, str]:
 
 
 def listar_empresas_admin() -> list[dict[str, Any]]:
+    sincronizar_assinaturas_saas_todas_db()
     with conectar_db() as conn:
         rows = conn.execute(
             """
@@ -25242,11 +25828,23 @@ def listar_empresas_admin() -> list[dict[str, Any]]:
                 empresas.indicado_por_empresa_id,
                 empresas.indicador_codigo,
                 empresas.criado_em,
+                saas_assinaturas.id AS assinatura_id,
+                saas_assinaturas.status AS assinatura_status,
+                saas_assinaturas.valor_mensal AS assinatura_valor_mensal,
+                saas_assinaturas.data_vencimento AS assinatura_vencimento,
+                saas_assinaturas.tolerancia_dias AS assinatura_tolerancia_dias,
+                saas_assinaturas.cobranca_ativa AS assinatura_cobranca_ativa,
+                saas_assinaturas.liberacao_manual_ate AS assinatura_liberacao_manual_ate,
+                saas_assinaturas.ultimo_pagamento_em AS assinatura_ultimo_pagamento_em,
+                (SELECT p.status FROM saas_pagamentos p WHERE p.empresa_id = empresas.id ORDER BY p.id DESC LIMIT 1) AS ultimo_pagamento_status,
+                (SELECT p.valor FROM saas_pagamentos p WHERE p.empresa_id = empresas.id ORDER BY p.id DESC LIMIT 1) AS ultimo_pagamento_valor,
+                (SELECT p.pago_em FROM saas_pagamentos p WHERE p.empresa_id = empresas.id AND p.status = 'pago' ORDER BY p.id DESC LIMIT 1) AS ultimo_pagamento_em,
                 COUNT(DISTINCT usuarios.id) AS total_usuarios,
                 COUNT(DISTINCT lojas.id) AS total_lojas
             FROM empresas
             LEFT JOIN usuarios ON usuarios.empresa_id = empresas.id
             LEFT JOIN lojas ON lojas.empresa_id = empresas.id
+            LEFT JOIN saas_assinaturas ON saas_assinaturas.empresa_id = empresas.id
             GROUP BY empresas.id
             ORDER BY empresas.id DESC
             """
@@ -25269,6 +25867,19 @@ def listar_empresas_admin() -> list[dict[str, Any]]:
             empresa["trial_dias_texto"] = "1 dia"
         else:
             empresa["trial_dias_texto"] = f"{dias_restantes} dias"
+
+        valor_assinatura = _decimal_saas(
+            empresa.get("assinatura_valor_mensal"),
+            valor_plano_saas(empresa.get("plano")),
+        )
+        empresa["assinatura_valor_texto"] = _formatar_moeda_brl(float(valor_assinatura))
+        empresa["ultimo_pagamento_valor_texto"] = (
+            _formatar_moeda_brl(float(_decimal_saas(empresa.get("ultimo_pagamento_valor"))))
+            if empresa.get("ultimo_pagamento_valor") not in (None, "")
+            else "-"
+        )
+        empresa["assinatura_status"] = str(empresa.get("assinatura_status") or "sem_cobranca")
+        empresa["assinatura_tolerancia_dias"] = int(empresa.get("assinatura_tolerancia_dias") or GESTFLOW_SAAS_TOLERANCIA_DIAS)
 
         empresas.append(empresa)
 
@@ -25564,6 +26175,8 @@ def excluir_empresa_cliente_admin_db(empresa_id: int) -> bool:
 
     with conectar_db() as conn:
         tabelas_por_empresa = [
+            "saas_pagamentos",
+            "saas_assinaturas",
             "notificacoes",
             "configuracoes_modulos",
             "contrato_historico",
@@ -26674,6 +27287,10 @@ def admin_empresas() -> str | Response:
             }
 
     contexto_admin_empresas = montar_contexto_admin_empresas_paginado()
+    cobranca_id = request.args.get("cobranca_id", type=int)
+    cobranca = buscar_pagamento_saas_db(cobranca_id) if cobranca_id else None
+    erro = erro or str(request.args.get("erro") or "").strip()
+    sucesso = sucesso or str(request.args.get("sucesso") or "").strip()
 
     return render_template(
         "admin_empresas.html",
@@ -26686,7 +27303,129 @@ def admin_empresas() -> str | Response:
         erro=erro,
         sucesso=sucesso,
         formulario=formulario,
+        cobranca=cobranca,
+        mercado_pago_configurado=integracao_mercado_pago_configurada(),
+        mercado_pago_modo_teste=modo_teste_mercado_pago(),
     )
+
+
+@app.post("/admin/empresas/<int:empresa_id>/assinatura")
+def admin_assinatura_empresa(empresa_id: int) -> Response:
+    if not usuario_logado_eh_admin_sistema():
+        return redirect(url_for("dashboard"))
+
+    try:
+        acao = str(request.form.get("acao") or "salvar").strip().lower()
+        if acao == "salvar":
+            salvar_assinatura_empresa_admin_db(
+                empresa_id,
+                {
+                    "plano": request.form.get("plano"),
+                    "valor_mensal": request.form.get("valor_mensal"),
+                    "data_vencimento": request.form.get("data_vencimento"),
+                    "tolerancia_dias": request.form.get("tolerancia_dias"),
+                },
+            )
+            mensagem = "Assinatura atualizada com sucesso."
+        else:
+            acao_assinatura_empresa_admin_db(empresa_id, acao)
+            mensagens = {
+                "liberar_7": "Empresa liberada manualmente por 7 dias.",
+                "liberar_30": "Empresa liberada manualmente por 30 dias.",
+                "bloquear": "Empresa bloqueada manualmente.",
+                "reativar": "Empresa reativada com novo vencimento em 30 dias.",
+            }
+            mensagem = mensagens.get(acao, "Assinatura atualizada.")
+        return redirect(url_for("admin_empresas", sucesso=mensagem))
+    except (ValueError, sqlite3.Error) as exc:
+        return redirect(url_for("admin_empresas", erro=str(exc)))
+
+
+@app.post("/admin/empresas/<int:empresa_id>/cobranca-pix")
+def admin_gerar_cobranca_pix_empresa(empresa_id: int) -> Response:
+    if not usuario_logado_eh_admin_sistema():
+        return redirect(url_for("dashboard"))
+
+    try:
+        cobranca = criar_cobranca_pix_saas_db(empresa_id, request.form.get("valor_mensal"))
+        return redirect(
+            url_for(
+                "admin_empresas",
+                cobranca_id=int(cobranca["id"]),
+                sucesso="Cobrança PIX criada. Aguarde o webhook ou consulte o status manualmente.",
+            )
+        )
+    except (MercadoPagoErro, ValueError, sqlite3.Error, RuntimeError) as exc:
+        return redirect(url_for("admin_empresas", erro=str(exc)))
+
+
+@app.post("/admin/pagamentos/<int:pagamento_id>/consultar")
+def admin_consultar_pagamento_saas(pagamento_id: int) -> Response:
+    if not usuario_logado_eh_admin_sistema():
+        return redirect(url_for("dashboard"))
+
+    try:
+        pagamento = consultar_pagamento_saas_db(pagamento_id)
+        if pagamento is None:
+            raise ValueError("Pagamento não encontrado.")
+        return redirect(
+            url_for(
+                "admin_empresas",
+                cobranca_id=pagamento_id,
+                sucesso=f"Status atualizado: {pagamento.get('status') or 'pendente'}.",
+            )
+        )
+    except (MercadoPagoErro, ValueError, sqlite3.Error) as exc:
+        return redirect(url_for("admin_empresas", cobranca_id=pagamento_id, erro=str(exc)))
+
+
+@app.post("/mercado-pago/webhook")
+def mercado_pago_webhook_saas() -> tuple[str, int]:
+    segredo = obter_webhook_secret()
+    if not segredo:
+        app.logger.error("MERCADO_PAGO_WEBHOOK_SECRET não configurado; webhook SaaS recusado.")
+        return "", 503
+
+    data_id_assinatura = request.args.get("data.id")
+    if not validar_assinatura_webhook(
+        request.headers.get("x-signature"),
+        request.headers.get("x-request-id"),
+        data_id_assinatura,
+        segredo,
+    ):
+        app.logger.warning("Webhook Mercado Pago SaaS rejeitado por assinatura inválida.")
+        return "", 401
+
+    payload = request.get_json(silent=True) or {}
+    if payload.get("type") != "order" and request.args.get("type") != "order":
+        return "", 200
+
+    order_id = str(data_id_assinatura or (payload.get("data") or {}).get("id") or "").strip()
+    if not order_id:
+        return "", 200
+
+    try:
+        info = consultar_order(order_id)
+    except MercadoPagoErro as exc:
+        app.logger.warning("Webhook SaaS válido, mas order %s não pôde ser consultada: %s", order_id, exc)
+        return "", 200
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            "SELECT id FROM saas_pagamentos WHERE mp_order_id = ? LIMIT 1",
+            (order_id,),
+        ).fetchone()
+        if row is None:
+            referencia = str(info.get("external_reference") or "")
+            prefixo = "gestflow_saas_"
+            pagamento_id = int(referencia[len(prefixo):]) if referencia.startswith(prefixo) and referencia[len(prefixo):].isdigit() else 0
+        else:
+            pagamento_id = int(row["id"])
+
+    if pagamento_id:
+        aplicar_retorno_pagamento_saas_db(pagamento_id, info)
+
+    return "", 200
 
 
 @app.post("/admin/empresas/<int:empresa_id>/status")
