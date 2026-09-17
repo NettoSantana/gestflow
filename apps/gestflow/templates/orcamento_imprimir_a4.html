@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\orcamento_imprimir_a4.html
-Último recode: 2026-09-17 00:20 (America/Bahia)
-Motivo: Refinar o visual do Orçamento Premium com fotos maiores, cards mais elegantes, serviços destacados e investimento total reforçado no DEV.
+Último recode: 2026-09-17 00:40 (America/Bahia)
+Motivo: Corrigir o cabeçalho do Orçamento Premium no PDF, exibindo a logo completa sem cortes e preservando o layout de impressão no DEV.
 #}
 
 <!DOCTYPE html>
@@ -359,8 +359,9 @@ Motivo: Refinar o visual do Orçamento Premium com fotos maiores, cards mais ele
         /* TEMPLATE PREMIUM — mais visual e impactante */
         body.orc-template-premium { background:#dfe7ef; color:#142033; font-family:Arial, Helvetica, sans-serif; }
         body.orc-template-premium .page { padding:0 22px 22px; border:0; border-radius:16px; overflow:hidden; box-shadow:0 18px 50px rgba(15,39,64,.18); }
-        body.orc-template-premium .header { margin:0 -22px; grid-template-columns:105px 1fr 235px; border:0; background:#0f2740; color:#fff; padding:20px 22px; }
-        body.orc-template-premium .logo-box { height:88px; border:1px solid rgba(255,255,255,.18); border-radius:12px; background:#fff; color:#0f2740; }
+        body.orc-template-premium .header { margin:0 -22px; grid-template-columns:145px minmax(0,1fr) 220px; border:0; background:#0f2740; color:#fff; padding:20px 22px; }
+        body.orc-template-premium .logo-box { height:88px; padding:7px; border:1px solid rgba(255,255,255,.18); border-radius:12px; background:#fff; color:#0f2740; }
+        body.orc-template-premium .logo-img { width:100%; height:100%; max-width:100%; max-height:100%; object-fit:contain; object-position:center; }
         body.orc-template-premium .company-name { font-size:22px; letter-spacing:-.02em; }
         body.orc-template-premium .company-info { color:#dbeafe; font-size:11px; }
         body.orc-template-premium .bar { margin:0 -22px; padding:0 14px; border:0; border-radius:0; background:#173d63; color:#fff; font-size:17px; }
@@ -411,6 +412,11 @@ Motivo: Refinar o visual do Orçamento Premium com fotos maiores, cards mais ele
         body.orc-template-premium .premium-investment-line div { padding-top:10px; padding-bottom:10px; }
 
         @media print {
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
             body {
                 background: #ffffff;
             }
@@ -425,6 +431,58 @@ Motivo: Refinar o visual do Orçamento Premium com fotos maiores, cards mais ele
                 margin: 0;
                 border: 0;
                 padding: 0;
+            }
+
+            body.orc-template-premium .page {
+                padding: 0 14px 14px;
+                overflow: visible;
+                border-radius: 0;
+                box-shadow: none;
+            }
+
+            body.orc-template-premium .header {
+                margin: 0;
+                grid-template-columns: 150px minmax(0,1fr) 205px;
+                gap: 14px;
+                padding: 10px 0 12px;
+                background: #ffffff;
+                color: #0f2740;
+                border-bottom: 3px solid #0f2740;
+            }
+
+            body.orc-template-premium .logo-box {
+                width: 150px;
+                height: 76px;
+                padding: 2px 0;
+                border: 0;
+                border-radius: 0;
+                background: #ffffff;
+                overflow: visible;
+            }
+
+            body.orc-template-premium .logo-img {
+                width: 100%;
+                height: 100%;
+                max-width: 150px;
+                max-height: 76px;
+                object-fit: contain;
+                object-position: left center;
+            }
+
+            body.orc-template-premium .company-name {
+                color: #0f2740;
+            }
+
+            body.orc-template-premium .company-info {
+                color: #334155;
+            }
+
+            body.orc-template-premium .bar {
+                margin: 0;
+                background: #ffffff;
+                color: #0f2740;
+                border-top: 1px solid #cbd5e1;
+                border-bottom: 1px solid #cbd5e1;
             }
         }
     </style>
