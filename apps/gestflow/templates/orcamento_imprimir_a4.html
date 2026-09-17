@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\orcamento_imprimir_a4.html
-Último recode: 2026-09-17 00:40 (America/Bahia)
-Motivo: Corrigir o cabeçalho do Orçamento Premium no PDF, exibindo a logo completa sem cortes e preservando o layout de impressão no DEV.
+Último recode: 2026-09-17 00:58 (America/Bahia)
+Motivo: Simplificar o Orçamento Premium no DEV, exibindo apenas a apresentação visual das soluções e o investimento total, sem quantidades ou preços unitários por item.
 #}
 
 <!DOCTYPE html>
@@ -392,7 +392,7 @@ Motivo: Corrigir o cabeçalho do Orçamento Premium no PDF, exibindo a logo comp
         body.orc-template-premium .premium-product-placeholder { padding:24px 18px; color:#94a3b8; font-size:10px; font-weight:900; text-align:center; text-transform:uppercase; letter-spacing:.06em; }
         body.orc-template-premium .premium-product-content { padding:13px 13px 14px; }
         body.orc-template-premium .premium-product-name { display:block; max-height:50px; overflow:hidden; color:#0f2740; font-size:12.6px; line-height:1.3; font-weight:900; margin-bottom:7px; }
-        body.orc-template-premium .premium-product-description { min-height:40px; max-height:58px; overflow:hidden; color:#526174; font-size:10px; line-height:1.45; margin-bottom:11px; }
+        body.orc-template-premium .premium-product-description { min-height:54px; max-height:78px; overflow:hidden; color:#526174; font-size:10px; line-height:1.5; margin-bottom:0; }
         body.orc-template-premium .premium-product-values { display:grid; grid-template-columns:.72fr 1fr 1.05fr; gap:6px; align-items:stretch; border-top:1px solid #e2e8f0; padding-top:10px; }
         body.orc-template-premium .premium-product-values > div { padding:5px 4px; }
         body.orc-template-premium .premium-product-values span { display:block; color:#64748b; font-size:7.5px; text-transform:uppercase; font-weight:900; letter-spacing:.02em; }
@@ -410,6 +410,11 @@ Motivo: Corrigir o cabeçalho do Orçamento Premium no PDF, exibindo a logo comp
         body.orc-template-premium .premium-services-table .premium-service-total { color:#155eef; font-size:12px; font-weight:900; }
         body.orc-template-premium .premium-investment-line { background:#0f2740 !important; color:#fff !important; font-size:17px !important; }
         body.orc-template-premium .premium-investment-line div { padding-top:10px; padding-bottom:10px; }
+        body.orc-template-premium .premium-services-list { display:grid; gap:8px; margin-top:10px; }
+        body.orc-template-premium .premium-service-card { padding:11px 13px; border:1px solid #e2e8f0; border-radius:10px; background:#f8fafc; break-inside:avoid; page-break-inside:avoid; }
+        body.orc-template-premium .premium-service-card strong { display:block; color:#0f2740; font-size:11.5px; line-height:1.35; }
+        body.orc-template-premium .premium-service-card span { display:block; margin-top:4px; color:#64748b; font-size:10px; line-height:1.45; }
+        body.orc-template-premium .total-box { width:58%; }
 
         @media print {
             * {
@@ -591,55 +596,59 @@ Motivo: Corrigir o cabeçalho do Orçamento Premium no PDF, exibindo a logo comp
                             <div class="premium-product-description">
                                 {{ item.descricao_comercial or item.detalhes or item.produto_observacoes or 'Solução selecionada para compor esta proposta.' }}
                             </div>
-                            <div class="premium-product-values">
-                                <div><span>Quantidade</span><strong>{{ item.quantidade or '-' }}</strong></div>
-                                <div><span>Valor unit.</span><strong>R$ {{ item.valor_unitario or '0,00' }}</strong></div>
-                                <div class="premium-total"><span>Valor total</span><strong>R$ {{ item.subtotal or '0,00' }}</strong></div>
-                            </div>
                         </div>
                     </article>
                 {% endfor %}
             </div>
-            <div class="premium-products-total">Total de produtos<strong>R$ {{ orcamento.total_produtos or '0,00' }}</strong></div>
         {% endif %}
 
         {% set modo_apresentacao = orcamento.modo_apresentacao|default('agrupado', true) %}
         {% if modo_apresentacao == 'detalhado' %}
         {% if itens_servicos %}
-            <div class="section-title">SERVIÇOS E INSTALAÇÃO</div>
-            <table class="items-table premium-services-table">
-                <thead>
-                    <tr>
-                        <th class="center">ITEM</th>
-                        <th>NOME</th>
-                        <th class="center">QTD.</th>
-                        <th class="num">VR. UNIT.</th>
-                        <th class="num">SUBTOTAL</th>
-                    </tr>
-                </thead>
-                <tbody>
+            {% if template_orcamento == 'premium' %}
+                <div class="section-title">SERVIÇOS INCLUSOS</div>
+                <div class="premium-services-list">
                     {% for item in itens_servicos %}
-                        <tr>
-                            <td class="center">{{ loop.index }}</td>
-                            <td>
-                                <span class="item-nome">{{ item.descricao or '-' }}</span>
-                                {% if item.detalhes %}
-                                    <span class="item-detalhes">{{ item.detalhes }}</span>
-                                {% endif %}
-                            </td>
-                            <td class="center">{{ item.quantidade or '-' }}</td>
-                            <td class="num">R$ {{ item.valor_unitario or '0,00' }}</td>
-                            <td class="num premium-service-total">R$ {{ item.subtotal or '0,00' }}</td>
-                        </tr>
+                        <div class="premium-service-card">
+                            <strong>{{ item.descricao or '-' }}</strong>
+                            {% if item.detalhes %}<span>{{ item.detalhes }}</span>{% endif %}
+                        </div>
                     {% endfor %}
-                    <tr class="total-row">
-                        <td colspan="2">TOTAL</td>
-                        <td class="center">-</td>
-                        <td></td>
-                        <td class="num premium-service-total">R$ {{ orcamento.total_servicos or '0,00' }}</td>
-                    </tr>
-                </tbody>
-            </table>
+                </div>
+            {% else %}
+                <div class="section-title">SERVIÇOS</div>
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th class="center">ITEM</th>
+                            <th>NOME</th>
+                            <th class="center">QTD.</th>
+                            <th class="num">VR. UNIT.</th>
+                            <th class="num">SUBTOTAL</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in itens_servicos %}
+                            <tr>
+                                <td class="center">{{ loop.index }}</td>
+                                <td>
+                                    <span class="item-nome">{{ item.descricao or '-' }}</span>
+                                    {% if item.detalhes %}<span class="item-detalhes">{{ item.detalhes }}</span>{% endif %}
+                                </td>
+                                <td class="center">{{ item.quantidade or '-' }}</td>
+                                <td class="num">{{ item.valor_unitario or '0,00' }}</td>
+                                <td class="num">{{ item.subtotal or '0,00' }}</td>
+                            </tr>
+                        {% endfor %}
+                        <tr class="total-row">
+                            <td colspan="2">TOTAL</td>
+                            <td class="center">-</td>
+                            <td></td>
+                            <td class="num">{{ orcamento.total_servicos or '0,00' }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            {% endif %}
         {% endif %}
 
         {% if itens_produtos and template_orcamento != 'premium' %}
@@ -682,16 +691,15 @@ Motivo: Corrigir o cabeçalho do Orçamento Premium no PDF, exibindo a logo comp
         {% else %}
             {% if template_orcamento == 'premium' %}
                 {% if itens_servicos %}
-                    <div class="section-title">SERVIÇOS E INSTALAÇÃO</div>
-                    <table class="items-table premium-services-table">
-                        <thead><tr><th class="center">ITEM</th><th>DESCRIÇÃO</th><th class="center">QTD.</th><th class="num">VR. UNIT.</th><th class="num">SUBTOTAL</th></tr></thead>
-                        <tbody>
-                            {% for item in itens_servicos %}
-                                <tr><td class="center">{{ loop.index }}</td><td><span class="item-nome">{{ item.descricao or '-' }}</span>{% if item.detalhes %}<span class="item-detalhes">{{ item.detalhes }}</span>{% endif %}</td><td class="center">{{ item.quantidade or '-' }}</td><td class="num">R$ {{ item.valor_unitario or '0,00' }}</td><td class="num premium-service-total">R$ {{ item.subtotal or '0,00' }}</td></tr>
-                            {% endfor %}
-                            <tr class="total-row"><td colspan="2">TOTAL</td><td class="center">-</td><td></td><td class="num premium-service-total">R$ {{ orcamento.total_servicos or '0,00' }}</td></tr>
-                        </tbody>
-                    </table>
+                    <div class="section-title">SERVIÇOS INCLUSOS</div>
+                    <div class="premium-services-list">
+                        {% for item in itens_servicos %}
+                            <div class="premium-service-card">
+                                <strong>{{ item.descricao or '-' }}</strong>
+                                {% if item.detalhes %}<span>{{ item.detalhes }}</span>{% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
                 {% endif %}
             {% else %}
             <div class="section-title">PROPOSTA COMERCIAL</div>
@@ -728,24 +736,31 @@ Motivo: Corrigir o cabeçalho do Orçamento Premium no PDF, exibindo a logo comp
         {% endif %}
 
         <div class="total-box">
-            {% if modo_apresentacao == 'detalhado' %}
+            {% if template_orcamento == 'premium' %}
+                <div class="total-line premium-investment-line">
+                    <div>INVESTIMENTO TOTAL:</div>
+                    <div class="value">R$ {{ orcamento.valor_total or '0,00' }}</div>
+                </div>
+            {% else %}
+                {% if modo_apresentacao == 'detalhado' %}
+                    <div class="total-line">
+                        <div>SERVIÇOS:</div>
+                        <div class="value">{{ orcamento.total_servicos or '0,00' }}</div>
+                    </div>
+                    <div class="total-line">
+                        <div>PRODUTOS:</div>
+                        <div class="value">{{ orcamento.total_produtos or '0,00' }}</div>
+                    </div>
+                {% endif %}
                 <div class="total-line">
-                    <div>SERVIÇOS:</div>
-                    <div class="value">{% if template_orcamento == 'premium' %}R$ {% endif %}{{ orcamento.total_servicos or '0,00' }}</div>
+                    <div>DESCONTO:</div>
+                    <div class="value">{{ orcamento.desconto_valor or '0,00' }}</div>
                 </div>
                 <div class="total-line">
-                    <div>PRODUTOS:</div>
-                    <div class="value">{% if template_orcamento == 'premium' %}R$ {% endif %}{{ orcamento.total_produtos or '0,00' }}</div>
+                    <div>TOTAL:</div>
+                    <div class="value">R$ {{ orcamento.valor_total or '0,00' }}</div>
                 </div>
             {% endif %}
-            <div class="total-line">
-                <div>DESCONTO:</div>
-                <div class="value">{% if template_orcamento == 'premium' %}R$ {% endif %}{{ orcamento.desconto_valor or '0,00' }}</div>
-            </div>
-            <div class="total-line{% if template_orcamento == 'premium' %} premium-investment-line{% endif %}">
-                <div>{% if template_orcamento == 'premium' %}INVESTIMENTO TOTAL{% else %}TOTAL{% endif %}:</div>
-                <div class="value">R$ {{ orcamento.valor_total or '0,00' }}</div>
-            </div>
         </div>
 
         <div class="section-title">ESCOPO E OBSERVAÇÕES</div>
