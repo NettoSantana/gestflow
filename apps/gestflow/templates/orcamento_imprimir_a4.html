@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\orcamento_imprimir_a4.html
-Último recode: 2026-09-17 00:58 (America/Bahia)
-Motivo: Simplificar o Orçamento Premium no DEV, exibindo apenas a apresentação visual das soluções e o investimento total, sem quantidades ou preços unitários por item.
+Último recode: 2026-09-17 12:30 (America/Bahia)
+Motivo: Permitir configurar por empresa a exibição de quantidade e valores no Orçamento Premium no DEV.
 #}
 
 <!DOCTYPE html>
@@ -393,8 +393,8 @@ Motivo: Simplificar o Orçamento Premium no DEV, exibindo apenas a apresentaçã
         body.orc-template-premium .premium-product-content { padding:13px 13px 14px; }
         body.orc-template-premium .premium-product-name { display:block; max-height:50px; overflow:hidden; color:#0f2740; font-size:12.6px; line-height:1.3; font-weight:900; margin-bottom:7px; }
         body.orc-template-premium .premium-product-description { min-height:54px; max-height:78px; overflow:hidden; color:#526174; font-size:10px; line-height:1.5; margin-bottom:0; }
-        body.orc-template-premium .premium-product-values { display:grid; grid-template-columns:.72fr 1fr 1.05fr; gap:6px; align-items:stretch; border-top:1px solid #e2e8f0; padding-top:10px; }
-        body.orc-template-premium .premium-product-values > div { padding:5px 4px; }
+        body.orc-template-premium .premium-product-values { display:flex; gap:6px; align-items:stretch; border-top:1px solid #e2e8f0; padding-top:10px; }
+        body.orc-template-premium .premium-product-values > div { flex:1 1 0; min-width:0; padding:5px 4px; }
         body.orc-template-premium .premium-product-values span { display:block; color:#64748b; font-size:7.5px; text-transform:uppercase; font-weight:900; letter-spacing:.02em; }
         body.orc-template-premium .premium-product-values strong { display:block; margin-top:4px; color:#0f2740; font-size:10px; line-height:1.2; }
         body.orc-template-premium .premium-product-values .premium-total { border-radius:9px; background:#eff6ff; text-align:right; }
@@ -414,6 +414,10 @@ Motivo: Simplificar o Orçamento Premium no DEV, exibindo apenas a apresentaçã
         body.orc-template-premium .premium-service-card { padding:11px 13px; border:1px solid #e2e8f0; border-radius:10px; background:#f8fafc; break-inside:avoid; page-break-inside:avoid; }
         body.orc-template-premium .premium-service-card strong { display:block; color:#0f2740; font-size:11.5px; line-height:1.35; }
         body.orc-template-premium .premium-service-card span { display:block; margin-top:4px; color:#64748b; font-size:10px; line-height:1.45; }
+        body.orc-template-premium .premium-service-meta { display:flex; gap:8px; margin-top:9px; padding-top:8px; border-top:1px solid #e2e8f0; }
+        body.orc-template-premium .premium-service-meta > div { flex:1 1 0; min-width:0; }
+        body.orc-template-premium .premium-service-meta small { display:block; color:#64748b; font-size:7.5px; font-weight:900; letter-spacing:.02em; text-transform:uppercase; }
+        body.orc-template-premium .premium-service-meta b { display:block; margin-top:3px; color:#0f2740; font-size:10px; }
         body.orc-template-premium .total-box { width:58%; }
 
         @media print {
@@ -497,6 +501,10 @@ Motivo: Simplificar o Orçamento Premium no DEV, exibindo apenas a apresentaçã
     {% set _cfg_gerais = _cfg.get('gerais', {}) %}
     {% set _cfg_orcamentos = _cfg.get('orcamentos', {}) %}
     {% set template_orcamento = _cfg_orcamentos.get('template_orcamento', 'formal') %}
+    {% set premium_exibir_quantidade = _cfg_orcamentos.get('premium_exibir_quantidade', false) %}
+    {% set premium_exibir_valor_unitario = _cfg_orcamentos.get('premium_exibir_valor_unitario', false) %}
+    {% set premium_exibir_total_item = _cfg_orcamentos.get('premium_exibir_total_item', false) %}
+    {% set premium_exibir_resumo_valores = _cfg_orcamentos.get('premium_exibir_resumo_valores', false) %}
 
     <div class="print-actions">
         <a class="print-button back-button" href="/orcamentos/{{ orcamento.id }}">Voltar</a>
@@ -596,6 +604,28 @@ Motivo: Simplificar o Orçamento Premium no DEV, exibindo apenas a apresentaçã
                             <div class="premium-product-description">
                                 {{ item.descricao_comercial or item.detalhes or item.produto_observacoes or 'Solução selecionada para compor esta proposta.' }}
                             </div>
+                            {% if premium_exibir_quantidade or premium_exibir_valor_unitario or premium_exibir_total_item %}
+                                <div class="premium-product-values">
+                                    {% if premium_exibir_quantidade %}
+                                        <div>
+                                            <span>Quantidade</span>
+                                            <strong>{{ item.quantidade or '-' }}</strong>
+                                        </div>
+                                    {% endif %}
+                                    {% if premium_exibir_valor_unitario %}
+                                        <div>
+                                            <span>Valor unit.</span>
+                                            <strong>R$ {{ item.valor_unitario or '0,00' }}</strong>
+                                        </div>
+                                    {% endif %}
+                                    {% if premium_exibir_total_item %}
+                                        <div class="premium-total">
+                                            <span>Valor total</span>
+                                            <strong>R$ {{ item.subtotal or '0,00' }}</strong>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
                         </div>
                     </article>
                 {% endfor %}
@@ -609,10 +639,7 @@ Motivo: Simplificar o Orçamento Premium no DEV, exibindo apenas a apresentaçã
                 <div class="section-title">SERVIÇOS INCLUSOS</div>
                 <div class="premium-services-list">
                     {% for item in itens_servicos %}
-                        <div class="premium-service-card">
-                            <strong>{{ item.descricao or '-' }}</strong>
-                            {% if item.detalhes %}<span>{{ item.detalhes }}</span>{% endif %}
-                        </div>
+                        <div class="premium-service-card">\n                            <strong>{{ item.descricao or '-' }}</strong>\n                            {% if item.detalhes %}<span>{{ item.detalhes }}</span>{% endif %}\n                            {% if premium_exibir_quantidade or premium_exibir_valor_unitario or premium_exibir_total_item %}\n                                <div class="premium-service-meta">\n                                    {% if premium_exibir_quantidade %}\n                                        <div><small>Quantidade</small><b>{{ item.quantidade or '-' }}</b></div>\n                                    {% endif %}\n                                    {% if premium_exibir_valor_unitario %}\n                                        <div><small>Valor unit.</small><b>R$ {{ item.valor_unitario or '0,00' }}</b></div>\n                                    {% endif %}\n                                    {% if premium_exibir_total_item %}\n                                        <div><small>Valor total</small><b>R$ {{ item.subtotal or '0,00' }}</b></div>\n                                    {% endif %}\n                                </div>\n                            {% endif %}\n                        </div>
                     {% endfor %}
                 </div>
             {% else %}
@@ -694,10 +721,7 @@ Motivo: Simplificar o Orçamento Premium no DEV, exibindo apenas a apresentaçã
                     <div class="section-title">SERVIÇOS INCLUSOS</div>
                     <div class="premium-services-list">
                         {% for item in itens_servicos %}
-                            <div class="premium-service-card">
-                                <strong>{{ item.descricao or '-' }}</strong>
-                                {% if item.detalhes %}<span>{{ item.detalhes }}</span>{% endif %}
-                            </div>
+                            <div class="premium-service-card">\n                                <strong>{{ item.descricao or '-' }}</strong>\n                                {% if item.detalhes %}<span>{{ item.detalhes }}</span>{% endif %}\n                                {% if premium_exibir_quantidade or premium_exibir_valor_unitario or premium_exibir_total_item %}\n                                    <div class="premium-service-meta">\n                                        {% if premium_exibir_quantidade %}\n                                            <div><small>Quantidade</small><b>{{ item.quantidade or '-' }}</b></div>\n                                        {% endif %}\n                                        {% if premium_exibir_valor_unitario %}\n                                            <div><small>Valor unit.</small><b>R$ {{ item.valor_unitario or '0,00' }}</b></div>\n                                        {% endif %}\n                                        {% if premium_exibir_total_item %}\n                                            <div><small>Valor total</small><b>R$ {{ item.subtotal or '0,00' }}</b></div>\n                                        {% endif %}\n                                    </div>\n                                {% endif %}\n                            </div>
                         {% endfor %}
                     </div>
                 {% endif %}
@@ -737,6 +761,20 @@ Motivo: Simplificar o Orçamento Premium no DEV, exibindo apenas a apresentaçã
 
         <div class="total-box">
             {% if template_orcamento == 'premium' %}
+                {% if premium_exibir_resumo_valores %}
+                    <div class="total-line">
+                        <div>SERVIÇOS:</div>
+                        <div class="value">R$ {{ orcamento.total_servicos or '0,00' }}</div>
+                    </div>
+                    <div class="total-line">
+                        <div>PRODUTOS:</div>
+                        <div class="value">R$ {{ orcamento.total_produtos or '0,00' }}</div>
+                    </div>
+                    <div class="total-line">
+                        <div>DESCONTO:</div>
+                        <div class="value">R$ {{ orcamento.desconto_valor or '0,00' }}</div>
+                    </div>
+                {% endif %}
                 <div class="total-line premium-investment-line">
                     <div>INVESTIMENTO TOTAL:</div>
                     <div class="value">R$ {{ orcamento.valor_total or '0,00' }}</div>

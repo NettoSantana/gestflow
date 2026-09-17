@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\configuracoes_orcamentos.html
-Último recode: 2026-09-16 22:00 (America/Bahia)
-Motivo: Tornar as miniaturas dos templates Formal, Comercial e Premium mais realistas e fáceis de comparar visualmente.
+Último recode: 2026-09-17 12:30 (America/Bahia)
+Motivo: Adicionar controles por empresa para definir quantidade e valores exibidos no Orçamento Premium no DEV.
 #}
 
 <!DOCTYPE html>
@@ -587,10 +587,56 @@ Motivo: Tornar as miniaturas dos templates Formal, Comercial e Premium mais real
                 <div class="orc-template-note">O template altera apenas a apresentação do documento. Itens, valores, cálculos, condições e demais dados do Orçamento continuam exatamente os mesmos.</div>
             </section>
 
+            <section class="orc-template-panel">
+                <div class="orc-template-panel-head">
+                    <div>
+                        <h3>Exibição do Orçamento Premium</h3>
+                        <p>Defina uma vez quais informações comerciais sua empresa deseja mostrar nos Orçamentos Premium. O investimento total permanece sempre visível.</p>
+                    </div>
+                    <span class="orc-template-status">Somente Premium</span>
+                </div>
+
+                <div class="orc-config-fields">
+                    <label class="orc-config-toggle" for="cfg_premium_exibir_quantidade">
+                        <span>
+                            <strong>Mostrar quantidade</strong>
+                            <small>Exibe a quantidade de cada produto e serviço.</small>
+                        </span>
+                        <input id="cfg_premium_exibir_quantidade" name="premium_exibir_quantidade" type="checkbox" value="sim" {% if configuracoes_modulo.get('premium_exibir_quantidade', false) %}checked{% endif %}>
+                    </label>
+
+                    <label class="orc-config-toggle" for="cfg_premium_exibir_valor_unitario">
+                        <span>
+                            <strong>Mostrar valor unitário</strong>
+                            <small>Exibe o preço unitário de cada produto e serviço.</small>
+                        </span>
+                        <input id="cfg_premium_exibir_valor_unitario" name="premium_exibir_valor_unitario" type="checkbox" value="sim" {% if configuracoes_modulo.get('premium_exibir_valor_unitario', false) %}checked{% endif %}>
+                    </label>
+
+                    <label class="orc-config-toggle" for="cfg_premium_exibir_total_item">
+                        <span>
+                            <strong>Mostrar valor total por item</strong>
+                            <small>Exibe o subtotal de cada produto e serviço.</small>
+                        </span>
+                        <input id="cfg_premium_exibir_total_item" name="premium_exibir_total_item" type="checkbox" value="sim" {% if configuracoes_modulo.get('premium_exibir_total_item', false) %}checked{% endif %}>
+                    </label>
+
+                    <label class="orc-config-toggle" for="cfg_premium_exibir_resumo_valores">
+                        <span>
+                            <strong>Mostrar resumo de produtos e serviços</strong>
+                            <small>Exibe os totais de produtos, serviços e desconto antes do investimento total.</small>
+                        </span>
+                        <input id="cfg_premium_exibir_resumo_valores" name="premium_exibir_resumo_valores" type="checkbox" value="sim" {% if configuracoes_modulo.get('premium_exibir_resumo_valores', false) %}checked{% endif %}>
+                    </label>
+                </div>
+
+                <div class="orc-template-note">O <b>Investimento Total</b> continua sempre visível, independentemente das opções acima.</div>
+            </section>
+
             {% for nome_secao, campos_secao in secoes_configuracao.items() %}
                 {% set campos_visiveis = [] %}
                 {% for campo in campos_secao %}
-                    {% if campo.chave not in ['situacoes', 'situacoes_config_json', 'situacao_finalizadora', 'template_orcamento'] %}
+                    {% if campo.chave not in ['situacoes', 'situacoes_config_json', 'situacao_finalizadora', 'template_orcamento', 'premium_exibir_quantidade', 'premium_exibir_valor_unitario', 'premium_exibir_total_item', 'premium_exibir_resumo_valores'] %}
                         {% set _ = campos_visiveis.append(campo) %}
                     {% endif %}
                 {% endfor %}
