@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\orcamento_imprimir_a4.html
 Último recode: 2026-09-17 12:30 (America/Bahia)
-Motivo: Permitir configurar por empresa a exibição de quantidade e valores no Orçamento Premium no MAIN.
+Motivo: Corrigir no MAIN a exibição de Serviços Inclusos no Orçamento Premium, removendo quebras de linha literais e preservando os campos configuráveis.
 #}
 
 <!DOCTYPE html>
@@ -639,7 +639,23 @@ Motivo: Permitir configurar por empresa a exibição de quantidade e valores no 
                 <div class="section-title">SERVIÇOS INCLUSOS</div>
                 <div class="premium-services-list">
                     {% for item in itens_servicos %}
-                        <div class="premium-service-card">\n                            <strong>{{ item.descricao or '-' }}</strong>\n                            {% if item.detalhes %}<span>{{ item.detalhes }}</span>{% endif %}\n                            {% if premium_exibir_quantidade or premium_exibir_valor_unitario or premium_exibir_total_item %}\n                                <div class="premium-service-meta">\n                                    {% if premium_exibir_quantidade %}\n                                        <div><small>Quantidade</small><b>{{ item.quantidade or '-' }}</b></div>\n                                    {% endif %}\n                                    {% if premium_exibir_valor_unitario %}\n                                        <div><small>Valor unit.</small><b>R$ {{ item.valor_unitario or '0,00' }}</b></div>\n                                    {% endif %}\n                                    {% if premium_exibir_total_item %}\n                                        <div><small>Valor total</small><b>R$ {{ item.subtotal or '0,00' }}</b></div>\n                                    {% endif %}\n                                </div>\n                            {% endif %}\n                        </div>
+                        <div class="premium-service-card">
+                            <strong>{{ item.descricao or '-' }}</strong>
+                            {% if item.detalhes %}<span>{{ item.detalhes }}</span>{% endif %}
+                            {% if premium_exibir_quantidade or premium_exibir_valor_unitario or premium_exibir_total_item %}
+                                <div class="premium-service-meta">
+                                    {% if premium_exibir_quantidade %}
+                                        <div><small>Quantidade</small><b>{{ item.quantidade or '-' }}</b></div>
+                                    {% endif %}
+                                    {% if premium_exibir_valor_unitario %}
+                                        <div><small>Valor unit.</small><b>R$ {{ item.valor_unitario or '0,00' }}</b></div>
+                                    {% endif %}
+                                    {% if premium_exibir_total_item %}
+                                        <div><small>Valor total</small><b>R$ {{ item.subtotal or '0,00' }}</b></div>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        </div>
                     {% endfor %}
                 </div>
             {% else %}
@@ -721,7 +737,23 @@ Motivo: Permitir configurar por empresa a exibição de quantidade e valores no 
                     <div class="section-title">SERVIÇOS INCLUSOS</div>
                     <div class="premium-services-list">
                         {% for item in itens_servicos %}
-                            <div class="premium-service-card">\n                                <strong>{{ item.descricao or '-' }}</strong>\n                                {% if item.detalhes %}<span>{{ item.detalhes }}</span>{% endif %}\n                                {% if premium_exibir_quantidade or premium_exibir_valor_unitario or premium_exibir_total_item %}\n                                    <div class="premium-service-meta">\n                                        {% if premium_exibir_quantidade %}\n                                            <div><small>Quantidade</small><b>{{ item.quantidade or '-' }}</b></div>\n                                        {% endif %}\n                                        {% if premium_exibir_valor_unitario %}\n                                            <div><small>Valor unit.</small><b>R$ {{ item.valor_unitario or '0,00' }}</b></div>\n                                        {% endif %}\n                                        {% if premium_exibir_total_item %}\n                                            <div><small>Valor total</small><b>R$ {{ item.subtotal or '0,00' }}</b></div>\n                                        {% endif %}\n                                    </div>\n                                {% endif %}\n                            </div>
+                            <div class="premium-service-card">
+                                <strong>{{ item.descricao or '-' }}</strong>
+                                {% if item.detalhes %}<span>{{ item.detalhes }}</span>{% endif %}
+                                {% if premium_exibir_quantidade or premium_exibir_valor_unitario or premium_exibir_total_item %}
+                                    <div class="premium-service-meta">
+                                        {% if premium_exibir_quantidade %}
+                                            <div><small>Quantidade</small><b>{{ item.quantidade or '-' }}</b></div>
+                                        {% endif %}
+                                        {% if premium_exibir_valor_unitario %}
+                                            <div><small>Valor unit.</small><b>R$ {{ item.valor_unitario or '0,00' }}</b></div>
+                                        {% endif %}
+                                        {% if premium_exibir_total_item %}
+                                            <div><small>Valor total</small><b>R$ {{ item.subtotal or '0,00' }}</b></div>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            </div>
                         {% endfor %}
                     </div>
                 {% endif %}
