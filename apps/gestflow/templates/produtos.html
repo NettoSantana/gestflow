@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\produtos.html
-Último recode: 2026-08-22 00:35 (America/Bahia)
-Motivo: Vincular explicitamente a tabela principal ao componente padronizado de Busca avançada, Colunas e Mais ações no mesmo padrão de Orçamentos.
+Último recode: 2026-09-16 23:51 (America/Bahia)
+Motivo: Permitir foto e descrição comercial no Novo Produto e padronizar o preço de venda da listagem em moeda brasileira.
 #}
 
 <!DOCTYPE html>
@@ -282,6 +282,68 @@ Motivo: Vincular explicitamente a tabela principal ao componente padronizado de 
             font-weight: 800;
         }
 
+        .produto-foto-config {
+            display: grid;
+            grid-template-columns: 180px minmax(0, 1fr);
+            gap: 16px;
+            align-items: start;
+            padding: 14px;
+            border: 1px solid #dbe4f0;
+            border-radius: 14px;
+            background: #f8fafc;
+        }
+
+        .produto-foto-preview {
+            width: 180px;
+            height: 150px;
+            border: 1px solid #dbe4f0;
+            border-radius: 12px;
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            color: #94a3b8;
+            font-size: 12px;
+            font-weight: 800;
+            text-align: center;
+        }
+
+        .produto-foto-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .produto-foto-fields {
+            display: grid;
+            gap: 10px;
+        }
+
+        .produto-foto-fields small {
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1.45;
+        }
+
+        .sale-price {
+            color: #0f172a;
+            font-size: 13px;
+            font-weight: 900;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 720px) {
+            .produto-foto-config {
+                grid-template-columns: 1fr;
+            }
+
+            .produto-foto-preview {
+                width: 100%;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -358,7 +420,7 @@ Motivo: Vincular explicitamente a tabela principal ao componente padronizado de 
                 <span class="badge-info">Cadastro inicial</span>
             </div>
 
-            <form action="/produtos" method="post" class="client-form">
+            <form action="/produtos" method="post" enctype="multipart/form-data" class="client-form">
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="produto_nome">Nome do produto *</label>
@@ -431,6 +493,23 @@ Motivo: Vincular explicitamente a tabela principal ao componente padronizado de 
                     <div class="form-group">
                         <label for="produto_observacoes">Observações</label>
                         <input id="produto_observacoes" name="produto_observacoes" type="text" placeholder="Ex: Fornecedor, aplicação ou observação" class="form-control">
+                    </div>
+
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label for="produto_descricao_comercial">Descrição comercial para o Orçamento Premium</label>
+                        <textarea id="produto_descricao_comercial" name="produto_descricao_comercial" rows="3" class="form-control" placeholder="Ex: Controle a iluminação pelo app, automações e comandos de voz. Instalação limpa e integração com sua rotina."></textarea>
+                        <small style="display:block; margin-top:6px; color:#64748b; font-weight:700;">Esta descrição aparece embaixo da foto do produto somente no template Premium.</small>
+                    </div>
+
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label for="produto_foto">Foto do produto</label>
+                        <div class="produto-foto-config">
+                            <div id="produto-foto-preview" class="produto-foto-preview">Nenhuma foto selecionada</div>
+                            <div class="produto-foto-fields">
+                                <input id="produto_foto" name="produto_foto" type="file" accept="image/png,image/jpeg,image/webp" class="form-control">
+                                <small>Use PNG, JPG, JPEG ou WEBP. A foto é opcional e será usada nos cards do Orçamento Premium.</small>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -567,7 +646,7 @@ Motivo: Vincular explicitamente a tabela principal ao componente padronizado de 
                                             <span class="cmv-origin manual">Manual</span>
                                         {% endif %}
                                     </td>
-                                    <td>{{ produto.preco_venda }}</td>
+                                    <td><strong class="sale-price">R$ {{ produto.preco_venda_formatado }}</strong></td>
                                     <td>
                                         <span class="status-pill {{ produto.status }}">
                                             {{ produto.status }}
@@ -656,6 +735,29 @@ Motivo: Vincular explicitamente a tabela principal ao componente padronizado de 
     </main>
 
     <script>
+        const inputFotoProduto = document.getElementById('produto_foto');
+        const previewFotoProduto = document.getElementById('produto-foto-preview');
+
+        if (inputFotoProduto && previewFotoProduto) {
+            inputFotoProduto.addEventListener('change', function () {
+                const arquivo = this.files && this.files[0];
+                previewFotoProduto.innerHTML = '';
+
+                if (!arquivo) {
+                    previewFotoProduto.textContent = 'Nenhuma foto selecionada';
+                    return;
+                }
+
+                const imagem = document.createElement('img');
+                imagem.alt = 'Prévia da foto do produto';
+                imagem.src = URL.createObjectURL(arquivo);
+                imagem.onload = function () {
+                    URL.revokeObjectURL(imagem.src);
+                };
+                previewFotoProduto.appendChild(imagem);
+            });
+        }
+
         function alternarMenuProdutos() {
             const menu = document.getElementById("produtos-more-actions");
 

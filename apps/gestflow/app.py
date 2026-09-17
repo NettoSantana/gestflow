@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-09-16 22:31 (America/Bahia)
-# Motivo: Promover para a MAIN os templates de Orçamento e permitir foto/descrição comercial de Produto no template Premium, preservando as demais rotinas de produção.
+# Último recode: 2026-09-16 23:51 (America/Bahia)
+# Motivo: Permitir foto e descrição comercial já no Novo Produto e formatar o preço de venda da listagem em moeda brasileira na MAIN.
 
 from __future__ import annotations
 
@@ -36161,6 +36161,10 @@ def validar_servico_para_salvar(servico: dict[str, str]) -> str:
 @app.get("/produtos")
 def produtos() -> str:
     contexto = montar_contexto_cadastro_paginado("produtos")
+    for produto in contexto["registros"]:
+        produto["preco_venda_formatado"] = _formatar_moeda_brl(
+            _converter_valor_brl(produto.get("preco_venda"))
+        )
     return render_template(
         "produtos.html",
         produtos=contexto["registros"],
@@ -36196,7 +36200,18 @@ def salvar_produto() -> Response:
     if erro_validacao:
         return redirect(url_for("produtos", erro=erro_validacao))
 
-    salvar_produto_db(produto)
+    arquivo_foto = request.files.get("produto_foto")
+    if arquivo_foto is not None and (arquivo_foto.filename or "").strip():
+        nome_foto = secure_filename(arquivo_foto.filename or "")
+        if not nome_foto or not _extensao_foto_produto_permitida(nome_foto):
+            return redirect(url_for("produtos", erro="Formato de foto inválido. Use PNG, JPG, JPEG ou WEBP."))
+
+    produto_id = salvar_produto_db(produto)
+
+    if arquivo_foto is not None and (arquivo_foto.filename or "").strip():
+        produto["foto_path"] = salvar_upload_foto_produto(arquivo_foto, produto_id)
+        atualizar_produto_db(produto_id, produto)
+
     registrar_atividade_usuario("criacao", "produtos", f"Criou produto {produto['nome']}", request.path)
 
     return redirect(url_for("produtos"))
