@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\orcamento_imprimir_a4.html
-Último recode: 2026-09-16 22:31 (America/Bahia)
-Motivo: Promover para a MAIN os templates de Orçamento e exibir no Premium os produtos com foto, nome, descrição comercial, quantidade e valores.
+Último recode: 2026-09-17 00:20 (America/Bahia)
+Motivo: Refinar o visual do Orçamento Premium com fotos maiores, cards mais elegantes, serviços destacados e investimento total reforçado no MAIN.
 #}
 
 <!DOCTYPE html>
@@ -384,20 +384,31 @@ Motivo: Promover para a MAIN os templates de Orçamento e exibir no Premium os p
         body.orc-template-premium .scope-heading { background:#eef4f9; color:#0f2740; }
         body.orc-template-premium .scope-heading-number { border-radius:999px; background:#2563eb; }
         body.orc-template-premium .footer { margin-top:30px; padding-top:12px; border-top:1px solid #e2e8f0; }
-        body.orc-template-premium .premium-products-grid { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:12px; margin:10px 0 18px; }
-        body.orc-template-premium .premium-product-card { border:1px solid #dbe4f0; border-radius:14px; background:#fff; overflow:hidden; box-shadow:0 7px 22px rgba(15,39,64,.09); break-inside:avoid; page-break-inside:avoid; }
-        body.orc-template-premium .premium-product-photo { height:148px; background:#eef3f8; display:flex; align-items:center; justify-content:center; overflow:hidden; }
-        body.orc-template-premium .premium-product-photo img { width:100%; height:100%; object-fit:cover; }
-        body.orc-template-premium .premium-product-placeholder { padding:18px; color:#94a3b8; font-size:11px; font-weight:800; text-align:center; text-transform:uppercase; letter-spacing:.05em; }
-        body.orc-template-premium .premium-product-content { padding:12px; }
-        body.orc-template-premium .premium-product-name { display:block; color:#0f2740; font-size:14px; line-height:1.25; font-weight:900; margin-bottom:6px; }
-        body.orc-template-premium .premium-product-description { min-height:52px; color:#475569; font-size:10.5px; line-height:1.45; margin-bottom:10px; }
-        body.orc-template-premium .premium-product-values { display:grid; grid-template-columns:.72fr 1fr 1fr; gap:5px; border-top:1px solid #e2e8f0; padding-top:9px; }
-        body.orc-template-premium .premium-product-values span { display:block; color:#64748b; font-size:8px; text-transform:uppercase; font-weight:800; }
-        body.orc-template-premium .premium-product-values strong { display:block; margin-top:3px; color:#0f2740; font-size:10px; }
-        body.orc-template-premium .premium-product-values .premium-total strong { color:#2563eb; font-size:11px; }
-        body.orc-template-premium .premium-products-total { margin:-4px 0 16px auto; width:250px; padding:10px 12px; border-radius:10px; background:#eef4f9; color:#0f2740; text-align:right; font-size:11px; font-weight:800; }
-        body.orc-template-premium .premium-products-total strong { display:block; margin-top:3px; font-size:16px; }
+        body.orc-template-premium .premium-products-grid { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:14px; margin:12px 0 20px; }
+        body.orc-template-premium .premium-product-card { border:0; border-radius:16px; background:#fff; overflow:hidden; box-shadow:0 10px 28px rgba(15,39,64,.12); break-inside:avoid; page-break-inside:avoid; }
+        body.orc-template-premium .premium-product-photo { height:186px; padding:8px; background:linear-gradient(180deg,#f8fafc 0%,#eef3f8 100%); display:flex; align-items:center; justify-content:center; overflow:hidden; border-bottom:1px solid #e7edf4; }
+        body.orc-template-premium .premium-product-photo img { width:100%; height:100%; object-fit:contain; display:block; }
+        body.orc-template-premium .premium-product-placeholder { padding:24px 18px; color:#94a3b8; font-size:10px; font-weight:900; text-align:center; text-transform:uppercase; letter-spacing:.06em; }
+        body.orc-template-premium .premium-product-content { padding:13px 13px 14px; }
+        body.orc-template-premium .premium-product-name { display:block; max-height:50px; overflow:hidden; color:#0f2740; font-size:12.6px; line-height:1.3; font-weight:900; margin-bottom:7px; }
+        body.orc-template-premium .premium-product-description { min-height:40px; max-height:58px; overflow:hidden; color:#526174; font-size:10px; line-height:1.45; margin-bottom:11px; }
+        body.orc-template-premium .premium-product-values { display:grid; grid-template-columns:.72fr 1fr 1.05fr; gap:6px; align-items:stretch; border-top:1px solid #e2e8f0; padding-top:10px; }
+        body.orc-template-premium .premium-product-values > div { padding:5px 4px; }
+        body.orc-template-premium .premium-product-values span { display:block; color:#64748b; font-size:7.5px; text-transform:uppercase; font-weight:900; letter-spacing:.02em; }
+        body.orc-template-premium .premium-product-values strong { display:block; margin-top:4px; color:#0f2740; font-size:10px; line-height:1.2; }
+        body.orc-template-premium .premium-product-values .premium-total { border-radius:9px; background:#eff6ff; text-align:right; }
+        body.orc-template-premium .premium-product-values .premium-total span { color:#2563eb; }
+        body.orc-template-premium .premium-product-values .premium-total strong { color:#155eef; font-size:12px; }
+        body.orc-template-premium .premium-products-total { margin:-2px 0 18px auto; width:270px; padding:12px 14px; border:1px solid #dbeafe; border-radius:12px; background:#eff6ff; color:#334155; text-align:right; font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:.03em; }
+        body.orc-template-premium .premium-products-total strong { display:block; margin-top:4px; color:#0f2740; font-size:19px; letter-spacing:-.02em; text-transform:none; }
+        body.orc-template-premium .premium-services-table { margin-top:8px; border-collapse:separate; border-spacing:0 7px; }
+        body.orc-template-premium .premium-services-table thead th { color:#64748b; font-size:9px; letter-spacing:.03em; }
+        body.orc-template-premium .premium-services-table tbody tr:not(.total-row) td { padding:10px 8px; background:#f8fafc; box-shadow:none; }
+        body.orc-template-premium .premium-services-table .item-nome { color:#0f2740; font-size:11.5px; font-weight:900; }
+        body.orc-template-premium .premium-services-table .total-row td { padding:10px 8px; background:#eef4f9; }
+        body.orc-template-premium .premium-services-table .premium-service-total { color:#155eef; font-size:12px; font-weight:900; }
+        body.orc-template-premium .premium-investment-line { background:#0f2740 !important; color:#fff !important; font-size:17px !important; }
+        body.orc-template-premium .premium-investment-line div { padding-top:10px; padding-bottom:10px; }
 
         @media print {
             body {
@@ -520,7 +531,7 @@ Motivo: Promover para a MAIN os templates de Orçamento e exibir no Premium os p
                         <div class="premium-product-content">
                             <span class="premium-product-name">{{ item.descricao or '-' }}</span>
                             <div class="premium-product-description">
-                                {{ item.descricao_comercial or item.detalhes or item.produto_observacoes or 'Produto incluído nesta proposta conforme especificação apresentada.' }}
+                                {{ item.descricao_comercial or item.detalhes or item.produto_observacoes or 'Solução selecionada para compor esta proposta.' }}
                             </div>
                             <div class="premium-product-values">
                                 <div><span>Quantidade</span><strong>{{ item.quantidade or '-' }}</strong></div>
@@ -537,8 +548,8 @@ Motivo: Promover para a MAIN os templates de Orçamento e exibir no Premium os p
         {% set modo_apresentacao = orcamento.modo_apresentacao|default('agrupado', true) %}
         {% if modo_apresentacao == 'detalhado' %}
         {% if itens_servicos %}
-            <div class="section-title">SERVIÇOS</div>
-            <table class="items-table">
+            <div class="section-title">SERVIÇOS E INSTALAÇÃO</div>
+            <table class="items-table premium-services-table">
                 <thead>
                     <tr>
                         <th class="center">ITEM</th>
@@ -559,15 +570,15 @@ Motivo: Promover para a MAIN os templates de Orçamento e exibir no Premium os p
                                 {% endif %}
                             </td>
                             <td class="center">{{ item.quantidade or '-' }}</td>
-                            <td class="num">{{ item.valor_unitario or '0,00' }}</td>
-                            <td class="num">{{ item.subtotal or '0,00' }}</td>
+                            <td class="num">R$ {{ item.valor_unitario or '0,00' }}</td>
+                            <td class="num premium-service-total">R$ {{ item.subtotal or '0,00' }}</td>
                         </tr>
                     {% endfor %}
                     <tr class="total-row">
                         <td colspan="2">TOTAL</td>
                         <td class="center">-</td>
                         <td></td>
-                        <td class="num">{{ orcamento.total_servicos or '0,00' }}</td>
+                        <td class="num premium-service-total">R$ {{ orcamento.total_servicos or '0,00' }}</td>
                     </tr>
                 </tbody>
             </table>
@@ -613,14 +624,14 @@ Motivo: Promover para a MAIN os templates de Orçamento e exibir no Premium os p
         {% else %}
             {% if template_orcamento == 'premium' %}
                 {% if itens_servicos %}
-                    <div class="section-title">SERVIÇOS INCLUÍDOS</div>
-                    <table class="items-table">
+                    <div class="section-title">SERVIÇOS E INSTALAÇÃO</div>
+                    <table class="items-table premium-services-table">
                         <thead><tr><th class="center">ITEM</th><th>DESCRIÇÃO</th><th class="center">QTD.</th><th class="num">VR. UNIT.</th><th class="num">SUBTOTAL</th></tr></thead>
                         <tbody>
                             {% for item in itens_servicos %}
-                                <tr><td class="center">{{ loop.index }}</td><td><span class="item-nome">{{ item.descricao or '-' }}</span>{% if item.detalhes %}<span class="item-detalhes">{{ item.detalhes }}</span>{% endif %}</td><td class="center">{{ item.quantidade or '-' }}</td><td class="num">{{ item.valor_unitario or '0,00' }}</td><td class="num">{{ item.subtotal or '0,00' }}</td></tr>
+                                <tr><td class="center">{{ loop.index }}</td><td><span class="item-nome">{{ item.descricao or '-' }}</span>{% if item.detalhes %}<span class="item-detalhes">{{ item.detalhes }}</span>{% endif %}</td><td class="center">{{ item.quantidade or '-' }}</td><td class="num">R$ {{ item.valor_unitario or '0,00' }}</td><td class="num premium-service-total">R$ {{ item.subtotal or '0,00' }}</td></tr>
                             {% endfor %}
-                            <tr class="total-row"><td colspan="2">TOTAL</td><td class="center">-</td><td></td><td class="num">{{ orcamento.total_servicos or '0,00' }}</td></tr>
+                            <tr class="total-row"><td colspan="2">TOTAL</td><td class="center">-</td><td></td><td class="num premium-service-total">R$ {{ orcamento.total_servicos or '0,00' }}</td></tr>
                         </tbody>
                     </table>
                 {% endif %}
@@ -662,19 +673,19 @@ Motivo: Promover para a MAIN os templates de Orçamento e exibir no Premium os p
             {% if modo_apresentacao == 'detalhado' %}
                 <div class="total-line">
                     <div>SERVIÇOS:</div>
-                    <div class="value">{{ orcamento.total_servicos or '0,00' }}</div>
+                    <div class="value">{% if template_orcamento == 'premium' %}R$ {% endif %}{{ orcamento.total_servicos or '0,00' }}</div>
                 </div>
                 <div class="total-line">
                     <div>PRODUTOS:</div>
-                    <div class="value">{{ orcamento.total_produtos or '0,00' }}</div>
+                    <div class="value">{% if template_orcamento == 'premium' %}R$ {% endif %}{{ orcamento.total_produtos or '0,00' }}</div>
                 </div>
             {% endif %}
             <div class="total-line">
                 <div>DESCONTO:</div>
-                <div class="value">{{ orcamento.desconto_valor or '0,00' }}</div>
+                <div class="value">{% if template_orcamento == 'premium' %}R$ {% endif %}{{ orcamento.desconto_valor or '0,00' }}</div>
             </div>
-            <div class="total-line">
-                <div>TOTAL:</div>
+            <div class="total-line{% if template_orcamento == 'premium' %} premium-investment-line{% endif %}">
+                <div>{% if template_orcamento == 'premium' %}INVESTIMENTO TOTAL{% else %}TOTAL{% endif %}:</div>
                 <div class="value">R$ {{ orcamento.valor_total or '0,00' }}</div>
             </div>
         </div>
