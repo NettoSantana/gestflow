@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\orcamento_imprimir_a4.html
-Último recode: 2026-09-16 21:29 (America/Bahia)
-Motivo: Renderizar no DEV os templates Formal, Comercial e Premium conforme o padrão escolhido nas Configurações de Orçamentos.
+Último recode: 2026-09-16 22:23 (America/Bahia)
+Motivo: Exibir no template Premium os produtos em cards com foto cadastrada, nome, descrição comercial, quantidade e valores.
 #}
 
 <!DOCTYPE html>
@@ -384,6 +384,20 @@ Motivo: Renderizar no DEV os templates Formal, Comercial e Premium conforme o pa
         body.orc-template-premium .scope-heading { background:#eef4f9; color:#0f2740; }
         body.orc-template-premium .scope-heading-number { border-radius:999px; background:#2563eb; }
         body.orc-template-premium .footer { margin-top:30px; padding-top:12px; border-top:1px solid #e2e8f0; }
+        body.orc-template-premium .premium-products-grid { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:12px; margin:10px 0 18px; }
+        body.orc-template-premium .premium-product-card { border:1px solid #dbe4f0; border-radius:14px; background:#fff; overflow:hidden; box-shadow:0 7px 22px rgba(15,39,64,.09); break-inside:avoid; page-break-inside:avoid; }
+        body.orc-template-premium .premium-product-photo { height:148px; background:#eef3f8; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+        body.orc-template-premium .premium-product-photo img { width:100%; height:100%; object-fit:cover; }
+        body.orc-template-premium .premium-product-placeholder { padding:18px; color:#94a3b8; font-size:11px; font-weight:800; text-align:center; text-transform:uppercase; letter-spacing:.05em; }
+        body.orc-template-premium .premium-product-content { padding:12px; }
+        body.orc-template-premium .premium-product-name { display:block; color:#0f2740; font-size:14px; line-height:1.25; font-weight:900; margin-bottom:6px; }
+        body.orc-template-premium .premium-product-description { min-height:52px; color:#475569; font-size:10.5px; line-height:1.45; margin-bottom:10px; }
+        body.orc-template-premium .premium-product-values { display:grid; grid-template-columns:.72fr 1fr 1fr; gap:5px; border-top:1px solid #e2e8f0; padding-top:9px; }
+        body.orc-template-premium .premium-product-values span { display:block; color:#64748b; font-size:8px; text-transform:uppercase; font-weight:800; }
+        body.orc-template-premium .premium-product-values strong { display:block; margin-top:3px; color:#0f2740; font-size:10px; }
+        body.orc-template-premium .premium-product-values .premium-total strong { color:#2563eb; font-size:11px; }
+        body.orc-template-premium .premium-products-total { margin:-4px 0 16px auto; width:250px; padding:10px 12px; border-radius:10px; background:#eef4f9; color:#0f2740; text-align:right; font-size:11px; font-weight:800; }
+        body.orc-template-premium .premium-products-total strong { display:block; margin-top:3px; font-size:16px; }
 
         @media print {
             body {
@@ -491,6 +505,35 @@ Motivo: Renderizar no DEV os templates Formal, Comercial e Premium conforme o pa
             </tbody>
         </table>
 
+        {% if template_orcamento == 'premium' and itens_produtos %}
+            <div class="section-title">SOLUÇÕES INCLUÍDAS</div>
+            <div class="premium-products-grid">
+                {% for item in itens_produtos %}
+                    <article class="premium-product-card">
+                        <div class="premium-product-photo">
+                            {% if item.foto_path %}
+                                <img src="{{ item.foto_path }}" alt="{{ item.descricao or 'Produto' }}">
+                            {% else %}
+                                <div class="premium-product-placeholder">Foto do produto não cadastrada</div>
+                            {% endif %}
+                        </div>
+                        <div class="premium-product-content">
+                            <span class="premium-product-name">{{ item.descricao or '-' }}</span>
+                            <div class="premium-product-description">
+                                {{ item.descricao_comercial or item.detalhes or item.produto_observacoes or 'Produto incluído nesta proposta conforme especificação apresentada.' }}
+                            </div>
+                            <div class="premium-product-values">
+                                <div><span>Quantidade</span><strong>{{ item.quantidade or '-' }}</strong></div>
+                                <div><span>Valor unit.</span><strong>R$ {{ item.valor_unitario or '0,00' }}</strong></div>
+                                <div class="premium-total"><span>Valor total</span><strong>R$ {{ item.subtotal or '0,00' }}</strong></div>
+                            </div>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+            <div class="premium-products-total">Total de produtos<strong>R$ {{ orcamento.total_produtos or '0,00' }}</strong></div>
+        {% endif %}
+
         {% set modo_apresentacao = orcamento.modo_apresentacao|default('agrupado', true) %}
         {% if modo_apresentacao == 'detalhado' %}
         {% if itens_servicos %}
@@ -530,7 +573,7 @@ Motivo: Renderizar no DEV os templates Formal, Comercial e Premium conforme o pa
             </table>
         {% endif %}
 
-        {% if itens_produtos %}
+        {% if itens_produtos and template_orcamento != 'premium' %}
             <div class="section-title">PRODUTOS</div>
             <table class="items-table">
                 <thead>
@@ -568,6 +611,20 @@ Motivo: Renderizar no DEV os templates Formal, Comercial e Premium conforme o pa
         {% endif %}
 
         {% else %}
+            {% if template_orcamento == 'premium' %}
+                {% if itens_servicos %}
+                    <div class="section-title">SERVIÇOS INCLUÍDOS</div>
+                    <table class="items-table">
+                        <thead><tr><th class="center">ITEM</th><th>DESCRIÇÃO</th><th class="center">QTD.</th><th class="num">VR. UNIT.</th><th class="num">SUBTOTAL</th></tr></thead>
+                        <tbody>
+                            {% for item in itens_servicos %}
+                                <tr><td class="center">{{ loop.index }}</td><td><span class="item-nome">{{ item.descricao or '-' }}</span>{% if item.detalhes %}<span class="item-detalhes">{{ item.detalhes }}</span>{% endif %}</td><td class="center">{{ item.quantidade or '-' }}</td><td class="num">{{ item.valor_unitario or '0,00' }}</td><td class="num">{{ item.subtotal or '0,00' }}</td></tr>
+                            {% endfor %}
+                            <tr class="total-row"><td colspan="2">TOTAL</td><td class="center">-</td><td></td><td class="num">{{ orcamento.total_servicos or '0,00' }}</td></tr>
+                        </tbody>
+                    </table>
+                {% endif %}
+            {% else %}
             <div class="section-title">PROPOSTA COMERCIAL</div>
             <table class="items-table">
                 <thead>
@@ -598,6 +655,7 @@ Motivo: Renderizar no DEV os templates Formal, Comercial e Premium conforme o pa
                     </tr>
                 </tbody>
             </table>
+            {% endif %}
         {% endif %}
 
         <div class="total-box">

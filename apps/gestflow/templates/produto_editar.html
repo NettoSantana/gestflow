@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\produto_editar.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-09-16 22:23 (America/Bahia)
+Motivo: Permitir cadastrar, visualizar, trocar e remover a foto e a descrição comercial usadas no Orçamento Premium.
 #}
 
 <!DOCTYPE html>
@@ -614,6 +614,39 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
 
     </style>
 
+
+    <style>
+        .produto-foto-config {
+            display: grid;
+            grid-template-columns: 180px minmax(0, 1fr);
+            gap: 16px;
+            align-items: start;
+            padding: 14px;
+            border: 1px solid #dbe4f0;
+            border-radius: 14px;
+            background: #f8fafc;
+        }
+        .produto-foto-preview {
+            width: 180px;
+            height: 150px;
+            border: 1px solid #dbe4f0;
+            border-radius: 12px;
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            color: #94a3b8;
+            font-size: 12px;
+            font-weight: 800;
+            text-align: center;
+        }
+        .produto-foto-preview img { width: 100%; height: 100%; object-fit: cover; }
+        .produto-foto-fields { display: grid; gap: 10px; }
+        .produto-foto-fields small { color: #64748b; font-size: 12px; font-weight: 700; line-height: 1.45; }
+        .produto-remover-foto { display: flex; align-items: center; gap: 8px; color: #b91c1c; font-size: 12px; font-weight: 800; }
+        @media (max-width: 720px) { .produto-foto-config { grid-template-columns: 1fr; } .produto-foto-preview { width: 100%; } }
+    </style>
 </head>
 <body>
     {% include "partials/sidebar.html" %}
@@ -660,7 +693,7 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
                 <span class="badge-info">Modo edição</span>
             </div>
 
-            <form action="/produtos/{{ produto.id }}/editar" method="post" class="client-form">
+            <form action="/produtos/{{ produto.id }}/editar" method="post" enctype="multipart/form-data" class="client-form">
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="produto_nome">Nome do produto *</label>
@@ -739,6 +772,34 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
                     <div class="form-group">
                         <label for="produto_observacoes">Observações</label>
                         <input id="produto_observacoes" name="produto_observacoes" type="text" value="{{ produto.observacoes or '' }}" placeholder="Ex: Fornecedor, aplicação ou observação" class="form-control">
+                    </div>
+
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label for="produto_descricao_comercial">Descrição comercial para o Orçamento Premium</label>
+                        <textarea id="produto_descricao_comercial" name="produto_descricao_comercial" rows="3" class="form-control" placeholder="Ex: Controle a iluminação pelo app, automações e comandos de voz. Instalação limpa e integração com sua rotina.">{{ produto.descricao_comercial or '' }}</textarea>
+                        <small style="display:block; margin-top:6px; color:#64748b; font-weight:700;">Esta descrição aparece embaixo da foto do produto somente no template Premium.</small>
+                    </div>
+
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label for="produto_foto">Foto do produto</label>
+                        <div class="produto-foto-config">
+                            <div class="produto-foto-preview">
+                                {% if produto.foto_path %}
+                                    <img src="{{ produto.foto_path }}" alt="Foto de {{ produto.nome }}">
+                                {% else %}
+                                    Nenhuma foto cadastrada
+                                {% endif %}
+                            </div>
+                            <div class="produto-foto-fields">
+                                <input id="produto_foto" name="produto_foto" type="file" accept="image/png,image/jpeg,image/webp" class="form-control">
+                                <small>Use PNG, JPG, JPEG ou WEBP. A foto é opcional e será usada nos cards do Orçamento Premium.</small>
+                                {% if produto.foto_path %}
+                                    <label class="produto-remover-foto">
+                                        <input type="checkbox" name="produto_remover_foto" value="1"> Remover foto atual ao salvar
+                                    </label>
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
                 </div>
 
