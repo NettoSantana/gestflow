@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\orcamento_imprimir_a4.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-09-16 21:29 (America/Bahia)
+Motivo: Renderizar no DEV os templates Formal, Comercial e Premium conforme o padrão escolhido nas Configurações de Orçamentos.
 #}
 
 <!DOCTYPE html>
@@ -332,6 +332,59 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
             font-size: 11px;
         }
 
+        .proposal-kicker { display:none; }
+
+        /* TEMPLATE COMERCIAL — mais leve e direto */
+        body.orc-template-comercial { background:#eef4f9; color:#172033; font-family:Arial, Helvetica, sans-serif; }
+        body.orc-template-comercial .page { padding:20px; border:0; border-radius:14px; box-shadow:0 14px 40px rgba(15,39,64,.12); }
+        body.orc-template-comercial .header { grid-template-columns:90px 1fr 220px; border:0; border-bottom:4px solid #2563eb; border-radius:10px 10px 0 0; background:#f8fbff; padding:12px; }
+        body.orc-template-comercial .logo-box { height:78px; border-radius:9px; }
+        body.orc-template-comercial .company-name { color:#0f2740; font-size:20px; }
+        body.orc-template-comercial .company-info { color:#475569; font-size:11px; }
+        body.orc-template-comercial .bar { margin-top:14px; border:0; border-radius:10px; background:#0f2740; color:#fff; overflow:hidden; font-size:15px; }
+        body.orc-template-comercial .proposal-kicker { display:block; margin:14px 0 -3px; color:#2563eb; font-size:10px; font-weight:900; letter-spacing:.12em; text-transform:uppercase; }
+        body.orc-template-comercial .intro { color:#475569; font-size:12px; line-height:1.6; }
+        body.orc-template-comercial .section-title { margin-top:14px; border:0; border-radius:8px; background:#eff6ff; color:#1d4ed8; padding:7px 9px; }
+        body.orc-template-comercial .info-table td, body.orc-template-comercial .items-table th, body.orc-template-comercial .items-table td { border-color:#e2e8f0; }
+        body.orc-template-comercial .info-table td.label, body.orc-template-comercial .items-table th { background:#f8fafc; }
+        body.orc-template-comercial .items-table { margin-top:4px; border-radius:10px; overflow:hidden; }
+        body.orc-template-comercial .total-row td { background:#eff6ff; color:#0f2740; }
+        body.orc-template-comercial .total-box { margin-top:12px; border:1px solid #bfdbfe; border-radius:10px; overflow:hidden; background:#f8fbff; }
+        body.orc-template-comercial .total-line { border-color:#dbeafe; }
+        body.orc-template-comercial .total-line:last-child { background:#0f2740; color:#fff; font-size:15px; }
+        body.orc-template-comercial .scope-section { border-color:#dbeafe; border-radius:9px; }
+        body.orc-template-comercial .scope-heading { background:#eff6ff; color:#1e3a8a; }
+        body.orc-template-comercial .scope-heading-number { background:#2563eb; }
+
+        /* TEMPLATE PREMIUM — mais visual e impactante */
+        body.orc-template-premium { background:#dfe7ef; color:#142033; font-family:Arial, Helvetica, sans-serif; }
+        body.orc-template-premium .page { padding:0 22px 22px; border:0; border-radius:16px; overflow:hidden; box-shadow:0 18px 50px rgba(15,39,64,.18); }
+        body.orc-template-premium .header { margin:0 -22px; grid-template-columns:105px 1fr 235px; border:0; background:#0f2740; color:#fff; padding:20px 22px; }
+        body.orc-template-premium .logo-box { height:88px; border:1px solid rgba(255,255,255,.18); border-radius:12px; background:#fff; color:#0f2740; }
+        body.orc-template-premium .company-name { font-size:22px; letter-spacing:-.02em; }
+        body.orc-template-premium .company-info { color:#dbeafe; font-size:11px; }
+        body.orc-template-premium .bar { margin:0 -22px; padding:0 14px; border:0; border-radius:0; background:#173d63; color:#fff; font-size:17px; }
+        body.orc-template-premium .bar div { padding:10px 8px; }
+        body.orc-template-premium .proposal-kicker { display:block; margin-top:20px; color:#2563eb; font-size:10px; font-weight:900; letter-spacing:.14em; text-transform:uppercase; }
+        body.orc-template-premium .intro { margin:7px 0 16px; color:#475569; font-size:13px; line-height:1.65; }
+        body.orc-template-premium .section-title { margin-top:16px; border:0; border-left:4px solid #2563eb; background:transparent; color:#0f2740; padding:4px 9px; font-size:11px; letter-spacing:.04em; }
+        body.orc-template-premium .info-table { border-collapse:separate; border-spacing:0 5px; }
+        body.orc-template-premium .info-table td { border:0; background:#f8fafc; padding:8px; }
+        body.orc-template-premium .info-table td.label { width:105px; background:#eef2f7; color:#475569; }
+        body.orc-template-premium .items-table { border-collapse:separate; border-spacing:0 6px; }
+        body.orc-template-premium .items-table th { border:0; background:transparent; color:#64748b; font-size:10px; text-transform:uppercase; }
+        body.orc-template-premium .items-table td { border:0; background:#fff; box-shadow:0 4px 13px rgba(15,39,64,.06); }
+        body.orc-template-premium .items-table tr td:first-child { border-radius:8px 0 0 8px; }
+        body.orc-template-premium .items-table tr td:last-child { border-radius:0 8px 8px 0; }
+        body.orc-template-premium .total-row td { background:#eef4f9; color:#0f2740; box-shadow:none; }
+        body.orc-template-premium .total-box { width:52%; margin:16px 0 0 auto; border:0; border-radius:12px; overflow:hidden; background:#f8fafc; box-shadow:0 8px 22px rgba(15,39,64,.09); }
+        body.orc-template-premium .total-line { border-color:#e2e8f0; }
+        body.orc-template-premium .total-line:last-child { background:#0f2740; color:#fff; font-size:16px; }
+        body.orc-template-premium .scope-section { border:0; border-radius:10px; background:#f8fafc; box-shadow:0 4px 14px rgba(15,39,64,.05); }
+        body.orc-template-premium .scope-heading { background:#eef4f9; color:#0f2740; }
+        body.orc-template-premium .scope-heading-number { border-radius:999px; background:#2563eb; }
+        body.orc-template-premium .footer { margin-top:30px; padding-top:12px; border-top:1px solid #e2e8f0; }
+
         @media print {
             body {
                 background: #ffffff;
@@ -351,10 +404,11 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
         }
     </style>
 </head>
-<body>
+<body class="orc-template-{{ gestflow_configuracoes_runtime.get('valores', {}).get('orcamentos', {}).get('template_orcamento', 'formal') }}">
     {% set _cfg = gestflow_configuracoes_runtime.get('valores', {}) %}
     {% set _cfg_gerais = _cfg.get('gerais', {}) %}
     {% set _cfg_orcamentos = _cfg.get('orcamentos', {}) %}
+    {% set template_orcamento = _cfg_orcamentos.get('template_orcamento', 'formal') %}
 
     <div class="print-actions">
         <a class="print-button back-button" href="/orcamentos/{{ orcamento.id }}">Voltar</a>
@@ -386,9 +440,20 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
         </header>
 
         <section class="bar">
-            <div>ORÇAMENTO Nº {{ orcamento.numero or orcamento.id }}</div>
+            <div>
+                {% if template_orcamento == 'premium' %}PROPOSTA Nº
+                {% elif template_orcamento == 'comercial' %}PROPOSTA COMERCIAL Nº
+                {% else %}ORÇAMENTO Nº{% endif %}
+                {{ orcamento.numero or orcamento.id }}
+            </div>
             <div class="date">{{ orcamento.data or '-' }}</div>
         </section>
+
+        {% if template_orcamento == 'premium' %}
+            <div class="proposal-kicker">Proposta personalizada</div>
+        {% elif template_orcamento == 'comercial' %}
+            <div class="proposal-kicker">Solução comercial</div>
+        {% endif %}
 
         <p class="intro">
             {{ orcamento.introducao or ((empresa.nome_fantasia or 'A empresa') ~ ' apresenta abaixo sua proposta comercial para fornecimento de produtos e/ou execução de serviços conforme solicitado:') }}

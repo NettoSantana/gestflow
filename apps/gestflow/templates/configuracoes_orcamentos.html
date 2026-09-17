@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\configuracoes_orcamentos.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-09-16 21:29 (America/Bahia)
+Motivo: Adicionar no DEV a seleção global dos templates Formal, Comercial e Premium para Orçamentos.
 #}
 
 <!DOCTYPE html>
@@ -199,6 +199,104 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
         .orc-config-toggle small { display:block; margin-top:3px; color:#64748b; font-size:10px; }
         .orc-config-toggle input { width:18px; height:18px; }
 
+        .orc-template-panel {
+            margin-top:16px;
+            border:1px solid #dbe4f0;
+            border-radius:15px;
+            background:#fff;
+            padding:16px;
+        }
+        .orc-template-panel-head {
+            display:flex;
+            align-items:flex-start;
+            justify-content:space-between;
+            gap:16px;
+            margin-bottom:14px;
+        }
+        .orc-template-panel-head h3 { margin:0; color:#0f172a; font-size:15px; }
+        .orc-template-panel-head p { margin:5px 0 0; color:#64748b; font-size:12px; line-height:1.5; }
+        .orc-template-status {
+            flex:0 0 auto;
+            padding:7px 10px;
+            border-radius:999px;
+            background:#eff6ff;
+            color:#1d4ed8;
+            font-size:11px;
+            font-weight:900;
+            white-space:nowrap;
+        }
+        .orc-template-grid {
+            display:grid;
+            grid-template-columns:repeat(3,minmax(0,1fr));
+            gap:14px;
+        }
+        .orc-template-card {
+            position:relative;
+            display:grid;
+            gap:11px;
+            min-width:0;
+            padding:12px;
+            border:2px solid #e2e8f0;
+            border-radius:14px;
+            background:#fff;
+            cursor:pointer;
+            transition:border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+        }
+        .orc-template-card:hover {
+            border-color:#93c5fd;
+            box-shadow:0 10px 24px rgba(15,23,42,.08);
+            transform:translateY(-1px);
+        }
+        .orc-template-card:has(input:checked) {
+            border-color:#2563eb;
+            box-shadow:0 0 0 3px rgba(37,99,235,.10), 0 10px 24px rgba(15,23,42,.08);
+        }
+        .orc-template-card input[type="radio"] {
+            position:absolute;
+            top:12px;
+            right:12px;
+            width:18px;
+            height:18px;
+            accent-color:#2563eb;
+        }
+        .orc-template-card-title { padding-right:28px; }
+        .orc-template-card-title strong { display:block; color:#0f172a; font-size:14px; }
+        .orc-template-card-title small { display:block; margin-top:4px; color:#64748b; font-size:11px; line-height:1.45; }
+        .orc-template-preview {
+            height:150px;
+            border:1px solid #dbe4f0;
+            border-radius:10px;
+            background:#fff;
+            overflow:hidden;
+        }
+        .orc-template-preview .mini-head { height:30px; display:flex; align-items:center; gap:6px; padding:6px 8px; }
+        .orc-template-preview .mini-logo { width:24px; height:18px; border-radius:3px; background:#0f2740; }
+        .orc-template-preview .mini-title { width:62px; height:6px; border-radius:999px; background:#334155; }
+        .orc-template-preview .mini-line { height:5px; margin:7px 8px 0; border-radius:999px; background:#dbe4f0; }
+        .orc-template-preview .mini-line.short { width:58%; }
+        .orc-template-preview .mini-table { margin:10px 8px 0; height:54px; border:1px solid #dbe4f0; border-radius:5px; background:repeating-linear-gradient(to bottom,#fff 0,#fff 16px,#e8eef5 17px); }
+        .orc-template-preview .mini-total { width:42%; height:20px; margin:10px 8px 0 auto; border-radius:5px; background:#e2e8f0; }
+        .orc-template-preview.comercial { background:#f8fbff; }
+        .orc-template-preview.comercial .mini-head { background:#eff6ff; border-bottom:3px solid #2563eb; }
+        .orc-template-preview.comercial .mini-table { border-radius:8px; box-shadow:0 4px 10px rgba(15,23,42,.05); }
+        .orc-template-preview.comercial .mini-total { background:#dbeafe; border:1px solid #93c5fd; }
+        .orc-template-preview.premium { background:#f8fafc; }
+        .orc-template-preview.premium .mini-head { height:46px; background:#0f2740; }
+        .orc-template-preview.premium .mini-logo { background:#fff; }
+        .orc-template-preview.premium .mini-title { background:#fff; width:78px; }
+        .orc-template-preview.premium .mini-table { border:0; border-radius:9px; box-shadow:0 6px 14px rgba(15,23,42,.10); }
+        .orc-template-preview.premium .mini-total { width:50%; background:#0f2740; }
+        .orc-template-note {
+            margin-top:12px;
+            padding:10px 12px;
+            border-radius:10px;
+            background:#f8fafc;
+            color:#475569;
+            font-size:11px;
+            font-weight:700;
+            line-height:1.5;
+        }
+
         .orc-config-actions {
             display:flex;
             align-items:center;
@@ -226,6 +324,7 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
         }
 
         @media(max-width:900px){
+            .orc-template-grid { grid-template-columns:1fr; }
             .orc-status-row { grid-template-columns:1fr 1fr; }
             .orc-status-delete { justify-self:end; }
             .orc-config-fields { grid-template-columns:1fr; }
@@ -328,10 +427,64 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
                 </div>
             </section>
 
+            {% set template_orcamento_atual = configuracoes_modulo.get('template_orcamento', 'formal') %}
+            <section class="orc-template-panel">
+                <div class="orc-template-panel-head">
+                    <div>
+                        <h3>Template padrão do Orçamento</h3>
+                        <p>Escolha uma vez. Todos os Orçamentos A4/PDF da empresa usarão este modelo automaticamente até você trocar esta configuração.</p>
+                    </div>
+                    <span class="orc-template-status">Padrão da empresa</span>
+                </div>
+
+                <div class="orc-template-grid">
+                    <label class="orc-template-card">
+                        <input type="radio" name="template_orcamento" value="formal" {% if template_orcamento_atual == 'formal' %}checked{% endif %}>
+                        <span class="orc-template-card-title">
+                            <strong>Formal</strong>
+                            <small>Corporativo, técnico e objetivo. Ideal para empresas, engenharia e indústria.</small>
+                        </span>
+                        <span class="orc-template-preview formal" aria-hidden="true">
+                            <span class="mini-head"><span class="mini-logo"></span><span class="mini-title"></span></span>
+                            <span class="mini-line"></span><span class="mini-line short"></span>
+                            <span class="mini-table"></span><span class="mini-total"></span>
+                        </span>
+                    </label>
+
+                    <label class="orc-template-card">
+                        <input type="radio" name="template_orcamento" value="comercial" {% if template_orcamento_atual == 'comercial' %}checked{% endif %}>
+                        <span class="orc-template-card-title">
+                            <strong>Comercial</strong>
+                            <small>Mais leve, amigável e direto. Bom para comércio, serviços e pequenas empresas.</small>
+                        </span>
+                        <span class="orc-template-preview comercial" aria-hidden="true">
+                            <span class="mini-head"><span class="mini-logo"></span><span class="mini-title"></span></span>
+                            <span class="mini-line"></span><span class="mini-line short"></span>
+                            <span class="mini-table"></span><span class="mini-total"></span>
+                        </span>
+                    </label>
+
+                    <label class="orc-template-card">
+                        <input type="radio" name="template_orcamento" value="premium" {% if template_orcamento_atual == 'premium' %}checked{% endif %}>
+                        <span class="orc-template-card-title">
+                            <strong>Premium</strong>
+                            <small>Visual mais marcante, elegante e vendedor. Pensado para propostas B2C de maior impacto.</small>
+                        </span>
+                        <span class="orc-template-preview premium" aria-hidden="true">
+                            <span class="mini-head"><span class="mini-logo"></span><span class="mini-title"></span></span>
+                            <span class="mini-line"></span><span class="mini-line short"></span>
+                            <span class="mini-table"></span><span class="mini-total"></span>
+                        </span>
+                    </label>
+                </div>
+
+                <div class="orc-template-note">O template altera apenas a apresentação do documento. Itens, valores, cálculos, condições e demais dados do Orçamento continuam exatamente os mesmos.</div>
+            </section>
+
             {% for nome_secao, campos_secao in secoes_configuracao.items() %}
                 {% set campos_visiveis = [] %}
                 {% for campo in campos_secao %}
-                    {% if campo.chave not in ['situacoes', 'situacoes_config_json', 'situacao_finalizadora'] %}
+                    {% if campo.chave not in ['situacoes', 'situacoes_config_json', 'situacao_finalizadora', 'template_orcamento'] %}
                         {% set _ = campos_visiveis.append(campo) %}
                     {% endif %}
                 {% endfor %}

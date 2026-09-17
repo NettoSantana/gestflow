@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-09-12 11:25 (America/Bahia)
-# Motivo: Criar no DEV o controle SaaS do Super Admin com assinaturas, cobrança PIX Mercado Pago, webhook e bloqueio/liberação automática.
+# Último recode: 2026-09-16 21:29 (America/Bahia)
+# Motivo: Adicionar no DEV a seleção global por empresa dos templates Formal, Comercial e Premium para impressão de Orçamentos.
 
 from __future__ import annotations
 
@@ -528,6 +528,19 @@ CONFIGURACOES_MODULOS_DEFINICOES = [
             _campo_configuracao_modulo("margem_minima_percentual", "Margem mínima (%)", "numero", 0, secao="Valores", minimo=0, maximo=1000),
             _campo_configuracao_modulo("aprovar_desconto", "Exigir aprovação acima do desconto máximo", "booleano", True, secao="Aprovações"),
             _campo_configuracao_modulo("modo_apresentacao_padrao", "Apresentação padrão", "selecao", "agrupado", secao="Impressão", opcoes=(("agrupado", "Agrupado"), ("global", "Valor global"), ("detalhado", "Detalhado"))),
+            _campo_configuracao_modulo(
+                "template_orcamento",
+                "Template padrão do orçamento",
+                "selecao",
+                "formal",
+                secao="Impressão",
+                ajuda="Escolha uma vez por empresa. Todos os Orçamentos A4/PDF passam a usar este estilo até que o template seja alterado.",
+                opcoes=(
+                    ("formal", "Formal — corporativo e técnico"),
+                    ("comercial", "Comercial — leve e direto"),
+                    ("premium", "Premium — visual e impactante"),
+                ),
+            ),
             _campo_configuracao_modulo("exibir_itens_pdf", "Exibir itens no PDF", "booleano", True, secao="Impressão"),
             _campo_configuracao_modulo("separar_material_mao_obra", "Separar material e mão de obra", "booleano", True, secao="Impressão"),
             _campo_configuracao_modulo("modelo_impressao", "Modelo de impressão", "selecao", "a4", secao="Impressão", opcoes=(("a4", "A4"), ("cupom", "Cupom"))),
