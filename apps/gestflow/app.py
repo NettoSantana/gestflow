@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-09-05 21:23 (America/Bahia)
-# Motivo: Corrigir a proteção do login contra força bruta com contadores independentes por conta, IP e conta+IP, preservando bloqueio progressivo no DEV.
+# Último recode: 2026-09-16 22:31 (America/Bahia)
+# Motivo: Promover para a MAIN os templates de Orçamento e permitir foto/descrição comercial de Produto no template Premium, preservando as demais rotinas de produção.
 
 from __future__ import annotations
 
@@ -64,12 +64,15 @@ CONTRATOS_ANEXOS_DIR = DATA_DIR / "uploads" / "contratos"
 CONTRATOS_ANEXOS_DIR.mkdir(parents=True, exist_ok=True)
 VITRINE_UPLOAD_DIR = DATA_DIR / "uploads" / "vitrines"
 VITRINE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+PRODUTOS_FOTOS_DIR = DATA_DIR / "uploads" / "produtos"
+PRODUTOS_FOTOS_DIR.mkdir(parents=True, exist_ok=True)
 AVALIACOES_SERVICOS_UPLOAD_DIR = VITRINE_UPLOAD_DIR / "avaliacoes"
 AVALIACOES_SERVICOS_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 EXTENSOES_LOGO_PERMITIDAS = {"png", "jpg", "jpeg", "webp", "gif", "jfif", "avif"}
 EXTENSOES_FOTO_OS_PERMITIDAS = {"png", "jpg", "jpeg", "jfif", "webp"}
 EXTENSOES_ANEXO_CONTRATO_PERMITIDAS = {"pdf", "png", "jpg", "jpeg", "webp", "doc", "docx"}
 EXTENSOES_FOTO_VITRINE_PERMITIDAS = {"png", "jpg", "jpeg", "webp"}
+EXTENSOES_FOTO_PRODUTO_PERMITIDAS = {"png", "jpg", "jpeg", "webp"}
 EXTENSOES_VIDEO_VITRINE_PERMITIDAS = {"mp4"}
 EXTENSOES_MIDIA_PRODUTO_VITRINE_PERMITIDAS = EXTENSOES_FOTO_VITRINE_PERMITIDAS | EXTENSOES_VIDEO_VITRINE_PERMITIDAS
 VITRINE_VIDEO_MAX_MB = 50
@@ -506,6 +509,19 @@ CONFIGURACOES_MODULOS_DEFINICOES = [
             _campo_configuracao_modulo("margem_minima_percentual", "Margem mínima (%)", "numero", 0, secao="Valores", minimo=0, maximo=1000),
             _campo_configuracao_modulo("aprovar_desconto", "Exigir aprovação acima do desconto máximo", "booleano", True, secao="Aprovações"),
             _campo_configuracao_modulo("modo_apresentacao_padrao", "Apresentação padrão", "selecao", "agrupado", secao="Impressão", opcoes=(("agrupado", "Agrupado"), ("global", "Valor global"), ("detalhado", "Detalhado"))),
+            _campo_configuracao_modulo(
+                "template_orcamento",
+                "Template padrão do orçamento",
+                "selecao",
+                "formal",
+                secao="Impressão",
+                ajuda="Escolha uma vez por empresa. Todos os Orçamentos A4/PDF passam a usar este estilo até que o template seja alterado.",
+                opcoes=(
+                    ("formal", "Formal — corporativo e técnico"),
+                    ("comercial", "Comercial — leve e direto"),
+                    ("premium", "Premium — visual e impactante"),
+                ),
+            ),
             _campo_configuracao_modulo("exibir_itens_pdf", "Exibir itens no PDF", "booleano", True, secao="Impressão"),
             _campo_configuracao_modulo("separar_material_mao_obra", "Separar material e mão de obra", "booleano", True, secao="Impressão"),
             _campo_configuracao_modulo("modelo_impressao", "Modelo de impressão", "selecao", "a4", secao="Impressão", opcoes=(("a4", "A4"), ("cupom", "Cupom"))),
@@ -4503,6 +4519,8 @@ def iniciar_banco() -> None:
                 preco_venda TEXT,
                 status TEXT NOT NULL DEFAULT 'ativo',
                 observacoes TEXT,
+                descricao_comercial TEXT,
+                foto_path TEXT,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
             """
@@ -6365,6 +6383,8 @@ def iniciar_banco() -> None:
                 "preco_venda": "TEXT",
                 "status": "TEXT DEFAULT 'ativo'",
                 "observacoes": "TEXT",
+                "descricao_comercial": "TEXT",
+                "foto_path": "TEXT",
                 "criado_em": "TEXT",
             },
             "servicos": {
@@ -7313,7 +7333,7 @@ CADASTROS_PAGINADOS = {
     },
     "produtos": {
         "tabela": "produtos",
-        "colunas": ["id", "empresa_id", "nome", "codigo", "categoria", "unidade", "estoque_atual", "estoque_minimo", "preco_custo", "preco_custo_manual", "cmv_calculado", "custo_origem", "possui_composicao", "cmv_atualizado_em", "preco_venda", "status", "observacoes", "criado_em"],
+        "colunas": ["id", "empresa_id", "nome", "codigo", "categoria", "unidade", "estoque_atual", "estoque_minimo", "preco_custo", "preco_custo_manual", "cmv_calculado", "custo_origem", "possui_composicao", "cmv_atualizado_em", "preco_venda", "status", "observacoes", "descricao_comercial", "foto_path", "criado_em"],
         "busca": ["nome", "codigo", "categoria", "unidade", "status", "custo_origem", "possui_composicao"],
         "ordenacao": {
             "id": "id",
@@ -8607,8 +8627,10 @@ def salvar_produto_db(produto: dict[str, str]) -> int:
                 cmv_atualizado_em,
                 preco_venda,
                 status,
-                observacoes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                observacoes,
+                descricao_comercial,
+                foto_path
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -8627,6 +8649,8 @@ def salvar_produto_db(produto: dict[str, str]) -> int:
                 produto["preco_venda"],
                 produto["status"],
                 produto["observacoes"],
+                produto.get("descricao_comercial", ""),
+                produto.get("foto_path", ""),
             ),
         )
         produto_id = int(cursor.lastrowid)
@@ -8659,6 +8683,8 @@ def listar_produtos() -> list[dict[str, Any]]:
                 preco_venda,
                 status,
                 observacoes,
+                descricao_comercial,
+                foto_path,
                 criado_em
             FROM produtos
             WHERE empresa_id = ?
@@ -8694,6 +8720,8 @@ def buscar_produto_por_id(produto_id: int) -> dict[str, Any] | None:
                 preco_venda,
                 status,
                 observacoes,
+                descricao_comercial,
+                foto_path,
                 criado_em
             FROM produtos
             WHERE id = ?
@@ -9266,7 +9294,9 @@ def atualizar_produto_db(produto_id: int, produto: dict[str, str]) -> None:
                 preco_custo_manual = ?,
                 preco_venda = ?,
                 status = ?,
-                observacoes = ?
+                observacoes = ?,
+                descricao_comercial = ?,
+                foto_path = ?
             WHERE id = ?
               AND empresa_id = ?
             """,
@@ -9281,6 +9311,8 @@ def atualizar_produto_db(produto_id: int, produto: dict[str, str]) -> None:
                 produto["preco_venda"],
                 produto["status"],
                 produto["observacoes"],
+                produto.get("descricao_comercial", ""),
+                produto.get("foto_path", ""),
                 produto_id,
                 empresa_id,
             ),
@@ -23750,6 +23782,53 @@ def salvar_upload_logo_empresa(arquivo) -> str:
 
 
 
+def _extensao_foto_produto_permitida(nome_arquivo: str) -> bool:
+    if "." not in nome_arquivo:
+        return False
+
+    extensao = nome_arquivo.rsplit(".", 1)[1].lower()
+    return extensao in EXTENSOES_FOTO_PRODUTO_PERMITIDAS
+
+
+def salvar_upload_foto_produto(arquivo, produto_id: int) -> str:
+    nome_seguro = secure_filename(arquivo.filename or "")
+
+    if not nome_seguro or not _extensao_foto_produto_permitida(nome_seguro):
+        raise ValueError("Formato de foto inválido. Use PNG, JPG, JPEG ou WEBP.")
+
+    extensao = nome_seguro.rsplit(".", 1)[1].lower()
+    empresa_id = empresa_logada_id()
+    timestamp = agora_empresa().strftime("%Y%m%d%H%M%S")
+    codigo_unico = secrets.token_hex(4)
+    nome_final = f"empresa_{empresa_id}_produto_{produto_id}_{timestamp}_{codigo_unico}.{extensao}"
+
+    PRODUTOS_FOTOS_DIR.mkdir(parents=True, exist_ok=True)
+    arquivo.save(PRODUTOS_FOTOS_DIR / nome_final)
+
+    return f"/uploads/produtos/{nome_final}"
+
+
+def excluir_arquivo_foto_produto(foto_path: Any) -> None:
+    caminho = str(foto_path or "").strip()
+    prefixo = "/uploads/produtos/"
+    if not caminho.startswith(prefixo):
+        return
+
+    nome_arquivo = Path(caminho[len(prefixo):]).name
+    if not nome_arquivo:
+        return
+
+    arquivo = (PRODUTOS_FOTOS_DIR / nome_arquivo).resolve()
+    diretorio = PRODUTOS_FOTOS_DIR.resolve()
+    if arquivo.parent != diretorio:
+        return
+
+    try:
+        arquivo.unlink(missing_ok=True)
+    except OSError:
+        app.logger.warning("Não foi possível remover a foto antiga do produto: %s", arquivo)
+
+
 def _extensao_foto_os_permitida(nome_arquivo: str) -> bool:
     if "." not in nome_arquivo:
         return False
@@ -26729,6 +26808,11 @@ def salvar_configuracoes_marca() -> Response:
 @app.get("/uploads/logos/<path:nome_arquivo>")
 def servir_logo_empresa(nome_arquivo: str) -> Response:
     return send_from_directory(UPLOAD_DIR, nome_arquivo)
+
+
+@app.get("/uploads/produtos/<path:nome_arquivo>")
+def servir_foto_produto(nome_arquivo: str) -> Response:
+    return send_from_directory(PRODUTOS_FOTOS_DIR, nome_arquivo)
 
 
 @app.get("/uploads/os-fotos/<path:nome_arquivo>")
@@ -36102,6 +36186,8 @@ def salvar_produto() -> Response:
         "preco_venda": (request.form.get("produto_preco_venda") or "").strip(),
         "status": (request.form.get("produto_status") or "ativo").strip() or "ativo",
         "observacoes": (request.form.get("produto_observacoes") or "").strip(),
+        "descricao_comercial": (request.form.get("produto_descricao_comercial") or "").strip(),
+        "foto_path": "",
     }
 
     produto = normalizar_produto_para_salvar(produto)
@@ -36348,6 +36434,7 @@ def atualizar_produto(produto_id: int) -> Response:
     if produto_atual is None:
         return redirect(url_for("produtos"))
 
+    foto_anterior = str(produto_atual.get("foto_path") or "").strip()
     produto = {
         "nome": (request.form.get("produto_nome") or "").strip(),
         "codigo": (request.form.get("produto_codigo") or "").strip(),
@@ -36359,6 +36446,8 @@ def atualizar_produto(produto_id: int) -> Response:
         "preco_venda": (request.form.get("produto_preco_venda") or "").strip(),
         "status": (request.form.get("produto_status") or "ativo").strip() or "ativo",
         "observacoes": (request.form.get("produto_observacoes") or "").strip(),
+        "descricao_comercial": (request.form.get("produto_descricao_comercial") or "").strip(),
+        "foto_path": foto_anterior,
     }
 
     produto = normalizar_produto_para_salvar(produto)
@@ -36367,7 +36456,22 @@ def atualizar_produto(produto_id: int) -> Response:
     if erro_validacao:
         return redirect(url_for("editar_produto", produto_id=produto_id, erro=erro_validacao))
 
+    remover_foto = (request.form.get("produto_remover_foto") or "").strip() == "1"
+    arquivo_foto = request.files.get("produto_foto")
+
+    if remover_foto:
+        produto["foto_path"] = ""
+
+    if arquivo_foto is not None and (arquivo_foto.filename or "").strip():
+        try:
+            produto["foto_path"] = salvar_upload_foto_produto(arquivo_foto, produto_id)
+        except ValueError as erro_foto:
+            return redirect(url_for("editar_produto", produto_id=produto_id, erro=str(erro_foto)))
+
     atualizar_produto_db(produto_id, produto)
+
+    if foto_anterior and foto_anterior != produto.get("foto_path"):
+        excluir_arquivo_foto_produto(foto_anterior)
 
     return redirect(url_for("ver_produto", produto_id=produto_id))
 
@@ -40492,7 +40596,12 @@ def imprimir_orcamento_a4(orcamento_id: int) -> str | Response:
 
     orcamento = formatar_datas_documento_exibicao(orcamento, ("data", "validade"))
     itens = listar_orcamento_itens(orcamento_id)
-    itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
+    itens_produtos = [dict(item) for item in itens if item["tipo_item"] == "produto"]
+    for item in itens_produtos:
+        produto_cadastrado = buscar_produto_por_descricao_item(item.get("descricao"))
+        item["foto_path"] = str((produto_cadastrado or {}).get("foto_path") or "").strip()
+        item["descricao_comercial"] = str((produto_cadastrado or {}).get("descricao_comercial") or "").strip()
+        item["produto_observacoes"] = str((produto_cadastrado or {}).get("observacoes") or "").strip()
     itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
     itens_apresentacao = listar_orcamento_apresentacao_itens(orcamento_id)
     dados_gerador = buscar_orcamento_gerador_dados(orcamento_id)

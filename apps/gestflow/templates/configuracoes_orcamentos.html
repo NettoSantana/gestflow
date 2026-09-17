@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\configuracoes_orcamentos.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-09-16 22:31 (America/Bahia)
+Motivo: Promover para a MAIN a seleção global e as prévias realistas dos templates Formal, Comercial e Premium de Orçamentos.
 #}
 
 <!DOCTYPE html>
@@ -199,6 +199,201 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
         .orc-config-toggle small { display:block; margin-top:3px; color:#64748b; font-size:10px; }
         .orc-config-toggle input { width:18px; height:18px; }
 
+        .orc-template-panel {
+            margin-top:16px;
+            border:1px solid #dbe4f0;
+            border-radius:15px;
+            background:#fff;
+            padding:16px;
+        }
+        .orc-template-panel-head {
+            display:flex;
+            align-items:flex-start;
+            justify-content:space-between;
+            gap:16px;
+            margin-bottom:14px;
+        }
+        .orc-template-panel-head h3 { margin:0; color:#0f172a; font-size:15px; }
+        .orc-template-panel-head p { margin:5px 0 0; color:#64748b; font-size:12px; line-height:1.5; }
+        .orc-template-status {
+            flex:0 0 auto;
+            padding:7px 10px;
+            border-radius:999px;
+            background:#eff6ff;
+            color:#1d4ed8;
+            font-size:11px;
+            font-weight:900;
+            white-space:nowrap;
+        }
+        .orc-template-grid {
+            display:grid;
+            grid-template-columns:repeat(3,minmax(0,1fr));
+            gap:14px;
+        }
+        .orc-template-card {
+            position:relative;
+            display:grid;
+            gap:11px;
+            min-width:0;
+            padding:12px;
+            border:2px solid #e2e8f0;
+            border-radius:14px;
+            background:#fff;
+            cursor:pointer;
+            transition:border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+        }
+        .orc-template-card:hover {
+            border-color:#93c5fd;
+            box-shadow:0 10px 24px rgba(15,23,42,.08);
+            transform:translateY(-1px);
+        }
+        .orc-template-card:has(input:checked) {
+            border-color:#2563eb;
+            box-shadow:0 0 0 3px rgba(37,99,235,.10), 0 10px 24px rgba(15,23,42,.08);
+        }
+        .orc-template-card input[type="radio"] {
+            position:absolute;
+            top:12px;
+            right:12px;
+            width:18px;
+            height:18px;
+            accent-color:#2563eb;
+        }
+        .orc-template-card-title { padding-right:28px; }
+        .orc-template-card-title strong { display:block; color:#0f172a; font-size:14px; }
+        .orc-template-card-title small { display:block; margin-top:4px; color:#64748b; font-size:11px; line-height:1.45; }
+        .orc-template-preview {
+            height:188px;
+            border:1px solid #dbe4f0;
+            border-radius:10px;
+            background:#fff;
+            overflow:hidden;
+            color:#334155;
+        }
+        .orc-template-preview .mini-document {
+            display:flex;
+            flex-direction:column;
+            height:100%;
+            padding:10px;
+            box-sizing:border-box;
+        }
+        .orc-template-preview .mini-head {
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:8px;
+            padding-bottom:8px;
+            border-bottom:1px solid #dbe4f0;
+        }
+        .orc-template-preview .mini-brand { display:flex; align-items:center; gap:6px; min-width:0; }
+        .orc-template-preview .mini-logo { width:25px; height:17px; border-radius:4px; background:#0f2740; flex:0 0 auto; }
+        .orc-template-preview .mini-company { width:58px; height:6px; border-radius:999px; background:#334155; }
+        .orc-template-preview .mini-doc-number { width:42px; height:6px; border-radius:999px; background:#cbd5e1; }
+        .orc-template-preview .mini-client {
+            display:grid;
+            grid-template-columns:1.2fr .8fr;
+            gap:6px;
+            margin-top:8px;
+        }
+        .orc-template-preview .mini-client-box {
+            min-height:24px;
+            padding:5px;
+            border:1px solid #e2e8f0;
+            border-radius:5px;
+            background:#fff;
+        }
+        .orc-template-preview .mini-label { width:32px; height:4px; border-radius:999px; background:#94a3b8; margin-bottom:4px; }
+        .orc-template-preview .mini-value { width:72%; height:5px; border-radius:999px; background:#cbd5e1; }
+        .orc-template-preview .mini-table {
+            margin-top:8px;
+            border:1px solid #dbe4f0;
+            border-radius:5px;
+            overflow:hidden;
+        }
+        .orc-template-preview .mini-table-head { height:13px; background:#f1f5f9; border-bottom:1px solid #dbe4f0; }
+        .orc-template-preview .mini-row {
+            display:grid;
+            grid-template-columns:1.6fr .35fr .55fr;
+            gap:5px;
+            align-items:center;
+            height:18px;
+            padding:0 5px;
+            border-bottom:1px solid #eef2f7;
+        }
+        .orc-template-preview .mini-row:last-child { border-bottom:0; }
+        .orc-template-preview .mini-cell { height:4px; border-radius:999px; background:#cbd5e1; }
+        .orc-template-preview .mini-summary {
+            display:flex;
+            align-items:flex-end;
+            justify-content:space-between;
+            gap:8px;
+            margin-top:auto;
+            padding-top:8px;
+        }
+        .orc-template-preview .mini-terms { width:46%; display:grid; gap:4px; }
+        .orc-template-preview .mini-terms span { display:block; height:4px; border-radius:999px; background:#dbe4f0; }
+        .orc-template-preview .mini-total {
+            width:42%;
+            min-height:26px;
+            border-radius:6px;
+            background:#e2e8f0;
+            display:flex;
+            flex-direction:column;
+            justify-content:center;
+            gap:4px;
+            padding:5px 7px;
+            box-sizing:border-box;
+        }
+        .orc-template-preview .mini-total-label { width:42%; height:4px; border-radius:999px; background:#94a3b8; }
+        .orc-template-preview .mini-total-value { width:72%; height:6px; border-radius:999px; background:#475569; }
+
+        .orc-template-preview.formal .mini-head { border-bottom:2px solid #334155; }
+        .orc-template-preview.formal .mini-client-box { border-radius:2px; }
+        .orc-template-preview.formal .mini-table { border-radius:2px; }
+        .orc-template-preview.formal .mini-table-head { background:#e2e8f0; }
+        .orc-template-preview.formal .mini-total { border-radius:2px; background:#f1f5f9; border:1px solid #cbd5e1; }
+
+        .orc-template-preview.comercial { background:#f8fbff; }
+        .orc-template-preview.comercial .mini-document { padding:9px; }
+        .orc-template-preview.comercial .mini-head { padding:7px 8px; margin:-9px -9px 0; background:#eff6ff; border-bottom:3px solid #2563eb; }
+        .orc-template-preview.comercial .mini-logo { background:#2563eb; }
+        .orc-template-preview.comercial .mini-company { background:#1d4ed8; }
+        .orc-template-preview.comercial .mini-client-box { border-color:#bfdbfe; background:#fff; border-radius:7px; }
+        .orc-template-preview.comercial .mini-table { border-color:#bfdbfe; border-radius:8px; box-shadow:0 4px 10px rgba(37,99,235,.06); }
+        .orc-template-preview.comercial .mini-table-head { background:#dbeafe; border-color:#bfdbfe; }
+        .orc-template-preview.comercial .mini-total { background:#dbeafe; border:1px solid #93c5fd; }
+        .orc-template-preview.comercial .mini-total-value { background:#1d4ed8; }
+
+        .orc-template-preview.premium { background:#f8fafc; }
+        .orc-template-preview.premium .mini-document { padding:0 10px 10px; }
+        .orc-template-preview.premium .mini-head {
+            margin:0 -10px;
+            padding:12px 10px;
+            min-height:38px;
+            border-bottom:0;
+            background:#0f2740;
+        }
+        .orc-template-preview.premium .mini-logo { width:28px; height:20px; background:#fff; }
+        .orc-template-preview.premium .mini-company { width:72px; background:#fff; }
+        .orc-template-preview.premium .mini-doc-number { background:#93c5fd; }
+        .orc-template-preview.premium .mini-client { margin-top:10px; }
+        .orc-template-preview.premium .mini-client-box { border:0; border-radius:8px; background:#fff; box-shadow:0 4px 12px rgba(15,23,42,.07); }
+        .orc-template-preview.premium .mini-table { border:0; border-radius:8px; box-shadow:0 5px 14px rgba(15,23,42,.08); }
+        .orc-template-preview.premium .mini-table-head { background:#0f2740; border:0; }
+        .orc-template-preview.premium .mini-total { width:46%; background:#0f2740; box-shadow:0 5px 14px rgba(15,23,42,.10); }
+        .orc-template-preview.premium .mini-total-label { background:#93c5fd; }
+        .orc-template-preview.premium .mini-total-value { background:#fff; }
+        .orc-template-note {
+            margin-top:12px;
+            padding:10px 12px;
+            border-radius:10px;
+            background:#f8fafc;
+            color:#475569;
+            font-size:11px;
+            font-weight:700;
+            line-height:1.5;
+        }
+
         .orc-config-actions {
             display:flex;
             align-items:center;
@@ -226,6 +421,7 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
         }
 
         @media(max-width:900px){
+            .orc-template-grid { grid-template-columns:1fr; }
             .orc-status-row { grid-template-columns:1fr 1fr; }
             .orc-status-delete { justify-self:end; }
             .orc-config-fields { grid-template-columns:1fr; }
@@ -328,10 +524,73 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
                 </div>
             </section>
 
+            {% set template_orcamento_atual = configuracoes_modulo.get('template_orcamento', 'formal') %}
+            <section class="orc-template-panel">
+                <div class="orc-template-panel-head">
+                    <div>
+                        <h3>Template padrão do Orçamento</h3>
+                        <p>Escolha uma vez. Todos os Orçamentos A4/PDF da empresa usarão este modelo automaticamente até você trocar esta configuração.</p>
+                    </div>
+                    <span class="orc-template-status">Padrão da empresa</span>
+                </div>
+
+                <div class="orc-template-grid">
+                    <label class="orc-template-card">
+                        <input type="radio" name="template_orcamento" value="formal" {% if template_orcamento_atual == 'formal' %}checked{% endif %}>
+                        <span class="orc-template-card-title">
+                            <strong>Formal</strong>
+                            <small>Corporativo, técnico e objetivo. Ideal para empresas, engenharia e indústria.</small>
+                        </span>
+                        <span class="orc-template-preview formal" aria-hidden="true">
+                            <span class="mini-document">
+                                <span class="mini-head"><span class="mini-brand"><span class="mini-logo"></span><span class="mini-company"></span></span><span class="mini-doc-number"></span></span>
+                                <span class="mini-client"><span class="mini-client-box"><span class="mini-label"></span><span class="mini-value"></span></span><span class="mini-client-box"><span class="mini-label"></span><span class="mini-value"></span></span></span>
+                                <span class="mini-table"><span class="mini-table-head"></span><span class="mini-row"><span class="mini-cell"></span><span class="mini-cell"></span><span class="mini-cell"></span></span><span class="mini-row"><span class="mini-cell"></span><span class="mini-cell"></span><span class="mini-cell"></span></span></span>
+                                <span class="mini-summary"><span class="mini-terms"><span></span><span></span><span></span></span><span class="mini-total"><span class="mini-total-label"></span><span class="mini-total-value"></span></span></span>
+                            </span>
+                        </span>
+                    </label>
+
+                    <label class="orc-template-card">
+                        <input type="radio" name="template_orcamento" value="comercial" {% if template_orcamento_atual == 'comercial' %}checked{% endif %}>
+                        <span class="orc-template-card-title">
+                            <strong>Comercial</strong>
+                            <small>Mais leve, amigável e direto. Bom para comércio, serviços e pequenas empresas.</small>
+                        </span>
+                        <span class="orc-template-preview comercial" aria-hidden="true">
+                            <span class="mini-document">
+                                <span class="mini-head"><span class="mini-brand"><span class="mini-logo"></span><span class="mini-company"></span></span><span class="mini-doc-number"></span></span>
+                                <span class="mini-client"><span class="mini-client-box"><span class="mini-label"></span><span class="mini-value"></span></span><span class="mini-client-box"><span class="mini-label"></span><span class="mini-value"></span></span></span>
+                                <span class="mini-table"><span class="mini-table-head"></span><span class="mini-row"><span class="mini-cell"></span><span class="mini-cell"></span><span class="mini-cell"></span></span><span class="mini-row"><span class="mini-cell"></span><span class="mini-cell"></span><span class="mini-cell"></span></span></span>
+                                <span class="mini-summary"><span class="mini-terms"><span></span><span></span><span></span></span><span class="mini-total"><span class="mini-total-label"></span><span class="mini-total-value"></span></span></span>
+                            </span>
+                        </span>
+                    </label>
+
+                    <label class="orc-template-card">
+                        <input type="radio" name="template_orcamento" value="premium" {% if template_orcamento_atual == 'premium' %}checked{% endif %}>
+                        <span class="orc-template-card-title">
+                            <strong>Premium</strong>
+                            <small>Visual mais marcante, elegante e vendedor. Pensado para propostas B2C de maior impacto.</small>
+                        </span>
+                        <span class="orc-template-preview premium" aria-hidden="true">
+                            <span class="mini-document">
+                                <span class="mini-head"><span class="mini-brand"><span class="mini-logo"></span><span class="mini-company"></span></span><span class="mini-doc-number"></span></span>
+                                <span class="mini-client"><span class="mini-client-box"><span class="mini-label"></span><span class="mini-value"></span></span><span class="mini-client-box"><span class="mini-label"></span><span class="mini-value"></span></span></span>
+                                <span class="mini-table"><span class="mini-table-head"></span><span class="mini-row"><span class="mini-cell"></span><span class="mini-cell"></span><span class="mini-cell"></span></span><span class="mini-row"><span class="mini-cell"></span><span class="mini-cell"></span><span class="mini-cell"></span></span></span>
+                                <span class="mini-summary"><span class="mini-terms"><span></span><span></span><span></span></span><span class="mini-total"><span class="mini-total-label"></span><span class="mini-total-value"></span></span></span>
+                            </span>
+                        </span>
+                    </label>
+                </div>
+
+                <div class="orc-template-note">O template altera apenas a apresentação do documento. Itens, valores, cálculos, condições e demais dados do Orçamento continuam exatamente os mesmos.</div>
+            </section>
+
             {% for nome_secao, campos_secao in secoes_configuracao.items() %}
                 {% set campos_visiveis = [] %}
                 {% for campo in campos_secao %}
-                    {% if campo.chave not in ['situacoes', 'situacoes_config_json', 'situacao_finalizadora'] %}
+                    {% if campo.chave not in ['situacoes', 'situacoes_config_json', 'situacao_finalizadora', 'template_orcamento'] %}
                         {% set _ = campos_visiveis.append(campo) %}
                     {% endif %}
                 {% endfor %}
