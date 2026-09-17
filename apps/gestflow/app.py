@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-09-16 23:51 (America/Bahia)
-# Motivo: Permitir foto e descrição comercial já no Novo Produto e formatar o preço de venda da listagem em moeda brasileira na MAIN.
+# Último recode: 2026-09-17 12:30 (America/Bahia)
+# Motivo: Adicionar preferências por empresa para controlar quantidade e valores exibidos no Orçamento Premium no MAIN.
 
 from __future__ import annotations
 
@@ -521,6 +521,38 @@ CONFIGURACOES_MODULOS_DEFINICOES = [
                     ("comercial", "Comercial — leve e direto"),
                     ("premium", "Premium — visual e impactante"),
                 ),
+            ),
+            _campo_configuracao_modulo(
+                "premium_exibir_quantidade",
+                "Mostrar quantidade no Premium",
+                "booleano",
+                False,
+                secao="Impressão",
+                ajuda="Exibe a quantidade de cada produto e serviço no Orçamento Premium.",
+            ),
+            _campo_configuracao_modulo(
+                "premium_exibir_valor_unitario",
+                "Mostrar valor unitário no Premium",
+                "booleano",
+                False,
+                secao="Impressão",
+                ajuda="Exibe o valor unitário de cada produto e serviço no Orçamento Premium.",
+            ),
+            _campo_configuracao_modulo(
+                "premium_exibir_total_item",
+                "Mostrar valor total por item no Premium",
+                "booleano",
+                False,
+                secao="Impressão",
+                ajuda="Exibe o subtotal de cada produto e serviço no Orçamento Premium.",
+            ),
+            _campo_configuracao_modulo(
+                "premium_exibir_resumo_valores",
+                "Mostrar resumo de produtos e serviços no Premium",
+                "booleano",
+                False,
+                secao="Impressão",
+                ajuda="Exibe os totais de produtos, serviços e desconto antes do investimento total.",
             ),
             _campo_configuracao_modulo("exibir_itens_pdf", "Exibir itens no PDF", "booleano", True, secao="Impressão"),
             _campo_configuracao_modulo("separar_material_mao_obra", "Separar material e mão de obra", "booleano", True, secao="Impressão"),
