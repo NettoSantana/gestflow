@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\operacao\services.py
-# Último recode: 2026-10-02 17:07:36 (America/Bahia)
-# Motivo: Usar as paradas diárias consolidadas, separar o dia atual do histórico e limitar a atualização ao intervalo programado e à meia-noite da Bahia.
+# Último recode: 2026-10-02 17:26:16 (America/Bahia)
+# Motivo: Suspender parada atual e cobrança de classificação fora do turno, nas pausas e sem comunicação, mantendo o acumulado diário e os registros anteriores.
 
 from __future__ import annotations
 
@@ -10,6 +10,9 @@ import sqlite3
 import uuid
 
 from modules.db_indflow import get_db
+from modules.producao.historico_routes import (
+    _load_machine_config, _planned_intervals_for_day, _communication_status,
+)
 from modules.paradas.services import (
     classify_occurrence,
     _sum_production,
@@ -365,6 +368,30 @@ def _sync_operational_stop_from_state_events(cliente_id: str, machine_id: str) -
         conn.close()
 
 
+def _operational_window(cliente_id: str, machine_id: str) -> dict:
+    reference = now_local()
+    local = reference.replace(tzinfo=None)
+    conn = get_db()
+    try:
+        config = _load_machine_config(conn, cliente_id, machine_id)
+        planned = _planned_intervals_for_day(config, reference.date())
+        comm = _communication_status(conn, cliente_id, machine_id, int(reference.timestamp()*1000))
+    finally:
+        conn.close()
+    end_day = local.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+    active = planned is None or any(s <= local < e for s, e in planned)
+    until = next((e for s, e in planned or [] if s <= local < e), end_day)
+    status = "EM_TURNO" if active else "FORA_TURNO"
+    if not active:
+        cv2 = config.get("config_v2", config)
+        if isinstance(cv2, dict):
+            unbroken = {**cv2, "shifts": [{**s, "breaks": []} for s in cv2.get("shifts", []) if isinstance(s, dict)]}
+            outer = _planned_intervals_for_day(unbroken, reference.date())
+            if any(s <= local < e for s, e in outer or []): status = "PAUSA"
+    return {"programado": active, "status": status, "reference_ms": int(reference.timestamp()*1000),
+            "valid_until_ms": int(until.replace(tzinfo=reference.tzinfo).timestamp()*1000), "comunicacao": comm}
+
+
 def get_operational_state(cliente_id: str, machine_id: str) -> dict:
     cid = str(cliente_id or "").strip()
     mid = normalize_machine_id(machine_id, cid)
@@ -372,11 +399,11 @@ def get_operational_state(cliente_id: str, machine_id: str) -> dict:
         raise ValueError("Máquina inválida para a empresa atual.")
 
     config = get_operational_config(cid, mid)
+    window = _operational_window(cid, mid)
     today = now_local().date()
     start_day = today - timedelta(days=1)
     rows = sync_detected_stops(cid, mid, start_day, today)
     _sync_operational_stop_from_state_events(cid, mid)
-    raw_rows = list_occurrences(cid, mid, start_day, today, sync=False, raw=True)
 
     threshold_sec = int(config["tempo_obrigatorio_min"]) * 60
     pending = [
@@ -386,10 +413,11 @@ def get_operational_state(cliente_id: str, machine_id: str) -> dict:
     pending.sort(key=lambda row: int(row.get("started_at_ms") or 0))
 
     open_rows = [row for row in rows if row.get("ended_at_ms") in (None, "")]
-    if not open_rows:
-        open_rows = [row for row in raw_rows if row.get("ended_at_ms") in (None, "")]
     open_rows.sort(key=lambda row: int(row.get("started_at_ms") or 0), reverse=True)
     current_stop = open_rows[0] if open_rows else None
+    if not window["programado"] or window["comunicacao"].get("online") is False:
+        current_stop = None
+        pending = []
     reference_ms = int(now_local().timestamp() * 1000)
     today_rows = [row for row in rows if row.get("data_ref") == today.isoformat()]
     day_end = datetime.combine(today + timedelta(days=1), datetime.min.time(), tzinfo=now_local().tzinfo)
@@ -399,6 +427,7 @@ def get_operational_state(cliente_id: str, machine_id: str) -> dict:
 
     return {
         "machine_id": mid,
+        "programacao": window,
         "config": config,
         "pending": pending[0] if pending else None,
         "pending_count": len(pending),
@@ -411,7 +440,8 @@ def get_operational_state(cliente_id: str, machine_id: str) -> dict:
             "reference_ms": reference_ms,
             "data_ref": today.isoformat(),
             "day_end_ms": int(day_end.timestamp() * 1000),
-            "open_until_ms": int(daily_open.get("open_until_ms") or day_end.timestamp() * 1000) if daily_open else None,
+            "open_until_ms": min(int(daily_open.get("open_until_ms") or day_end.timestamp() * 1000),
+                                 int(window["comunicacao"].get("expires_at_ms") or day_end.timestamp()*1000)) if daily_open else None,
         },
     }
 

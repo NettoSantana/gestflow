@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\machine\device_helpers.py
-# Último recode: 2026-08-21 06:43 (America/Bahia)
-# Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+# Último recode: 2026-10-02 17:26:16 (America/Bahia)
+# Motivo: Registrar intervalos de comunicação real do ESP por empresa, máquina e dispositivo, usando 60 segundos de tolerância para identificar falta de dados sem inferir pela ausência de produção.
 
 # modules/machine/device_helpers.py
 import re
@@ -63,7 +63,8 @@ def touch_device_seen(device_id: str) -> None:
     try:
         ensure_devices_table(conn)
 
-        now_iso = now_bahia().strftime("%Y-%m-%d %H:%M:%S")
+        received = now_bahia()
+        now_iso = received.strftime("%Y-%m-%d %H:%M:%S")
 
         # UPSERT:
         # - se não existir: cria com machine_id/alias NULL
@@ -75,6 +76,33 @@ def touch_device_seen(device_id: str) -> None:
               last_seen = excluded.last_seen
         """, (device_id, now_iso, now_iso))
 
+        # Registra comunicação real do ESP; leituras da tela não renovam esta janela.
+        row = conn.execute("SELECT cliente_id, machine_id FROM devices WHERE device_id=?", (device_id,)).fetchone()
+        if row and row["cliente_id"] and row["machine_id"]:
+            cid = str(row["cliente_id"])
+            mid = str(row["machine_id"]).split("::")[-1].strip()
+            received_ms = int(received.timestamp() * 1000)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS machine_communication_sessions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    cliente_id TEXT NOT NULL, machine_id TEXT NOT NULL, device_id TEXT NOT NULL,
+                    started_at_ms INTEGER NOT NULL, last_seen_ms INTEGER NOT NULL
+                )
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS ix_communication_machine ON machine_communication_sessions (cliente_id, machine_id, started_at_ms)")
+            previous = conn.execute("""
+                SELECT id, last_seen_ms FROM machine_communication_sessions
+                WHERE cliente_id=? AND lower(machine_id)=lower(?) AND device_id=?
+                ORDER BY last_seen_ms DESC LIMIT 1
+            """, (cid, mid, device_id)).fetchone()
+            if previous and received_ms <= int(previous["last_seen_ms"]) + 60000:
+                conn.execute("UPDATE machine_communication_sessions SET last_seen_ms=MAX(last_seen_ms, ?) WHERE id=?",
+                             (received_ms, int(previous["id"])))
+            else:
+                conn.execute("""
+                    INSERT INTO machine_communication_sessions
+                    (cliente_id, machine_id, device_id, started_at_ms, last_seen_ms) VALUES (?, ?, ?, ?, ?)
+                """, (cid, mid, device_id, received_ms, received_ms))
         conn.commit()
     finally:
         try:

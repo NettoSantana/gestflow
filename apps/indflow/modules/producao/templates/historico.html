@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\producao\templates\historico.html
-Último recode: 2026-09-02 21:30 (America/Bahia)
-Motivo: Abrir a classificação de parada em um modal secundário sobre o Detalhe do dia, sem sair do Histórico Operacional.
+Último recode: 2026-10-02 17:26:16 (America/Bahia)
+Motivo: Adicionar legenda no topo do detalhe, usar amarelo nos intervalos sem comunicação e manter verde, vermelho e cinza para produção, parada e períodos não programados.
 #}
 
 {% extends "base.html" %}
@@ -522,6 +522,14 @@ Motivo: Abrir a classificação de parada em um modal secundário sobre o Detalh
     filter:brightness(.88);
   }
 
+  .history-seg.no-data{background:#facc15;}
+  .history-modal-heading{min-width:0;}
+  .history-legend{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:8px;font-size:11px;color:#475569;}
+  .history-legend span{display:inline-flex;align-items:center;gap:5px;}
+  .history-legend i{display:inline-block;width:12px;height:12px;border-radius:3px;}
+  .history-legend .run{background:#16a34a;}.history-legend .stop{background:#dc2626;}
+  .history-legend .no-data{background:#facc15;}.history-legend .np{background:#94a3b8;}
+
   .history-seg.np,
   .history-seg.idle{
     background:#94a3b8;
@@ -850,7 +858,15 @@ Motivo: Abrir a classificação de parada em um modal secundário sobre o Detalh
 <div id="historyModalBackdrop" class="history-modal-backdrop" aria-hidden="true">
   <div class="history-modal" role="dialog" aria-modal="true" aria-labelledby="historyModalTitle">
     <div class="history-modal-header">
-      <div id="historyModalTitle" class="history-modal-title">Detalhe do dia</div>
+      <div class="history-modal-heading">
+        <div id="historyModalTitle" class="history-modal-title">Detalhe do dia</div>
+        <div class="history-legend" aria-label="Legenda da linha do tempo">
+          <span><i class="stop" aria-hidden="true"></i>Horas paradas</span>
+          <span><i class="run" aria-hidden="true"></i>Produzindo</span>
+          <span><i class="no-data" aria-hidden="true"></i>Sem dados / comunicação</span>
+          <span><i class="np" aria-hidden="true"></i>Fora de turno / pausa</span>
+        </div>
+      </div>
       <button id="historyModalClose" class="history-modal-close" type="button">Fechar</button>
     </div>
 
@@ -1415,7 +1431,7 @@ Motivo: Abrir a classificação de parada em um modal secundário sobre o Detalh
       const duration = Math.max(0, parseHms(seg.end) - parseHms(seg.start));
       const pct = Math.max(0, Math.min(100, (duration / total) * 100));
       const state = String(seg.state || "IDLE").toUpperCase();
-      const cls = state === "RUN" ? "run" : (state === "STOP" ? "stop" : (state === "NP" ? "np" : "idle"));
+      const cls = state === "RUN" ? "run" : (state === "STOP" ? "stop" : (state === "NO_DATA" ? "no-data" : (state === "NP" ? "np" : "idle")));
 
       const attrs = cls === "stop"
         ? (
@@ -1425,7 +1441,7 @@ Motivo: Abrir a classificação de parada em um modal secundário sobre o Detalh
             ' data-stop-end="' + escapeHtml(seg.end || "") + '"' +
             ' title="Classificar esta parada"'
           )
-        : "";
+        : (cls === "no-data" ? ' title="Sem comunicação registrada neste intervalo"' : "");
 
       return '<div class="history-seg ' + cls + '" style="width:' + pct.toFixed(3) + '%"' + attrs + '></div>';
     }).join("");

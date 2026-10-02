@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\producao\historico_routes.py
-# Último recode: 2026-09-07 21:56 (America/Bahia)
-# Motivo: No horário planejado, classificar todo período sem RUN como PARADA, independentemente da comunicação do ESP; pausas e horários fora do turno permanecem NP.
+# Último recode: 2026-10-02 17:26:16 (America/Bahia)
+# Motivo: Identificar lacunas de comunicação como NO_DATA a partir dos novos registros, separar esse tempo de RUN/STOP e preservar os dias anteriores ao monitoramento.
 
 from __future__ import annotations
 
@@ -694,6 +694,67 @@ def _state_columns(conn: sqlite3.Connection) -> dict:
     }
 
 
+def _communication_status(conn, cliente_id, machine_id, reference_ms=None):
+    """Último recebimento real, isolado por empresa e máquina."""
+    if not _table_exists(conn, "machine_communication_sessions"):
+        return {"monitored": False, "online": None}
+    mids = _matching_machine_ids(conn, "machine_communication_sessions", cliente_id, machine_id, "machine_id")
+    if not mids:
+        return {"monitored": False, "online": None}
+    params = [cliente_id, *mids]
+    row = conn.execute("SELECT MAX(last_seen_ms) FROM machine_communication_sessions WHERE cliente_id=? AND machine_id IN (" + ",".join("?" for _ in mids) + ")", params).fetchone()
+    if not row or row[0] is None:
+        return {"monitored": False, "online": None}
+    now_ms = reference_ms if reference_ms is not None else int(datetime.now(TZ_BAHIA).timestamp() * 1000)
+    expires = int(row[0]) + 60000
+    return {"monitored": True, "online": now_ms < expires, "expires_at_ms": expires, "timeout_sec": 60}
+
+
+def _apply_communication_to_segments(conn, cliente_id, machine_id, day, segments):
+    """Mantém dias antigos; após o primeiro registro, marca as lacunas como NO_DATA."""
+    if not _table_exists(conn, "machine_communication_sessions"):
+        return segments
+    mids = _matching_machine_ids(conn, "machine_communication_sessions", cliente_id, machine_id, "machine_id")
+    if not mids:
+        return segments
+    clause = "cliente_id=? AND machine_id IN (" + ",".join("?" for _ in mids) + ")"
+    params = [cliente_id, *mids]
+    first = conn.execute("SELECT MIN(started_at_ms) FROM machine_communication_sessions WHERE " + clause, params).fetchone()
+    if not first or first[0] is None:
+        return segments
+    start = datetime(day.year, day.month, day.day)
+    end = min(start + timedelta(days=1), datetime.now(TZ_BAHIA).replace(tzinfo=None))
+    if end <= start:
+        return []
+    observed = datetime.fromtimestamp(int(first[0])/1000, TZ_BAHIA).replace(tzinfo=None)
+    if end <= observed:
+        return segments
+    start_ms = int(start.replace(tzinfo=TZ_BAHIA).timestamp()*1000)
+    end_ms = int(end.replace(tzinfo=TZ_BAHIA).timestamp()*1000)
+    rows = conn.execute("SELECT started_at_ms, last_seen_ms FROM machine_communication_sessions WHERE " + clause + " AND started_at_ms<? AND last_seen_ms+60000>? ORDER BY started_at_ms", [*params, end_ms, start_ms]).fetchall()
+    online = [(max(start, datetime.fromtimestamp(int(r[0])/1000, TZ_BAHIA).replace(tzinfo=None)),
+               min(end, datetime.fromtimestamp((int(r[1])+60000)/1000, TZ_BAHIA).replace(tzinfo=None))) for r in rows]
+    boundaries = {start, end}
+    if start < observed < end:
+        boundaries.add(observed)
+    for s, e, _ in segments:
+        if start < s < end: boundaries.add(s)
+        if start < e < end: boundaries.add(e)
+    for s, e in online:
+        if e > s: boundaries.update((s, e))
+    points = sorted(boundaries)
+    out = []
+    for s, e in zip(points, points[1:]):
+        state = next((st for ss, ee, st in segments if ss <= s and ee >= e), "IDLE")
+        known = e <= observed or any(ss <= s and ee >= e for ss, ee in online)
+        if not known: state = "NO_DATA"
+        if out and out[-1][2] == state and out[-1][1] == s:
+            out[-1] = (out[-1][0], e, state)
+        else:
+            out.append((s, e, state))
+    return out
+
+
 def _state_segments_for_day(
     conn: sqlite3.Connection,
     cliente_id: str,
@@ -702,7 +763,7 @@ def _state_segments_for_day(
 ) -> list[tuple[datetime, datetime, str]]:
     info = _state_columns(conn)
     if not info:
-        return []
+        return _apply_communication_to_segments(conn, cliente_id, machine_id, day, [])
 
     table = "machine_state_event"
     cols = info["cols"]
@@ -733,7 +794,7 @@ def _state_segments_for_day(
         )
 
     if not candidates:
-        return []
+        return _apply_communication_to_segments(conn, cliente_id, machine_id, day, [])
 
     day_start = datetime(day.year, day.month, day.day)
     day_end = day_start + timedelta(days=1)
@@ -867,7 +928,7 @@ def _state_segments_for_day(
         else:
             merged.append((start, end, state))
 
-    return merged
+    return _apply_communication_to_segments(conn, cliente_id, machine_id, day, merged)
 
 
 def _state_metrics(
@@ -1130,11 +1191,8 @@ def _operational_segments_for_range(
         for seg_start, seg_end, state in inside:
             if seg_end <= seg_start:
                 continue
-            effective_state = (
-                "RUN"
-                if str(state or "IDLE").upper() == "RUN"
-                else "STOP"
-            )
+            effective_state = ("NO_DATA" if state == "NO_DATA" else
+                               "RUN" if str(state or "IDLE").upper() == "RUN" else "STOP")
             out.append((seg_start, seg_end, effective_state))
 
         cursor = interval_end
