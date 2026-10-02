@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\operacao\services.py
-# Último recode: 2026-10-02 14:48:31 (America/Bahia)
-# Motivo: Permitir correção e exclusão de lançamentos de qualidade, recalcular o saldo e preservar os valores originais e o histórico por empresa e máquina.
+# Último recode: 2026-10-02 17:07:36 (America/Bahia)
+# Motivo: Usar as paradas diárias consolidadas, separar o dia atual do histórico e limitar a atualização ao intervalo programado e à meia-noite da Bahia.
 
 from __future__ import annotations
 
@@ -374,9 +374,9 @@ def get_operational_state(cliente_id: str, machine_id: str) -> dict:
     config = get_operational_config(cid, mid)
     today = now_local().date()
     start_day = today - timedelta(days=1)
-    sync_detected_stops(cid, mid, start_day, today)
+    rows = sync_detected_stops(cid, mid, start_day, today)
     _sync_operational_stop_from_state_events(cid, mid)
-    rows = list_occurrences(cid, mid, start_day, today, sync=False)
+    raw_rows = list_occurrences(cid, mid, start_day, today, sync=False, raw=True)
 
     threshold_sec = int(config["tempo_obrigatorio_min"]) * 60
     pending = [
@@ -386,11 +386,16 @@ def get_operational_state(cliente_id: str, machine_id: str) -> dict:
     pending.sort(key=lambda row: int(row.get("started_at_ms") or 0))
 
     open_rows = [row for row in rows if row.get("ended_at_ms") in (None, "")]
+    if not open_rows:
+        open_rows = [row for row in raw_rows if row.get("ended_at_ms") in (None, "")]
     open_rows.sort(key=lambda row: int(row.get("started_at_ms") or 0), reverse=True)
     current_stop = open_rows[0] if open_rows else None
     reference_ms = int(now_local().timestamp() * 1000)
-    day_start_ms = int(now_local().replace(hour=0, minute=0, second=0, microsecond=0).timestamp() * 1000)
-    today_rows = [row for row in rows if int(row.get("ended_at_ms") or reference_ms) > day_start_ms]
+    today_rows = [row for row in rows if row.get("data_ref") == today.isoformat()]
+    day_end = datetime.combine(today + timedelta(days=1), datetime.min.time(), tzinfo=now_local().tzinfo)
+    daily_open = next((row for row in today_rows if row.get("ended_at_ms") is None), None)
+    if daily_open:
+        reference_ms = int(daily_open.get("reference_ms") or reference_ms)
 
     return {
         "machine_id": mid,
@@ -402,8 +407,11 @@ def get_operational_state(cliente_id: str, machine_id: str) -> dict:
         "ocorrencias_producao": get_occurrence_summary(cid, mid),
         "paradas_hoje": {
             "duration_sec": sum(int(row.get("duration_sec") or 0) for row in today_rows),
-            "open_count": sum(row.get("ended_at_ms") in (None, "") for row in today_rows),
+            "open_count": 1 if daily_open else 0,
             "reference_ms": reference_ms,
+            "data_ref": today.isoformat(),
+            "day_end_ms": int(day_end.timestamp() * 1000),
+            "open_until_ms": int(daily_open.get("open_until_ms") or day_end.timestamp() * 1000) if daily_open else None,
         },
     }
 

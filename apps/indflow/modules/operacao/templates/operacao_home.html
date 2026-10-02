@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\operacao\templates\operacao_home.html
-Último recode: 2026-10-02 14:48:31 (America/Bahia)
-Motivo: Expor Editar e Excluir para eventos de qualidade e lançamentos, com lista por data e recálculo do saldo sem ampliar a tela principal.
+Último recode: 2026-10-02 17:07:36 (America/Bahia)
+Motivo: Zerar Parado hoje na virada do dia da Bahia e impedir que registros duplicados ou pausas multipliquem o cronômetro diário.
 #}
 
 {% extends "base.html" %}
@@ -81,7 +81,7 @@ Motivo: Expor Editar e Excluir para eventos de qualidade e lançamentos, com lis
       <div class="op-error" id="occurrenceError" role="alert"></div>
       <div class="op-occurrence-actions"><small class="op-muted" id="occurrenceInstruction">Informe novas quantidades.</small><button class="btn btn-primary" id="saveOccurrences" type="button">Salvar</button><span class="op-quality-links"><button class="op-quality-link" id="qualityHistoryBtn" type="button">Lançamentos</button>{% if (session.get('role') or '')|lower in ['admin','superadmin'] %}<button class="op-quality-link" id="qualityTypesBtn" type="button">Editar eventos</button>{% endif %}</span><span class="op-occurrence-message" id="occurrenceSaved" aria-live="polite"></span></div>
     </section>
-    <div class="op-card"><span class="label">Parado hoje</span><strong id="dailyStopTimer">00:00:00</strong><small>Total conforme Paradas · Hoje</small></div>
+    <div class="op-card"><span class="label">Parado hoje</span><strong id="dailyStopTimer">00:00:00</strong><small>Hoje · turnos programados · Bahia</small></div>
     <div class="op-card"><span class="label">Parada atual</span><strong id="stopTimer">00:00:00</strong><small id="stopLimit">Classificação após 3 min</small></div>
   </div>
 
@@ -179,7 +179,18 @@ async function loadContext(){if(!machine)return;context=await fetchJson('/operac
 async function loadState(){if(!machine)return;const revision=dataRevision;const [m,s]=await Promise.all([fetchJson('/machine/status?machine_id='+encodeURIComponent(machine)),fetchJson('/operacao/api/estado?machine_id='+encodeURIComponent(machine))]);if(revision!==dataRevision)return;machineState=m;opState=s.data;stateReceivedMs=Date.now();if(simulation.active&&opState?.pending){simulation.active=false;if($('simulationPanel'))$('simulationPanel').classList.remove('open');if($('simulationBtn'))$('simulationBtn').textContent='Modo simulação';}renderAll();}
 async function poll(){if(pollBusy||qualityChanging||occurrenceBusy||!machine)return;pollBusy=true;try{await loadState();showError('blockError','');}catch(e){setBadge('off','SEM DADOS');setMessage('wait',e.message);}finally{pollBusy=false;}}
 
-function renderProductive(){if(simulation.active){renderSimulationProductive();return;}if(!machineState||!opState)return;const m=machineState,cfg=opState.config||context?.config||{};const status=String(m.status_ui||'').toUpperCase();const currentStop=opState.current_stop;const stopSec=nowSecFromStop(currentStop);const threshold=Math.max(60,Number(cfg.tempo_obrigatorio_min||3)*60);$('production').textContent=fmtNum(m.producao_turno||0);$('target').textContent=fmtNum(m.meta_turno||0);$('attainment').textContent=`${Number(m.percentual_turno||0)}%`;$('hourProduction').textContent=fmtNum(m.producao_hora_liquida??m.producao_hora??0);$('stopTimer').textContent=status==='PARADA'?fmtClock(stopSec):'00:00:00';$('stopLimit').textContent=`Classificação após ${cfg.tempo_obrigatorio_min||3} min`;const daily=opState.paradas_hoje||{};$('dailyStopTimer').textContent=fmtClock(Number(daily.duration_sec||0)+Number(daily.open_count||0)*Math.max(0,(Date.now()-stateReceivedMs)/1000));renderOccurrencePanel();
+function dailyStopSeconds(daily){
+  const elapsed=Math.max(0,Date.now()-stateReceivedMs);
+  const reference=Number(daily.reference_ms||Date.now());
+  const serverNow=reference+elapsed;
+  const dayEnd=Number(daily.day_end_ms||0);
+  if(dayEnd&&serverNow>=dayEnd)return 0;
+  const until=Number(daily.open_until_ms||dayEnd||serverNow);
+  const live=Number(daily.open_count||0)>0?Math.max(0,(Math.min(serverNow,until)-reference)/1000):0;
+  return Number(daily.duration_sec||0)+live;
+}
+
+function renderProductive(){if(simulation.active){renderSimulationProductive();return;}if(!machineState||!opState)return;const m=machineState,cfg=opState.config||context?.config||{};const status=String(m.status_ui||'').toUpperCase();const currentStop=opState.current_stop;const stopSec=nowSecFromStop(currentStop);const threshold=Math.max(60,Number(cfg.tempo_obrigatorio_min||3)*60);$('production').textContent=fmtNum(m.producao_turno||0);$('target').textContent=fmtNum(m.meta_turno||0);$('attainment').textContent=`${Number(m.percentual_turno||0)}%`;$('hourProduction').textContent=fmtNum(m.producao_hora_liquida??m.producao_hora??0);$('stopTimer').textContent=status==='PARADA'?fmtClock(stopSec):'00:00:00';$('stopLimit').textContent=`Classificação após ${cfg.tempo_obrigatorio_min||3} min`;const daily=opState.paradas_hoje||{};$('dailyStopTimer').textContent=fmtClock(dailyStopSeconds(daily));renderOccurrencePanel();
 const op=opState.active_order;if(op){$('activeOrder').textContent=op.os||`OP ${op.id}`;$('activeOrderDetail').textContent=[op.lote?`Lote ${op.lote}`:'',op.operador?`Operador ${op.operador}`:''].filter(Boolean).join(' · ')||'OP ativa';}else{$('activeOrder').textContent='—';$('activeOrderDetail').textContent='Nenhuma OP ativa';}
 if(status==='PRODUZINDO'){setBadge('run','PRODUZINDO');setMessage('run','Máquina produzindo. Nenhuma ação do operador é necessária.');$('stopProgressWrap').style.display='none';$('stopHint').textContent='';}
 else if(status==='PARADA'){setBadge('stop','PARADA');const classified=currentStop&&currentStop.classificada;if(classified){setMessage('stop',`Parada classificada: ${currentStop.motivo_codigo||''} - ${currentStop.motivo_descricao||''}`);$('stopProgressWrap').style.display='none';$('stopHint').textContent='A máquina permanece parada, mas o motivo já foi registrado.';}else{const remaining=Math.max(0,threshold-stopSec);setMessage(remaining>0?'wait':'stop',remaining>0?`Parada detectada. Classificação obrigatória em ${fmtClock(remaining)}.`:'Parada atingiu o tempo obrigatório e deve ser classificada.');$('stopProgressWrap').style.display='block';$('stopProgress').style.width=`${Math.min(100,(stopSec/threshold)*100)}%`;$('stopHint').textContent=`Tempo atual ${fmtClock(stopSec)} · limite ${cfg.tempo_obrigatorio_min||3} min`;}}

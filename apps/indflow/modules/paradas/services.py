@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\paradas\services.py
-# Último recode: 2026-10-02 16:26:27 (America/Bahia)
-# Motivo: Integrar eventos operacionais marcados como Desconta ao cálculo de Qualidade e OEE por máquina, consolidado e diário, considerando edições e exclusões e preservando os refugos antigos.
+# Último recode: 2026-10-02 17:07:36 (America/Bahia)
+# Motivo: Unificar RUN/STOP com o Histórico, recortar cada dia e turno, evitar soma de registros sobrepostos e preservar as classificações e a integração de Qualidade/OEE.
 
 from __future__ import annotations
 
@@ -15,9 +15,12 @@ from modules.db_indflow import get_db
 from modules.producao.historico_routes import (
     _build_meta_24_from_config_v2,
     _build_meta_24_from_machine_state,
-    _build_segments_for_hour_from_day_segments,
     _fetch_horaria,
-    _fetch_state_segments_from_state_events,
+    _state_segments_for_day,
+    _load_machine_config,
+    _planned_intervals_for_day,
+    _operational_segments_for_range,
+    _state_metrics,
     _load_machine_config_json,
     _resolve_effective_machine_id,
 )
@@ -328,7 +331,7 @@ def _merge_intervals(intervals: list[tuple[datetime, datetime]]) -> list[tuple[d
     out: list[tuple[datetime, datetime]] = [items[0]]
     for start, end in items[1:]:
         prev_start, prev_end = out[-1]
-        if start <= prev_end + timedelta(seconds=1):
+        if start <= prev_end:
             out[-1] = (prev_start, max(prev_end, end))
         else:
             out.append((start, end))
@@ -336,6 +339,7 @@ def _merge_intervals(intervals: list[tuple[datetime, datetime]]) -> list[tuple[d
 
 
 def detected_day_state(cliente_id: str, machine_id: str, day: date) -> dict:
+    """Mesmo calendário, planejamento e RUN/STOP usados pelo Histórico."""
     cid = str(cliente_id or "").strip()
     mid = normalize_machine_id(machine_id, cid)
     if not cid or not mid:
@@ -345,51 +349,32 @@ def detected_day_state(cliente_id: str, machine_id: str, day: date) -> dict:
 
     conn = get_db()
     try:
-        eff = _resolve_effective_machine_id(conn, mid, day.isoformat(), cid)
-        day_segments = _fetch_state_segments_from_state_events(
-            conn, eff or mid, day, machine_id=mid, cliente_id=cid
-        )
-        meta24 = _meta24_for_day(conn, cid, mid, day)
-        if meta24 is None:
-            # Sem configuracao/meta confiavel, preserva a seguranca dos indicadores:
-            # nao transforma IDLE/STOP de madrugada em parada produtiva.
-            return {"run_sec": 0, "stop_sec": 0, "stops": []}
-
-        now_naive = now_local().replace(tzinfo=None)
-        run_sec = 0
-        stop_sec = 0
-        stops: list[tuple[datetime, datetime]] = []
-        for h in range(24):
-            hs = datetime(day.year, day.month, day.day, h, 0, 0)
-            he = hs + timedelta(hours=1)
-            if day == now_naive.date():
-                if now_naive <= hs:
-                    continue
-                he_calc = min(he, now_naive)
-            else:
-                he_calc = he
-            if he_calc <= hs:
-                continue
-            is_np = int(meta24[h] or 0) <= 0
-            segs = _build_segments_for_hour_from_day_segments(hs, he_calc, is_np, day_segments)
-            for seg in segs:
-                state = str(seg.get("state") or "").upper()
-                try:
-                    s_parts = [int(x) for x in str(seg.get("start") or "00:00:00").split(":")]
-                    e_parts = [int(x) for x in str(seg.get("end") or "00:00:00").split(":")]
-                    s = datetime(day.year, day.month, day.day, s_parts[0], s_parts[1], s_parts[2])
-                    e = datetime(day.year, day.month, day.day, e_parts[0], e_parts[1], e_parts[2])
-                    if e < s:
-                        e += timedelta(days=1)
-                except Exception:
-                    continue
-                dur = max(0, int((e - s).total_seconds()))
-                if state == "RUN":
-                    run_sec += dur
-                elif state == "STOP" and dur > 0:
-                    stop_sec += dur
-                    stops.append((s, e))
-        return {"run_sec": run_sec, "stop_sec": stop_sec, "stops": _merge_intervals(stops)}
+        segments = _state_segments_for_day(conn, cid, mid, day)
+        config = _load_machine_config(conn, cid, mid)
+        planned = _planned_intervals_for_day(config, day)
+        start = datetime(day.year, day.month, day.day)
+        end = start + timedelta(days=1)
+        reference = now_local().replace(tzinfo=None)
+        range_end = min(end, reference)
+        effective = _operational_segments_for_range(segments, planned, start, range_end)
+        metrics = _state_metrics(effective)
+        stops = [(s, e) for s, e, state in effective if state == "STOP" and e > s]
+        open_start = None
+        open_until = end
+        if day == reference.date() and effective and effective[-1][2] == "STOP":
+            s, e, _ = effective[-1]
+            if abs((reference - e).total_seconds()) < 1:
+                open_start = _dt_to_ms(s)
+                if planned is not None:
+                    open_until = next((pe for ps, pe in planned if ps <= s < pe), end)
+        return {
+            "run_sec": metrics["tempo_produzindo_sec"],
+            "stop_sec": metrics["tempo_parado_sec"],
+            "stops": stops,
+            "open_start_ms": open_start,
+            "open_until_ms": _dt_to_ms(min(end, open_until)),
+            "reference_ms": _dt_to_ms(reference),
+        }
     finally:
         conn.close()
 
@@ -398,7 +383,7 @@ def _dt_to_ms(dt_naive: datetime) -> int:
     return int(dt_naive.replace(tzinfo=TZ_BAHIA).timestamp() * 1000)
 
 
-def sync_detected_stops(cliente_id: str, machine_id: str, start_day: date, end_day: date) -> list[dict]:
+def sync_detected_stops(cliente_id: str, machine_id: str, start_day: date, end_day: date, day_states: dict | None = None) -> list[dict]:
     cid = str(cliente_id or "").strip()
     mid = normalize_machine_id(machine_id, cid)
     if not cid or not mid:
@@ -408,25 +393,28 @@ def sync_detected_stops(cliente_id: str, machine_id: str, start_day: date, end_d
     if (end_day - start_day).days > 62:
         start_day = end_day - timedelta(days=62)
 
-    intervals: list[tuple[datetime, datetime]] = []
+    states = day_states if day_states is not None else {}
+    intervals = []
     cursor = start_day
     while cursor <= end_day:
-        state = detected_day_state(cid, mid, cursor)
-        intervals.extend(state.get("stops") or [])
+        state = states.get(cursor.isoformat())
+        if state is None:
+            state = detected_day_state(cid, mid, cursor)
+            states[cursor.isoformat()] = state
+        for start, end in state.get("stops") or []:
+            intervals.append((start, end, state))
         cursor += timedelta(days=1)
-    intervals = _merge_intervals(intervals)
 
     stamp = now_iso()
-    now_ms = int(now_local().timestamp() * 1000)
     occurrence_source = "teste" if is_test_machine(cid, mid) else "telemetria"
     conn = get_db()
     try:
-        for start, end in intervals:
+        for start, end, state in intervals:
             start_ms = _dt_to_ms(start)
             end_ms = _dt_to_ms(end)
-            is_open = abs(end_ms - now_ms) <= 5000 and end_day >= now_local().date()
+            is_open = state.get("open_start_ms") == start_ms
             stored_end = None if is_open else end_ms
-            duration = max(0, int(((now_ms if is_open else end_ms) - start_ms) / 1000))
+            duration = max(0, int((end_ms - start_ms) / 1000))
             conn.execute(
                 """
                 INSERT INTO parada_ocorrencias
@@ -441,7 +429,7 @@ def sync_detected_stops(cliente_id: str, machine_id: str, start_day: date, end_d
                 (cid, mid, start_ms, stored_end, duration, occurrence_source, "ABERTA" if is_open else "FECHADA", stamp, stamp),
             )
         conn.commit()
-        return list_occurrences(cid, mid, start_day, end_day, sync=False)
+        return list_occurrences(cid, mid, start_day, end_day, sync=False, day_states=states)
     finally:
         conn.close()
 
@@ -473,34 +461,18 @@ def resolve_detected_occurrence(
     if (end_day - start_day).days > 2:
         raise ValueError("Intervalo de parada muito amplo.")
 
-    sync_detected_stops(cid, mid, start_day, end_day)
-    now_ms = int(now_local().timestamp() * 1000)
-    occurrence_source = "teste" if is_test_machine(cid, mid) else "telemetria"
-    conn = get_db()
-    try:
-        row = conn.execute(
-            """
-            SELECT id, started_at_ms, COALESCE(ended_at_ms, ?) AS effective_end
-            FROM parada_ocorrencias
-            WHERE cliente_id=? AND lower(machine_id)=lower(?)
-              AND started_at_ms < ?
-              AND COALESCE(ended_at_ms, ?) > ?
-              AND source=?
-            ORDER BY
-              CASE
-                WHEN started_at_ms <= ? AND COALESCE(ended_at_ms, ?) >= ? THEN 0
-                ELSE 1
-              END,
-              ABS(started_at_ms - ?)
-            LIMIT 1
-            """,
-            (now_ms, cid, mid, end_ms, now_ms, start_ms, occurrence_source, start_ms, now_ms, end_ms, start_ms),
-        ).fetchone()
-        if not row:
-            raise ValueError("Este trecho nao corresponde a uma parada detectada pela telemetria.")
-        return int(row["id"] if isinstance(row, sqlite3.Row) else row[0])
-    finally:
-        conn.close()
+    rows = sync_detected_stops(cid, mid, start_day, end_day)
+    reference_ms = int(now_local().timestamp() * 1000)
+    matching = [row for row in rows if int(row["started_at_ms"]) < end_ms
+                and int(row.get("ended_at_ms") or reference_ms) > start_ms]
+    if not matching:
+        raise ValueError("Este trecho nao corresponde a uma parada detectada pela telemetria.")
+    selected = min(matching, key=lambda row: (
+        not (int(row["started_at_ms"]) <= start_ms
+             and int(row.get("ended_at_ms") or reference_ms) >= end_ms),
+        abs(int(row["started_at_ms"]) - start_ms)))
+    return int(selected["id"])
+
 
 def list_occurrences(
     cliente_id: str,
@@ -509,11 +481,16 @@ def list_occurrences(
     end_day: date,
     sync: bool = True,
     only_unclassified: bool = False,
+    raw: bool = False,
+    day_states: dict | None = None,
 ) -> list[dict]:
     cid = str(cliente_id or "").strip()
     mid = normalize_machine_id(machine_id or "", cid)
-    if sync and mid:
-        sync_detected_stops(cid, mid, start_day, end_day)
+    if end_day < start_day:
+        start_day, end_day = end_day, start_day
+    if sync and mid and not raw:
+        result = sync_detected_stops(cid, mid, start_day, end_day)
+        return [r for r in result if not r.get("classificada")] if only_unclassified else result
     start_ms = int(datetime(start_day.year, start_day.month, start_day.day, tzinfo=TZ_BAHIA).timestamp() * 1000)
     next_day = end_day + timedelta(days=1)
     end_ms = int(datetime(next_day.year, next_day.month, next_day.day, tzinfo=TZ_BAHIA).timestamp() * 1000)
@@ -522,10 +499,9 @@ def list_occurrences(
         where = ["o.cliente_id=?", "o.started_at_ms < ?", "COALESCE(o.ended_at_ms, ?) > ?"]
         params: list[object] = [cid, end_ms, end_ms, start_ms]
         if mid:
-            where.append("lower(o.machine_id)=lower(?)")
-            params.append(mid)
-        if only_unclassified:
-            where.append("o.motivo_id IS NULL")
+            mids = machine_candidates(cid, mid)
+            where.append("lower(o.machine_id) IN (" + ",".join("?" for _ in mids) + ")")
+            params.extend(value.lower() for value in mids)
         rows = conn.execute(
             f"""
             SELECT o.*, c.nome AS categoria_nome,
@@ -544,13 +520,69 @@ def list_occurrences(
             item = dict(r)
             finish = int(item.get("ended_at_ms") or now_ms)
             start = int(item.get("started_at_ms") or 0)
-            item["duration_sec"] = max(0, int((finish - start) / 1000))
+            item["duration_sec"] = max(0, int((min(finish, end_ms, now_ms) - max(start, start_ms)) / 1000))
             item["classificada"] = bool(item.get("motivo_id"))
             item["planejada"] = item.get("motivo_tipo") == "planejada" if item.get("motivo_id") else None
             out.append(item)
-        return out
     finally:
         conn.close()
+    if raw:
+        return [r for r in out if not r.get("classificada")] if only_unclassified else out
+    return _effective_occurrences(cid, mid, start_day, end_day, out, only_unclassified, day_states)
+
+
+def _effective_occurrences(cid, mid, start_day, end_day, rows, only_unclassified, day_states):
+    """Uma linha por STOP diário; duplicatas antigas continuam preservadas no banco."""
+    result = []
+    machines = [mid] if mid else sorted({normalize_machine_id(r["machine_id"], cid) for r in rows})
+    for machine in machines:
+        candidates = [r for r in rows if normalize_machine_id(r["machine_id"], cid).casefold() == machine.casefold()]
+        cursor = start_day
+        while cursor <= end_day:
+            state = (day_states or {}).get(cursor.isoformat()) if mid else None
+            if state is None:
+                state = detected_day_state(cid, machine, cursor)
+            stops = [(_dt_to_ms(s), _dt_to_ms(e)) for s, e in state.get("stops") or []]
+            assigned = {i: [] for i in range(len(stops))}
+            for row in candidates:
+                original_start = int(row["started_at_ms"])
+                original_end = int(row.get("ended_at_ms") or state.get("reference_ms") or now_local().timestamp() * 1000)
+                overlaps = [(i, s, e) for i, (s, e) in enumerate(stops)
+                            if original_start < e and original_end > s]
+                if overlaps:
+                    # Uma duplicata longa não pode classificar outras paradas após um RUN.
+                    target = max(overlaps, key=lambda part: (
+                        part[1] <= original_start < part[2],
+                        min(original_end, part[2]) - max(original_start, part[1]),
+                        -abs(original_start - part[1])))
+                    assigned[target[0]].append(row)
+            for index, (start_ms, end_ms) in enumerate(stops):
+                matching = assigned[index]
+                if not matching:
+                    continue
+                classified = [r for r in matching if r.get("classificada")]
+                # Em registros sobrepostos, vale a classificação mais recente.
+                if classified:
+                    chosen = max(classified, key=lambda r: (str(r.get("classificado_at") or ""), int(r["id"])))
+                else:
+                    chosen = min(matching, key=lambda r: (abs(int(r["started_at_ms"]) - start_ms), int(r["id"])))
+                primary = min(matching, key=lambda r: (
+                    int(r["started_at_ms"]) != start_ms,
+                    str(r["machine_id"]).casefold() != machine.casefold(), int(r["id"])))
+                item = dict(chosen)
+                is_open = state.get("open_start_ms") == start_ms
+                item.update(id=int(primary["id"]), machine_id=machine, started_at_ms=start_ms,
+                            ended_at_ms=None if is_open else end_ms,
+                            duration_sec=max(0, int((end_ms-start_ms)/1000)),
+                            status="ABERTA" if is_open else "FECHADA",
+                            data_ref=cursor.isoformat(), reference_ms=state.get("reference_ms"),
+                            open_until_ms=state.get("open_until_ms"),
+                            related_occurrence_ids=[int(r["id"]) for r in matching])
+                if item["duration_sec"] > 0 and (not only_unclassified or not item["classificada"]):
+                    result.append(item)
+            cursor += timedelta(days=1)
+    return sorted(result, key=lambda r: int(r["started_at_ms"]), reverse=True)
+
 
 
 def classify_occurrence(
@@ -995,14 +1027,13 @@ def machine_indicator_summary(cliente_id: str, machine_id: str, start_day: date,
         state = detected_day_state(cid, mid, cursor)
         day_run = int(state.get("run_sec") or 0)
         day_stop = int(state.get("stop_sec") or 0)
-        daily_states[cursor.isoformat()] = {"run_sec": day_run, "stop_sec": day_stop}
+        daily_states[cursor.isoformat()] = state
         run_sec += day_run
         stop_sec += day_stop
         cursor += timedelta(days=1)
 
     # Persiste apenas os intervalos derivados do rastro original para classificacao.
-    sync_detected_stops(cid, mid, start_day, end_day)
-    occurrences = list_occurrences(cid, mid, start_day, end_day, sync=False)
+    occurrences = sync_detected_stops(cid, mid, start_day, end_day, day_states=daily_states)
     classified = [o for o in occurrences if o.get("classificada")]
     unclassified = [o for o in occurrences if not o.get("classificada")]
 
