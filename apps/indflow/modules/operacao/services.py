@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\operacao\services.py
-# Último recode: 2026-10-02 11:37:23 (America/Bahia)
-# Motivo: Persistir tipos e lançamentos de ocorrências por empresa e máquina, calcular saldo de hoje e informar paradas acumuladas sem alterar a contagem original.
+# Último recode: 2026-10-02 14:48:31 (America/Bahia)
+# Motivo: Permitir correção e exclusão de lançamentos de qualidade, recalcular o saldo e preservar os valores originais e o histórico por empresa e máquina.
 
 from __future__ import annotations
 
@@ -475,6 +475,29 @@ def _ensure_occurrence_tables(conn: sqlite3.Connection) -> None:
             PRIMARY KEY (cliente_id, machine_id, request_id, tipo_id)
         )
     """)
+    # Correções separadas preservam o lançamento original e sua idempotência.
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS operacao_ocorrencia_ajustes (
+            cliente_id TEXT NOT NULL, machine_id TEXT NOT NULL,
+            request_id TEXT NOT NULL, tipo_id TEXT NOT NULL,
+            quantidade INTEGER NOT NULL CHECK (quantidade > 0),
+            excluido INTEGER NOT NULL DEFAULT 0, versao INTEGER NOT NULL,
+            alterado_por_id TEXT NOT NULL, alterado_por_nome TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (cliente_id, machine_id, request_id, tipo_id)
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS operacao_ocorrencia_historico (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            cliente_id TEXT NOT NULL, machine_id TEXT NOT NULL,
+            request_id TEXT NOT NULL, tipo_id TEXT NOT NULL, acao TEXT NOT NULL,
+            quantidade_anterior INTEGER NOT NULL, quantidade_nova INTEGER NOT NULL,
+            excluido_anterior INTEGER NOT NULL, excluido_novo INTEGER NOT NULL,
+            versao INTEGER NOT NULL, operador_id TEXT NOT NULL,
+            operador_nome TEXT NOT NULL, created_at TEXT NOT NULL
+        )
+    """)
     conn.execute("CREATE INDEX IF NOT EXISTS ix_operacao_ocorrencias_dia "
                  "ON operacao_ocorrencia_registros(cliente_id, machine_id, data_ref)")
     conn.commit()
@@ -538,21 +561,40 @@ def _store_occurrence_types(conn, cid, mid, types, stamp):
               int(item["ativo"]), order, stamp, stamp))
 
 
+def _quality_day_production(conn, cid, mid, day, now):
+    start = datetime.combine(day, datetime.min.time(), tzinfo=now.tzinfo)
+    end = min(start + timedelta(days=1), now + timedelta(milliseconds=1))
+    return _sum_production(conn, cid, mid, int(start.timestamp() * 1000), int(end.timestamp() * 1000))
+
+
+def _quality_discount(conn, cid, mid, day):
+    row = conn.execute("""
+        SELECT COALESCE(SUM(COALESCE(a.quantidade, r.quantidade)), 0) AS total
+        FROM operacao_ocorrencia_registros r
+        LEFT JOIN operacao_ocorrencia_ajustes a USING (cliente_id, machine_id, request_id, tipo_id)
+        WHERE r.cliente_id=? AND r.machine_id=? AND r.data_ref=?
+          AND r.desconta_producao=1 AND COALESCE(a.excluido, 0)=0
+    """, (cid, mid, day.isoformat())).fetchone()
+    return int(row["total"])
+
+
 def _occurrence_summary(conn, cid, mid, now):
     day = now.date().isoformat()
-    start_ms = int(now.replace(hour=0, minute=0, second=0, microsecond=0).timestamp() * 1000)
-    gross = _sum_production(conn, cid, mid, start_ms, int(now.timestamp() * 1000) + 1)
+    gross = _quality_day_production(conn, cid, mid, now.date(), now)
     totals = conn.execute("""
-        SELECT tipo_id, SUM(quantidade) AS quantidade,
-               SUM(CASE WHEN desconta_producao=1 THEN quantidade ELSE 0 END) AS desconto
-        FROM operacao_ocorrencia_registros
-        WHERE cliente_id=? AND machine_id=? AND data_ref=? GROUP BY tipo_id
+        SELECT r.tipo_id, SUM(COALESCE(a.quantidade, r.quantidade)) AS quantidade,
+               SUM(CASE WHEN r.desconta_producao=1 THEN COALESCE(a.quantidade, r.quantidade) ELSE 0 END) AS desconto
+        FROM operacao_ocorrencia_registros r
+        LEFT JOIN operacao_ocorrencia_ajustes a USING (cliente_id, machine_id, request_id, tipo_id)
+        WHERE r.cliente_id=? AND r.machine_id=? AND r.data_ref=?
+          AND COALESCE(a.excluido, 0)=0 GROUP BY r.tipo_id
     """, (cid, mid, day)).fetchall()
     discount = sum(int(row["desconto"] or 0) for row in totals)
     last = conn.execute("""
-        SELECT created_at, operador_nome FROM operacao_ocorrencia_registros
-        WHERE cliente_id=? AND machine_id=? AND data_ref=?
-        ORDER BY created_at DESC, rowid DESC LIMIT 1
+        SELECT r.created_at, r.operador_nome FROM operacao_ocorrencia_registros r
+        LEFT JOIN operacao_ocorrencia_ajustes a USING (cliente_id, machine_id, request_id, tipo_id)
+        WHERE r.cliente_id=? AND r.machine_id=? AND r.data_ref=? AND COALESCE(a.excluido, 0)=0
+        ORDER BY r.created_at DESC, r.rowid DESC LIMIT 1
     """, (cid, mid, day)).fetchone()
     return {"data_ref": day, "producao_bruta": gross, "descontos": discount,
             "saldo": max(0, gross - discount),
@@ -632,5 +674,113 @@ def save_production_occurrences(cliente_id: str, machine_id: str, payload: dict,
         result = _occurrence_summary(conn, cid, mid, now)
         conn.commit()
         return {"duplicado": False, "resumo": result}
+    finally:
+        conn.close()
+
+
+def list_production_occurrences(cliente_id: str, machine_id: str, data_ref: str = "", pagina: int = 1) -> dict:
+    cid = str(cliente_id or "").strip()
+    mid = normalize_machine_id(machine_id, cid)
+    now = now_local()
+    try:
+        day = date.fromisoformat(data_ref) if data_ref else now.date()
+    except (ValueError, TypeError) as exc:
+        raise ValueError("Data dos lançamentos inválida.") from exc
+    if not cid or not mid or day > now.date():
+        raise ValueError("Informe a máquina e uma data até hoje.")
+    if isinstance(pagina, bool) or not isinstance(pagina, int) or pagina < 1:
+        raise ValueError("Página de lançamentos inválida.")
+    conn = get_db()
+    try:
+        _ensure_occurrence_tables(conn)
+        conn.execute("BEGIN")
+        total = conn.execute("SELECT COUNT(*) FROM operacao_ocorrencia_registros "
+                             "WHERE cliente_id=? AND machine_id=? AND data_ref=?",
+                             (cid, mid, day.isoformat())).fetchone()[0]
+        pages = max(1, (total + 24) // 25)
+        page = min(pagina, pages)
+        rows = conn.execute("""
+            SELECT r.request_id, r.tipo_id, r.nome, r.desconta_producao, r.created_at,
+                   r.operador_nome, r.op_id, COALESCE(a.quantidade, r.quantidade) AS quantidade,
+                   COALESCE(a.excluido, 0) AS excluido, COALESCE(a.versao, 0) AS versao,
+                   a.updated_at, a.alterado_por_nome
+            FROM operacao_ocorrencia_registros r
+            LEFT JOIN operacao_ocorrencia_ajustes a USING (cliente_id, machine_id, request_id, tipo_id)
+            WHERE r.cliente_id=? AND r.machine_id=? AND r.data_ref=?
+            ORDER BY r.created_at DESC, r.rowid DESC LIMIT 25 OFFSET ?
+        """, (cid, mid, day.isoformat(), (page - 1) * 25)).fetchall()
+        return {"data_ref": day.isoformat(), "registros": [dict(row) for row in rows],
+                "total": total, "pagina": page, "paginas": pages}
+    finally:
+        conn.close()
+
+
+def change_production_occurrence(cliente_id: str, machine_id: str, payload: dict,
+                                 operador_id: str, operador_nome: str) -> dict:
+    cid = str(cliente_id or "").strip()
+    mid = normalize_machine_id(machine_id, cid)
+    if not cid or not mid or not operador_id or not operador_nome:
+        raise ValueError("Empresa, máquina e operador são obrigatórios.")
+    try:
+        request_id = str(uuid.UUID(str(payload.get("request_id") or "")))
+        type_id = str(uuid.UUID(str(payload.get("tipo_id") or "")))
+    except ValueError as exc:
+        raise ValueError("Identificador do lançamento inválido.") from exc
+    action, version = payload.get("acao"), payload.get("versao")
+    if action not in ("editar", "excluir") or isinstance(version, bool) or not isinstance(version, int) or version < 0:
+        raise ValueError("Ação ou versão do lançamento inválida.")
+    quantity = payload.get("quantidade")
+    if action == "editar" and (isinstance(quantity, bool) or not isinstance(quantity, int)
+                              or not 1 <= quantity <= 1000000000):
+        raise ValueError("Informe uma quantidade inteira de 1 a 1.000.000.000.")
+    conn = get_db()
+    try:
+        _ensure_occurrence_tables(conn)
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute("""
+            SELECT r.data_ref, r.desconta_producao, COALESCE(a.quantidade, r.quantidade) AS quantidade,
+                   COALESCE(a.excluido, 0) AS excluido, COALESCE(a.versao, 0) AS versao
+            FROM operacao_ocorrencia_registros r
+            LEFT JOIN operacao_ocorrencia_ajustes a USING (cliente_id, machine_id, request_id, tipo_id)
+            WHERE r.cliente_id=? AND r.machine_id=? AND r.request_id=? AND r.tipo_id=?
+        """, (cid, mid, request_id, type_id)).fetchone()
+        if not row:
+            raise ValueError("Lançamento não encontrado nesta máquina.")
+        if row["versao"] != version:
+            raise ValueError("Este lançamento foi alterado. Atualize a lista antes de tentar novamente.")
+        if row["excluido"]:
+            raise ValueError("Este lançamento já foi excluído.")
+        previous_quantity = int(row["quantidade"])
+        excluded = int(action == "excluir")
+        quantity = previous_quantity if excluded else quantity
+        now = now_local()
+        if not excluded and row["desconta_producao"] and quantity > previous_quantity:
+            day = date.fromisoformat(row["data_ref"])
+            discount = _quality_discount(conn, cid, mid, day) + quantity - previous_quantity
+            if discount > _quality_day_production(conn, cid, mid, day, now):
+                raise ValueError("Os descontos não podem ultrapassar a produção registrada na data do lançamento.")
+        if not excluded and quantity == previous_quantity:
+            return {"resumo": _occurrence_summary(conn, cid, mid, now)}
+        stamp, next_version = now.isoformat(), version + 1
+        conn.execute("""
+            INSERT INTO operacao_ocorrencia_ajustes
+            (cliente_id, machine_id, request_id, tipo_id, quantidade, excluido, versao,
+             alterado_por_id, alterado_por_nome, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(cliente_id, machine_id, request_id, tipo_id) DO UPDATE SET
+                quantidade=excluded.quantidade, excluido=excluded.excluido, versao=excluded.versao,
+                alterado_por_id=excluded.alterado_por_id, alterado_por_nome=excluded.alterado_por_nome,
+                updated_at=excluded.updated_at
+        """, (cid, mid, request_id, type_id, quantity, excluded, next_version, operador_id, operador_nome, stamp))
+        conn.execute("""
+            INSERT INTO operacao_ocorrencia_historico
+            (cliente_id, machine_id, request_id, tipo_id, acao, quantidade_anterior, quantidade_nova,
+             excluido_anterior, excluido_novo, versao, operador_id, operador_nome, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
+        """, (cid, mid, request_id, type_id, action, previous_quantity, quantity,
+              excluded, next_version, operador_id, operador_nome, stamp))
+        result = _occurrence_summary(conn, cid, mid, now)
+        conn.commit()
+        return {"resumo": result}
     finally:
         conn.close()

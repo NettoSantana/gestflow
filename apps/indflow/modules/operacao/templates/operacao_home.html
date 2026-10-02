@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\operacao\templates\operacao_home.html
-Último recode: 2026-10-02 14:14:12 (America/Bahia)
-Motivo: Mover a OP ativa para o topo e reunir total, campos de qualidade e saldo no card anterior da OP, descontando apenas os tipos configurados.
+Último recode: 2026-10-02 14:48:31 (America/Bahia)
+Motivo: Expor Editar e Excluir para eventos de qualidade e lançamentos, com lista por data e recálculo do saldo sem ampliar a tela principal.
 #}
 
 {% extends "base.html" %}
@@ -17,6 +17,7 @@ Motivo: Mover a OP ativa para o topo e reunir total, campos de qualidade e saldo
 @media(max-width:420px){.op-header{grid-template-columns:minmax(0,1fr) 120px}.op-active-summary{width:120px}.op-title{font-size:21px}.op-operator-badge{font-size:9px;padding:6px 8px}.op-balance-line{flex-wrap:wrap}.op-balance-total{flex:1}.op-occurrence-grid{flex-basis:100%;order:3;grid-template-columns:repeat(2,minmax(0,1fr))}.op-balance-result{margin-left:auto}.op-balance-total strong,.op-balance-result strong{font-size:24px}}
 @media(max-height:700px) and (min-width:701px){.industrial-content{padding-top:14px;padding-bottom:14px}.op-shell{gap:12px}.op-card{padding:12px;min-height:96px}.op-card strong{margin-top:6px;font-size:26px}.op-active-summary{min-height:96px}.op-active-summary strong{font-size:21px}.op-title-wrap{gap:8px}.op-panel{padding:13px}.op-panel-head{margin-bottom:8px}.op-panel h2{font-size:16px}.op-machine-message{font-size:14px}.op-balance-total strong,.op-balance-result strong{font-size:23px}.op-balance-head{margin-bottom:6px}}
 .op-type-row{display:grid;grid-template-columns:minmax(140px,1fr) auto auto;gap:10px;align-items:center;margin-bottom:10px}.op-type-row input[type=text]{width:100%;box-sizing:border-box;padding:9px;border:1px solid #cbd5e1;border-radius:8px}.op-type-row label{font-size:11px;display:flex;align-items:center;gap:4px}#configModal .op-modal-card{width:min(720px,100%);max-height:calc(100dvh - 36px);display:flex;flex-direction:column}#configModal .op-modal-body{overflow:auto}.op-types-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:18px 0 8px}.op-types-head h4{margin:0}@media(max-width:500px){.op-type-row{grid-template-columns:1fr 1fr}.op-type-row input[type=text]{grid-column:1/-1}}
+.op-quality-links{display:flex;gap:10px;align-items:center}.op-quality-link{border:0;background:transparent;padding:0;color:#1d4ed8;font-size:11px;font-weight:800;cursor:pointer;text-decoration:underline}.op-quality-link:disabled{color:#94a3b8;cursor:default}.op-type-actions{display:flex;gap:6px}.op-type-actions .btn{padding:5px 8px;font-size:11px}.op-type-row{grid-template-columns:minmax(100px,1fr) auto auto auto}.op-type-row.inactive{opacity:.7}.op-type-row input:disabled{background:#f8fafc;color:#475569}.op-type-row.editing{padding:8px;background:#eff6ff;border-radius:10px}.op-danger{color:#b91c1c}#qualityModal .op-modal-card{width:min(780px,100%);max-height:calc(100dvh - 36px);display:flex;flex-direction:column}#qualityModal .op-modal-body{overflow:auto}.op-quality-filter{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}.op-quality-filter input{padding:8px;border:1px solid #cbd5e1;border-radius:8px}.op-quality-list{display:flex;flex-direction:column;gap:8px}.op-quality-record{display:grid;grid-template-columns:minmax(0,1fr) 95px auto;gap:12px;align-items:center;padding:10px;border:1px solid #e2e8f0;border-radius:10px}.op-quality-record strong{font-size:13px;overflow-wrap:anywhere}.op-quality-record small{display:block;color:#64748b;font-size:11px;margin-top:3px;overflow-wrap:anywhere}.op-quality-record input{width:100%;box-sizing:border-box;padding:8px;border:1px solid #cbd5e1;border-radius:8px}.op-quality-record .op-type-actions{flex-wrap:wrap}.op-quality-record.excluded{background:#f8fafc;color:#64748b}.op-quality-pages{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px}.op-quality-pages span{font-size:12px;color:#64748b}#qualityModal [hidden]{display:none!important}.op-quality-notice{font-size:12px;color:#166534;margin-bottom:8px}@media(max-width:600px){.op-type-row{grid-template-columns:1fr auto auto}.op-type-row input[type=text]{grid-column:1/-1}.op-type-actions{grid-column:1/-1}.op-quality-record{grid-template-columns:minmax(0,1fr) 85px}.op-quality-record .op-type-actions{grid-column:1/-1}}
 </style>
 
 <div class="op-shell">
@@ -78,7 +79,7 @@ Motivo: Mover a OP ativa para o topo e reunir total, campos de qualidade e saldo
         <div class="op-balance-result"><span class="label">Saldo hoje</span><strong id="occurrenceBalance">0</strong></div>
       </div>
       <div class="op-error" id="occurrenceError" role="alert"></div>
-      <div class="op-occurrence-actions"><small class="op-muted" id="occurrenceInstruction">Informe novas quantidades.</small><button class="btn btn-primary" id="saveOccurrences" type="button">Salvar</button><span class="op-occurrence-message" id="occurrenceSaved" aria-live="polite"></span></div>
+      <div class="op-occurrence-actions"><small class="op-muted" id="occurrenceInstruction">Informe novas quantidades.</small><button class="btn btn-primary" id="saveOccurrences" type="button">Salvar</button><span class="op-quality-links"><button class="op-quality-link" id="qualityHistoryBtn" type="button">Lançamentos</button>{% if (session.get('role') or '')|lower in ['admin','superadmin'] %}<button class="op-quality-link" id="qualityTypesBtn" type="button">Editar eventos</button>{% endif %}</span><span class="op-occurrence-message" id="occurrenceSaved" aria-live="polite"></span></div>
     </section>
     <div class="op-card"><span class="label">Parado hoje</span><strong id="dailyStopTimer">00:00:00</strong><small>Total conforme Paradas · Hoje</small></div>
     <div class="op-card"><span class="label">Parada atual</span><strong id="stopTimer">00:00:00</strong><small id="stopLimit">Classificação após 3 min</small></div>
@@ -131,14 +132,27 @@ Motivo: Mover a OP ativa para o topo e reunir total, campos de qualidade e saldo
       <div class="op-field"><label>Tempo para exigir classificação (X)</label><input id="cfgMinutes" type="number" min="1" max="120" step="1"><small class="op-muted">Após X minutos contínuos de parada, a escolha do motivo passa a ser obrigatória.</small></div>
       <div class="op-field"><label>Mínimo de motivos por tela</label><input id="cfgPageSize" type="number" min="4" max="20" step="1"><small class="op-muted">A tela aumenta automaticamente essa quantidade para aproveitar o espaço disponível e evitar troca de página.</small></div>
       <div class="op-field"><label>Ordenação dos motivos</label><select id="cfgOrder"><option value="mais_clicados">Mais clicados</option><option value="codigo_crescente">Código crescente</option><option value="codigo_decrescente">Código decrescente</option></select></div>
-      <div class="op-types-head"><h4>Eventos de qualidade · <span id="cfgOccurrenceMachine"></span></h4><button class="btn btn-secondary" id="cfgAddType" type="button">Adicionar tipo</button></div>
-      <p class="op-muted" style="font-size:12px">Cadastre uma vez por máquina. Marque “Desconta” nos eventos de qualidade que devem reduzir o saldo. Alterações valem para novos lançamentos.</p>
+      <div class="op-types-head" id="qualityTypesSection"><h4>Eventos de qualidade · <span id="cfgOccurrenceMachine"></span></h4><button class="btn btn-secondary" id="cfgAddType" type="button">Adicionar tipo</button></div>
+      <p class="op-muted" style="font-size:12px">Cadastre uma vez por máquina. Marque “Desconta” nos eventos de qualidade que devem reduzir o saldo. Use Editar para mudar o nome ou a regra. Excluir retira o tipo da tela e preserva os lançamentos anteriores. Confirme em Salvar configuração; as alterações valem para novos lançamentos.</p>
       <div id="cfgOccurrenceTypes"></div>
       <div class="op-modal-actions"><button class="btn btn-secondary" id="configCancel" type="button">Cancelar</button><button class="btn btn-primary" id="configSave" type="button">Salvar configuração</button></div>
     </div>
   </div>
 </div>
 {% endif %}
+
+<div class="op-modal" id="qualityModal" role="dialog" aria-modal="true" aria-labelledby="qualityTitle">
+  <div class="op-modal-card">
+    <div class="op-modal-head"><h3 id="qualityTitle">Lançamentos de qualidade</h3><button class="op-modal-close" id="qualityClose" type="button" aria-label="Fechar lançamentos">×</button></div>
+    <div class="op-modal-body">
+      <div class="op-quality-filter"><label for="qualityDate">Data</label><input id="qualityDate" type="date"><button class="btn btn-secondary" id="qualityRefresh" type="button">Atualizar</button><span class="op-muted" id="qualityMachine"></span></div>
+      <div class="op-error" id="qualityError" role="alert"></div>
+      <div class="op-quality-notice" id="qualityNotice" aria-live="polite"></div>
+      <div class="op-quality-list" id="qualityRecords"></div>
+      <div class="op-quality-pages"><button class="btn btn-secondary" id="qualityPrev" type="button">Anterior</button><span id="qualityPage"></span><button class="btn btn-secondary" id="qualityNext" type="button">Próxima</button></div>
+    </div>
+  </div>
+</div>
 
 <script>
 const initialMachine={{ machine_id|tojson }};
@@ -150,6 +164,8 @@ const fmtTime=ms=>ms?new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Bahia',h
 let machine=initialMachine, context=null, opState=null, machineState=null, reasonPage=0, selectedReasonId=null, selectedReason=null, pollBusy=false;
 const canRegister={{ ((session.get('role') or '')|lower in ['operator','admin','superadmin'])|tojson }};
 let occurrenceSignature='',occurrenceBusy=false,occurrenceRequest=null,stateReceivedMs=Date.now();
+let dataRevision=0;
+let qualityRows=[],qualityPage=1,qualityPages=1,qualityLoading=false,qualityChanging=false,qualityEditing=-1,qualityDeleting=-1;
 const newOccurrenceId=()=>globalThis.crypto?.randomUUID?.()||'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.floor(Math.random()*16);return(c==='x'?r:(r&3|8)).toString(16);});
 const simulation={active:false,status:'AGUARDANDO',productionTurno:0,productionHora:0,target:0,lastTickMs:Date.now(),pieceCarry:0,stopStartMs:null,stopEndMs:null,stopReason:null,pendingRequired:false};
 
@@ -160,8 +176,8 @@ function showError(id,msg){const el=$(id);if(!el)return;el.textContent=msg||'';e
 
 async function fetchJson(url,options){const r=await fetch(url,{cache:'no-store',...options});const j=await r.json().catch(()=>({}));if(!r.ok||j.ok===false)throw new Error(j.error||'Falha ao carregar dados.');return j;}
 async function loadContext(){if(!machine)return;context=await fetchJson('/operacao/api/contexto?machine_id='+encodeURIComponent(machine));machine=context.machine_id||machine;if($('machineSelect'))$('machineSelect').value=machine;reasonPage=0;selectedReasonId=null;selectedReason=null;renderConfig();}
-async function loadState(){if(!machine)return;const [m,s]=await Promise.all([fetchJson('/machine/status?machine_id='+encodeURIComponent(machine)),fetchJson('/operacao/api/estado?machine_id='+encodeURIComponent(machine))]);machineState=m;opState=s.data;stateReceivedMs=Date.now();if(simulation.active&&opState?.pending){simulation.active=false;if($('simulationPanel'))$('simulationPanel').classList.remove('open');if($('simulationBtn'))$('simulationBtn').textContent='Modo simulação';}renderAll();}
-async function poll(){if(pollBusy||!machine)return;pollBusy=true;try{await loadState();showError('blockError','');}catch(e){setBadge('off','SEM DADOS');setMessage('wait',e.message);}finally{pollBusy=false;}}
+async function loadState(){if(!machine)return;const revision=dataRevision;const [m,s]=await Promise.all([fetchJson('/machine/status?machine_id='+encodeURIComponent(machine)),fetchJson('/operacao/api/estado?machine_id='+encodeURIComponent(machine))]);if(revision!==dataRevision)return;machineState=m;opState=s.data;stateReceivedMs=Date.now();if(simulation.active&&opState?.pending){simulation.active=false;if($('simulationPanel'))$('simulationPanel').classList.remove('open');if($('simulationBtn'))$('simulationBtn').textContent='Modo simulação';}renderAll();}
+async function poll(){if(pollBusy||qualityChanging||occurrenceBusy||!machine)return;pollBusy=true;try{await loadState();showError('blockError','');}catch(e){setBadge('off','SEM DADOS');setMessage('wait',e.message);}finally{pollBusy=false;}}
 
 function renderProductive(){if(simulation.active){renderSimulationProductive();return;}if(!machineState||!opState)return;const m=machineState,cfg=opState.config||context?.config||{};const status=String(m.status_ui||'').toUpperCase();const currentStop=opState.current_stop;const stopSec=nowSecFromStop(currentStop);const threshold=Math.max(60,Number(cfg.tempo_obrigatorio_min||3)*60);$('production').textContent=fmtNum(m.producao_turno||0);$('target').textContent=fmtNum(m.meta_turno||0);$('attainment').textContent=`${Number(m.percentual_turno||0)}%`;$('hourProduction').textContent=fmtNum(m.producao_hora_liquida??m.producao_hora??0);$('stopTimer').textContent=status==='PARADA'?fmtClock(stopSec):'00:00:00';$('stopLimit').textContent=`Classificação após ${cfg.tempo_obrigatorio_min||3} min`;const daily=opState.paradas_hoje||{};$('dailyStopTimer').textContent=fmtClock(Number(daily.duration_sec||0)+Number(daily.open_count||0)*Math.max(0,(Date.now()-stateReceivedMs)/1000));renderOccurrencePanel();
 const op=opState.active_order;if(op){$('activeOrder').textContent=op.os||`OP ${op.id}`;$('activeOrderDetail').textContent=[op.lote?`Lote ${op.lote}`:'',op.operador?`Operador ${op.operador}`:''].filter(Boolean).join(' · ')||'OP ativa';}else{$('activeOrder').textContent='—';$('activeOrderDetail').textContent='Nenhuma OP ativa';}
@@ -195,12 +211,13 @@ function renderBlocking(){if(simulation.active){renderSimulationBlocking();retur
 function renderAll(){renderProductive();renderBlocking();}
 function renderConfig(){if(!context?.config)return;if($('cfgMinutes'))$('cfgMinutes').value=context.config.tempo_obrigatorio_min;if($('cfgPageSize'))$('cfgPageSize').value=context.config.botoes_por_pagina;if($('cfgOrder'))$('cfgOrder').value=context.config.ordenacao;renderOccurrenceConfig();}
 
-if($('machineSelect'))$('machineSelect').onchange=async e=>{if(occurrenceBusy)return;machine=e.target.value;occurrenceSignature='';occurrenceRequest=null;$('occurrenceSaved').textContent='';showError('occurrenceError','');const u=new URL(location.href);u.searchParams.set('machine_id',machine);history.replaceState({},'',u);await loadContext();if(simulation.active)resetSimulation();await poll();};
+if($('machineSelect'))$('machineSelect').onchange=async e=>{if(qualityChanging||qualityLoading||occurrenceBusy)return;$('qualityModal').classList.remove('open');if(occurrenceBusy)return;machine=e.target.value;occurrenceSignature='';occurrenceRequest=null;$('occurrenceSaved').textContent='';showError('occurrenceError','');const u=new URL(location.href);u.searchParams.set('machine_id',machine);history.replaceState({},'',u);await loadContext();if(simulation.active)resetSimulation();await poll();};
 $('prevReasons').onclick=()=>{if(reasonPage>0){reasonPage--;renderReasons();}};$('nextReasons').onclick=()=>{const p=pageReasons();if(reasonPage<p.pages-1){reasonPage++;renderReasons();}};
 $('confirmReason').onclick=async()=>{if(simulation.active){if(!selectedReasonId||!simulation.pendingRequired)return;simulation.stopReason=selectedReason;simulation.pendingRequired=false;selectedReasonId=null;selectedReason=null;renderAll();return;}if(!selectedReasonId||!opState?.pending)return;const btn=$('confirmReason');btn.disabled=true;btn.textContent='REGISTRANDO...';showError('blockError','');try{await fetchJson('/operacao/api/classificar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:opState.pending.id,motivo_id:selectedReasonId})});await loadContext();await poll();}catch(e){showError('blockError',e.message);}finally{btn.textContent='CONFIRMAR PARADA';btn.disabled=!selectedReasonId;}};
 
 if($('simulationBtn'))$('simulationBtn').onclick=toggleSimulation;if($('simStart'))$('simStart').onclick=startSimulation;if($('simStop'))$('simStop').onclick=stopSimulation;if($('simResume'))$('simResume').onclick=resumeSimulation;if($('simReset'))$('simReset').onclick=resetSimulation;
-if($('configBtn'))$('configBtn').onclick=()=>{$('configModal').classList.add('open');renderConfig();showError('configError','');};if($('configClose'))$('configClose').onclick=()=>$('configModal').classList.remove('open');if($('configCancel'))$('configCancel').onclick=()=>$('configModal').classList.remove('open');if($('configSave'))$('configSave').onclick=async()=>{const btn=$('configSave');btn.disabled=true;showError('configError','');try{const payload={machine_id:machine,tempo_obrigatorio_min:Number($('cfgMinutes').value),botoes_por_pagina:Number($('cfgPageSize').value),ordenacao:$('cfgOrder').value,tipos_ocorrencia:readOccurrenceConfig()};const j=await fetchJson('/operacao/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});context.config=j.config;$('configModal').classList.remove('open');await loadContext();if(simulation.active)renderAll();else await poll();}catch(e){showError('configError',e.message);}finally{btn.disabled=false;}};
+function openQualityConfig(focusTypes=false){if(occurrenceBusy||qualityChanging)return;$('configModal').classList.add('open');renderConfig();showError('configError','');if(focusTypes)$('qualityTypesSection').scrollIntoView({block:'start'});}
+if($('configBtn'))$('configBtn').onclick=()=>openQualityConfig();if($('qualityTypesBtn'))$('qualityTypesBtn').onclick=()=>openQualityConfig(true);if($('configClose'))$('configClose').onclick=()=>$('configModal').classList.remove('open');if($('configCancel'))$('configCancel').onclick=()=>$('configModal').classList.remove('open');if($('configSave'))$('configSave').onclick=async()=>{const btn=$('configSave');btn.disabled=true;showError('configError','');try{const payload={machine_id:machine,tempo_obrigatorio_min:Number($('cfgMinutes').value),botoes_por_pagina:Number($('cfgPageSize').value),ordenacao:$('cfgOrder').value,tipos_ocorrencia:readOccurrenceConfig()};const j=await fetchJson('/operacao/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});context.config=j.config;$('configModal').classList.remove('open');await loadContext();if(simulation.active)renderAll();else await poll();}catch(e){showError('configError',e.message);}finally{btn.disabled=false;}};
 
 function occurrenceTypes(){return(opState?.config?.tipos_ocorrencia||context?.config?.tipos_ocorrencia||[]).filter(t=>t.ativo);}
 function renderOccurrencePanel(){
@@ -216,36 +233,98 @@ function renderOccurrencePanel(){
   $('occurrenceBalance').textContent=fmtNum(simulation.active?simulation.productionTurno:summary.saldo||0);
   $('occurrenceDay').textContent=summary.data_ref?summary.data_ref.split('-').reverse().join('/'):'Hoje';
   types.forEach(t=>{const input=$('qty-'+t.id);if(input)input.disabled=!canRegister||simulation.active||occurrenceBusy;$('total-'+t.id).textContent=`Hoje: ${fmtNum(simulation.active?0:summary.totais?.[t.id]||0)} · ${t.desconta_producao?'Desconta':'Sem desconto'}`;});
-  $('saveOccurrences').disabled=!canRegister||simulation.active||occurrenceBusy||!types.length;
+  $('saveOccurrences').disabled=!canRegister||simulation.active||occurrenceBusy||qualityChanging||!types.length;
+  $('qualityHistoryBtn').disabled=simulation.active||occurrenceBusy||qualityChanging;
   if(!canRegister)$('occurrenceSaved').textContent='Consulta. Entre como operador para registrar.';
   else if(simulation.active)$('occurrenceSaved').textContent='Saia da simulação para registrar ocorrências reais.';
   else if(!occurrenceBusy){const last=summary.ultimo_registro;$('occurrenceSaved').textContent=last?`Último registro: ${last.operador_nome} · ${fmtTime(new Date(last.created_at).getTime())}`:'';}
 }
 function appendOccurrenceConfig(type){
   const row=document.createElement('div');row.className='op-type-row';row.dataset.typeId=type.id||newOccurrenceId();
-  row.innerHTML=`<input class="type-name" type="text" maxlength="60" placeholder="Nome do evento" aria-label="Nome do evento" value="${esc(type.nome||'')}"><label><input class="type-deduct" type="checkbox" ${type.desconta_producao?'checked':''}> Desconta</label><label><input class="type-active" type="checkbox" ${type.ativo!==false?'checked':''}> Ativo</label>`;
-  $('cfgOccurrenceTypes').appendChild(row);
+  row.innerHTML=`<input class="type-name" type="text" maxlength="60" placeholder="Nome do evento" aria-label="Nome do evento" value="${esc(type.nome||'')}"><label><input class="type-deduct" type="checkbox" ${type.desconta_producao?'checked':''}> Desconta</label><label><input class="type-active" type="checkbox" ${type.ativo!==false?'checked':''}> Ativo</label><div class="op-type-actions"><button class="btn btn-secondary type-edit" type="button">Editar</button><button class="btn btn-secondary op-danger type-delete" type="button">Excluir</button></div>`;
+  const name=row.querySelector('.type-name'),deduct=row.querySelector('.type-deduct'),active=row.querySelector('.type-active'),edit=row.querySelector('.type-edit'),remove=row.querySelector('.type-delete');
+  const setEditing=on=>{row.classList.toggle('editing',on);name.disabled=deduct.disabled=active.disabled=!on;edit.textContent=on?'Concluir':'Editar';};
+  const refresh=()=>{row.classList.toggle('inactive',!active.checked);remove.textContent=active.checked?'Excluir':'Reativar';};
+  edit.onclick=()=>{setEditing(!row.classList.contains('editing'));if(!name.disabled)name.focus();};
+  remove.onclick=()=>{active.checked=!active.checked;setEditing(false);refresh();};active.onchange=refresh;
+  setEditing(!type.id);refresh();$('cfgOccurrenceTypes').appendChild(row);
 }
+
 function renderOccurrenceConfig(){if(!$('cfgOccurrenceTypes'))return;$('cfgOccurrenceMachine').textContent=String(machine).toUpperCase();$('cfgOccurrenceTypes').innerHTML='';(context?.config?.tipos_ocorrencia||[]).forEach(appendOccurrenceConfig);}
 function readOccurrenceConfig(){return Array.from($('cfgOccurrenceTypes').children).map(row=>({id:row.dataset.typeId,nome:row.querySelector('.type-name').value.trim(),desconta_producao:row.querySelector('.type-deduct').checked,ativo:row.querySelector('.type-active').checked}));}
 if($('cfgAddType'))$('cfgAddType').onclick=()=>{if($('cfgOccurrenceTypes').children.length>=20){showError('configError','Cadastre até 20 tipos por máquina.');return;}appendOccurrenceConfig({nome:'',ativo:true,desconta_producao:false});};
 if($('saveOccurrences'))$('saveOccurrences').onclick=async()=>{
-  if(occurrenceBusy||!canRegister||simulation.active)return;
+  if(occurrenceBusy||qualityChanging||!canRegister||simulation.active)return;
   const fields=Array.from($('occurrenceFields').querySelectorAll('[data-occurrence-id]'));
   if(fields.some(input=>!input.checkValidity()||!Number.isSafeInteger(Number(input.value)))){showError('occurrenceError','Use quantidades inteiras, de zero a 1.000.000.000.');return;}
   const items=fields.map(input=>({tipo_id:input.dataset.occurrenceId,quantidade:Number(input.value)})).filter(item=>item.quantidade>0);
   if(!items.length){showError('occurrenceError','Informe pelo menos uma quantidade maior que zero.');return;}
   const fingerprint=JSON.stringify([machine,items]);
   if(!occurrenceRequest||occurrenceRequest.fingerprint!==fingerprint)occurrenceRequest={id:newOccurrenceId(),fingerprint};
-  occurrenceBusy=true;$('saveOccurrences').textContent='Salvando...';showError('occurrenceError','');renderOccurrencePanel();
+  dataRevision++;occurrenceBusy=true;$('saveOccurrences').textContent='Salvando...';showError('occurrenceError','');renderOccurrencePanel();
   if($('machineSelect'))$('machineSelect').disabled=true;
   try{const result=await fetchJson('/operacao/api/ocorrencias',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({machine_id:machine,request_id:occurrenceRequest.id,itens:items})});
     if(opState)opState.ocorrencias_producao=result.resumo;
     fields.forEach(input=>input.value='0');occurrenceRequest=null;
     $('occurrenceSaved').textContent='Registro salvo';await poll();
   }catch(e){showError('occurrenceError',e.message);}
-  finally{occurrenceBusy=false;$('saveOccurrences').textContent='Salvar';if($('machineSelect'))$('machineSelect').disabled=false;renderOccurrencePanel();}
+  finally{dataRevision++;occurrenceBusy=false;$('saveOccurrences').textContent='Salvar';if($('machineSelect'))$('machineSelect').disabled=false;renderOccurrencePanel();}
 };
+
+function bahiaToday(){return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Bahia',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}
+function lockQualityControls(){
+  const busy=qualityLoading||qualityChanging;
+  ['qualityDate','qualityRefresh','qualityPrev','qualityNext','qualityClose'].forEach(id=>$(id).disabled=busy);
+  $('qualityPrev').disabled=busy||qualityPage<=1;$('qualityNext').disabled=busy||qualityPage>=qualityPages;
+  if($('machineSelect'))$('machineSelect').disabled=busy||occurrenceBusy;
+  if($('simulationBtn'))$('simulationBtn').disabled=qualityChanging;
+}
+function renderQualityRecords(){
+  $('qualityRecords').innerHTML=qualityRows.length?qualityRows.map((r,i)=>{
+    const editing=i===qualityEditing,deleting=i===qualityDeleting,allowed=canRegister&&!simulation.active&&!r.excluido;
+    const buttons=allowed?(deleting?`<span>Excluir este lançamento?</span><button class="btn btn-secondary op-danger" data-quality-action="confirm-delete" data-index="${i}" type="button">Confirmar exclusão</button><button class="btn btn-secondary" data-quality-action="cancel" data-index="${i}" type="button">Cancelar</button>`:editing?`<button class="btn btn-primary" data-quality-action="save" data-index="${i}" type="button">Salvar</button><button class="btn btn-secondary" data-quality-action="cancel" data-index="${i}" type="button">Cancelar</button>`:`<button class="btn btn-secondary" data-quality-action="edit" data-index="${i}" type="button">Editar</button><button class="btn btn-secondary op-danger" data-quality-action="delete" data-index="${i}" type="button">Excluir</button>`):'';
+    return `<div class="op-quality-record ${r.excluido?'excluded':''}"><div><strong>${esc(r.nome)}${r.excluido?' · Excluído':''}</strong><small>${fmtTime(new Date(r.created_at).getTime())} · ${esc(r.operador_nome)} · ${r.desconta_producao?'Desconta':'Sem desconto'}</small>${r.updated_at?`<small>${r.excluido?'Excluído':'Editado'} por ${esc(r.alterado_por_nome)} · ${fmtTime(new Date(r.updated_at).getTime())}</small>`:''}</div><div>${editing?`<input id="qualityQty-${i}" type="number" inputmode="numeric" min="1" max="1000000000" step="1" value="${Number(r.quantidade)}" aria-label="Quantidade de ${esc(r.nome)}">`:`<strong>${fmtNum(r.quantidade)}</strong>`}</div><div class="op-type-actions">${buttons}</div></div>`;
+  }).join(''):'<div class="op-muted">Nenhum lançamento nesta data.</div>';
+  $('qualityRecords').querySelectorAll('[data-quality-action]').forEach(button=>button.onclick=()=>qualityRecordAction(button.dataset.qualityAction,Number(button.dataset.index)));
+  $('qualityPage').textContent=`Página ${qualityPage} de ${qualityPages}`;lockQualityControls();
+}
+async function loadQualityRecords(page=1){
+  if(qualityLoading||qualityChanging)return;
+  qualityLoading=true;qualityRows=[];renderQualityRecords();lockQualityControls();showError('qualityError','');
+  const selectedMachine=machine,selectedDay=$('qualityDate').value;
+  try{const result=await fetchJson('/operacao/api/ocorrencias?'+new URLSearchParams({machine_id:selectedMachine,data_ref:selectedDay,pagina:String(page)}));
+    if(selectedMachine!==machine)return;
+    qualityRows=result.registros;qualityPage=result.pagina;qualityPages=result.paginas;qualityEditing=qualityDeleting=-1;renderQualityRecords();
+  }catch(e){showError('qualityError',e.message);}
+  finally{qualityLoading=false;lockQualityControls();}
+}
+async function openQualityHistory(){
+  if(simulation.active||occurrenceBusy||qualityChanging)return;
+  $('qualityModal').classList.add('open');$('qualityDate').max=bahiaToday();$('qualityDate').value=opState?.ocorrencias_producao?.data_ref||bahiaToday();
+  $('qualityMachine').textContent=String(machine).toUpperCase();$('qualityNotice').textContent='';qualityRows=[];qualityPage=qualityPages=1;renderQualityRecords();await loadQualityRecords();
+}
+async function qualityRecordAction(action,index){
+  if(qualityLoading||qualityChanging||occurrenceBusy||!canRegister||simulation.active)return;
+  const row=qualityRows[index];if(!row||row.excluido)return;
+  showError('qualityError','');$('qualityNotice').textContent='';
+  if(action==='edit'||action==='delete'||action==='cancel'){
+    qualityEditing=action==='edit'?index:-1;qualityDeleting=action==='delete'?index:-1;renderQualityRecords();if(action==='edit')$('qualityQty-'+index).focus();return;
+  }
+  if(action!=='save'&&action!=='confirm-delete')return;
+  const deleting=action==='confirm-delete',input=$('qualityQty-'+index),quantity=deleting?row.quantidade:Number(input?.value);
+  if(!deleting&&(!input?.checkValidity()||!Number.isSafeInteger(quantity)||quantity<1)){showError('qualityError','Informe uma quantidade inteira de 1 a 1.000.000.000.');return;}
+  dataRevision++;qualityChanging=true;lockQualityControls();$('qualityRecords').querySelectorAll('button,input').forEach(el=>el.disabled=true);renderOccurrencePanel();
+  try{const result=await fetchJson('/operacao/api/ocorrencias/alterar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({machine_id:machine,request_id:row.request_id,tipo_id:row.tipo_id,versao:row.versao,acao:deleting?'excluir':'editar',quantidade:quantity})});
+    if(opState)opState.ocorrencias_producao=result.resumo;qualityEditing=qualityDeleting=-1;$('qualityNotice').textContent=deleting?'Lançamento excluído. Saldo recalculado.':'Quantidade atualizada. Saldo recalculado.';
+    qualityChanging=false;await loadQualityRecords(qualityPage);await poll();
+  }catch(e){showError('qualityError',e.message);}
+  finally{dataRevision++;qualityChanging=false;lockQualityControls();$('qualityRecords').querySelectorAll('button,input').forEach(el=>el.disabled=false);renderOccurrencePanel();}
+}
+if($('qualityHistoryBtn'))$('qualityHistoryBtn').onclick=openQualityHistory;
+$('qualityClose').onclick=()=>{if(!qualityLoading&&!qualityChanging)$('qualityModal').classList.remove('open');};
+$('qualityRefresh').onclick=()=>{$('qualityNotice').textContent='';loadQualityRecords(qualityPage);};
+$('qualityDate').onchange=()=>{$('qualityNotice').textContent='';loadQualityRecords();};
+$('qualityPrev').onclick=()=>loadQualityRecords(qualityPage-1);$('qualityNext').onclick=()=>loadQualityRecords(qualityPage+1);
 
 window.addEventListener('resize' ,()=>{if($('stopOverlay')?.classList.contains('open')){reasonPage=0;renderReasons();}});
 (async()=>{if(!machine)return;try{await loadContext();await poll();setInterval(poll,2000);setInterval(()=>{if(simulation.active)tickSimulation();else if(opState){renderProductive();renderBlocking();}},1000);}catch(e){setBadge('off','ERRO');setMessage('wait',e.message);}})();
