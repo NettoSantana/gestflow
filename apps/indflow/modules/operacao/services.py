@@ -1,16 +1,18 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\operacao\services.py
-# Último recode: 2026-09-01 11:10 (America/Bahia)
-# Motivo: Fazer o cronometro e a classificacao da Tela Operacional seguirem a transicao STOP real por tenant e maquina, sem depender de meta/turno.
+# Último recode: 2026-10-02 11:37:23 (America/Bahia)
+# Motivo: Persistir tipos e lançamentos de ocorrências por empresa e máquina, calcular saldo de hoje e informar paradas acumuladas sem alterar a contagem original.
 
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 import re
 import sqlite3
+import uuid
 
 from modules.db_indflow import get_db
 from modules.paradas.services import (
     classify_occurrence,
+    _sum_production,
     ensure_catalog_seed,
     list_occurrences,
     list_reasons,
@@ -128,6 +130,7 @@ def get_operational_config(cliente_id: str, machine_id: str) -> dict:
         "tempo_obrigatorio_min": DEFAULT_TEMPO_OBRIGATORIO_MIN,
         "botoes_por_pagina": DEFAULT_BOTOES_POR_PAGINA,
         "ordenacao": DEFAULT_ORDENACAO,
+        "tipos_ocorrencia": list_occurrence_types(cid, mid) if cid and mid else [],
     }
     if not cid or not mid:
         return default
@@ -154,6 +157,7 @@ def get_operational_config(cliente_id: str, machine_id: str) -> dict:
             "tempo_obrigatorio_min": max(1, min(120, _safe_int(row["tempo_obrigatorio_min"], DEFAULT_TEMPO_OBRIGATORIO_MIN))),
             "botoes_por_pagina": max(4, min(20, _safe_int(row["botoes_por_pagina"], DEFAULT_BOTOES_POR_PAGINA))),
             "ordenacao": order,
+            "tipos_ocorrencia": default["tipos_ocorrencia"],
         }
     finally:
         conn.close()
@@ -176,9 +180,12 @@ def save_operational_config(cliente_id: str, machine_id: str, payload: dict) -> 
     if order not in VALID_ORDENACOES:
         raise ValueError("Ordenação inválida.")
 
+    types = validate_occurrence_types(payload["tipos_ocorrencia"]) if "tipos_ocorrencia" in payload else None
     stamp = now_local().isoformat()
     conn = get_db()
     try:
+        _ensure_occurrence_tables(conn)
+        conn.execute("BEGIN IMMEDIATE")
         conn.execute(
             """
             INSERT INTO operacao_parada_config
@@ -192,17 +199,15 @@ def save_operational_config(cliente_id: str, machine_id: str, payload: dict) -> 
             """,
             (cid, mid, tempo, page_size, order, stamp),
         )
+        if types is not None:
+            _store_occurrence_types(conn, cid, mid, types, stamp)
         conn.commit()
     except sqlite3.OperationalError as exc:
         raise ValueError("Estrutura da Tela Operacional ainda não foi inicializada no banco.") from exc
     finally:
         conn.close()
 
-    return {
-        "tempo_obrigatorio_min": tempo,
-        "botoes_por_pagina": page_size,
-        "ordenacao": order,
-    }
+    return get_operational_config(cid, mid)
 
 
 def list_operational_reasons(cliente_id: str, machine_id: str, order: str) -> list[dict]:
@@ -383,6 +388,9 @@ def get_operational_state(cliente_id: str, machine_id: str) -> dict:
     open_rows = [row for row in rows if row.get("ended_at_ms") in (None, "")]
     open_rows.sort(key=lambda row: int(row.get("started_at_ms") or 0), reverse=True)
     current_stop = open_rows[0] if open_rows else None
+    reference_ms = int(now_local().timestamp() * 1000)
+    day_start_ms = int(now_local().replace(hour=0, minute=0, second=0, microsecond=0).timestamp() * 1000)
+    today_rows = [row for row in rows if int(row.get("ended_at_ms") or reference_ms) > day_start_ms]
 
     return {
         "machine_id": mid,
@@ -391,6 +399,12 @@ def get_operational_state(cliente_id: str, machine_id: str) -> dict:
         "pending_count": len(pending),
         "current_stop": current_stop,
         "active_order": get_active_order(cid, mid),
+        "ocorrencias_producao": get_occurrence_summary(cid, mid),
+        "paradas_hoje": {
+            "duration_sec": sum(int(row.get("duration_sec") or 0) for row in today_rows),
+            "open_count": sum(row.get("ended_at_ms") in (None, "") for row in today_rows),
+            "reference_ms": reference_ms,
+        },
     }
 
 
@@ -438,3 +452,185 @@ def classify_pending_occurrence(
 
 def list_operational_machines(cliente_id: str) -> list[str]:
     return list_tenant_machines(str(cliente_id or "").strip())
+
+
+def _ensure_occurrence_tables(conn: sqlite3.Connection) -> None:
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS operacao_ocorrencia_tipos (
+            cliente_id TEXT NOT NULL, machine_id TEXT NOT NULL, id TEXT NOT NULL,
+            nome TEXT NOT NULL, desconta_producao INTEGER NOT NULL,
+            ativo INTEGER NOT NULL DEFAULT 1, ordem INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+            PRIMARY KEY (cliente_id, machine_id, id)
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS operacao_ocorrencia_registros (
+            cliente_id TEXT NOT NULL, machine_id TEXT NOT NULL,
+            request_id TEXT NOT NULL, tipo_id TEXT NOT NULL,
+            nome TEXT NOT NULL, quantidade INTEGER NOT NULL CHECK (quantidade > 0),
+            desconta_producao INTEGER NOT NULL, data_ref TEXT NOT NULL,
+            operador_id TEXT NOT NULL, operador_nome TEXT NOT NULL,
+            op_id INTEGER, created_at TEXT NOT NULL,
+            PRIMARY KEY (cliente_id, machine_id, request_id, tipo_id)
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS ix_operacao_ocorrencias_dia "
+                 "ON operacao_ocorrencia_registros(cliente_id, machine_id, data_ref)")
+    conn.commit()
+
+
+def list_occurrence_types(cliente_id: str, machine_id: str) -> list[dict]:
+    conn = get_db()
+    try:
+        _ensure_occurrence_tables(conn)
+        rows = conn.execute("""
+            SELECT id, nome, desconta_producao, ativo
+            FROM operacao_ocorrencia_tipos WHERE cliente_id=? AND machine_id=?
+            ORDER BY ordem, created_at, id
+        """, (cliente_id, machine_id)).fetchall()
+        return [{"id": row["id"], "nome": row["nome"],
+                 "desconta_producao": bool(row["desconta_producao"]),
+                 "ativo": bool(row["ativo"])} for row in rows]
+    finally:
+        conn.close()
+
+
+def validate_occurrence_types(raw) -> list[dict]:
+    if not isinstance(raw, list) or len(raw) > 20:
+        raise ValueError("Cadastre até 20 tipos de ocorrência por máquina.")
+    out, ids, names = [], set(), set()
+    for item in raw:
+        if not isinstance(item, dict):
+            raise ValueError("Tipo de ocorrência inválido.")
+        try:
+            type_id = str(uuid.UUID(str(item.get("id") or uuid.uuid4())))
+        except ValueError as exc:
+            raise ValueError("Identificador de ocorrência inválido.") from exc
+        name = str(item.get("nome") or "").strip()
+        active, deduct = item.get("ativo", True), item.get("desconta_producao")
+        if not name or len(name) > 60:
+            raise ValueError("Informe um nome de ocorrência com até 60 caracteres.")
+        if not isinstance(active, bool) or not isinstance(deduct, bool):
+            raise ValueError("Informe se a ocorrência está ativa e desconta da produção.")
+        if type_id in ids or (active and name.casefold() in names):
+            raise ValueError("Não repita o nome ou identificador de uma ocorrência ativa.")
+        ids.add(type_id)
+        if active:
+            names.add(name.casefold())
+        out.append({"id": type_id, "nome": name, "ativo": active, "desconta_producao": deduct})
+    return out
+
+
+def _store_occurrence_types(conn, cid, mid, types, stamp):
+    # Desativa os tipos retirados do cadastro; preserva registros anteriores.
+    conn.execute("UPDATE operacao_ocorrencia_tipos SET ativo=0, updated_at=? "
+                 "WHERE cliente_id=? AND machine_id=?", (stamp, cid, mid))
+    for order, item in enumerate(types):
+        conn.execute("""
+            INSERT INTO operacao_ocorrencia_tipos
+            (cliente_id, machine_id, id, nome, desconta_producao, ativo, ordem, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(cliente_id, machine_id, id) DO UPDATE SET
+                nome=excluded.nome, desconta_producao=excluded.desconta_producao,
+                ativo=excluded.ativo, ordem=excluded.ordem, updated_at=excluded.updated_at
+        """, (cid, mid, item["id"], item["nome"], int(item["desconta_producao"]),
+              int(item["ativo"]), order, stamp, stamp))
+
+
+def _occurrence_summary(conn, cid, mid, now):
+    day = now.date().isoformat()
+    start_ms = int(now.replace(hour=0, minute=0, second=0, microsecond=0).timestamp() * 1000)
+    gross = _sum_production(conn, cid, mid, start_ms, int(now.timestamp() * 1000) + 1)
+    totals = conn.execute("""
+        SELECT tipo_id, SUM(quantidade) AS quantidade,
+               SUM(CASE WHEN desconta_producao=1 THEN quantidade ELSE 0 END) AS desconto
+        FROM operacao_ocorrencia_registros
+        WHERE cliente_id=? AND machine_id=? AND data_ref=? GROUP BY tipo_id
+    """, (cid, mid, day)).fetchall()
+    discount = sum(int(row["desconto"] or 0) for row in totals)
+    last = conn.execute("""
+        SELECT created_at, operador_nome FROM operacao_ocorrencia_registros
+        WHERE cliente_id=? AND machine_id=? AND data_ref=?
+        ORDER BY created_at DESC, rowid DESC LIMIT 1
+    """, (cid, mid, day)).fetchone()
+    return {"data_ref": day, "producao_bruta": gross, "descontos": discount,
+            "saldo": max(0, gross - discount),
+            "totais": {row["tipo_id"]: int(row["quantidade"]) for row in totals},
+            "ultimo_registro": dict(last) if last else None}
+
+
+def get_occurrence_summary(cliente_id: str, machine_id: str) -> dict:
+    conn = get_db()
+    try:
+        _ensure_occurrence_tables(conn)
+        return _occurrence_summary(conn, cliente_id, machine_id, now_local())
+    finally:
+        conn.close()
+
+
+def save_production_occurrences(cliente_id: str, machine_id: str, payload: dict,
+                                operador_id: str, operador_nome: str) -> dict:
+    cid = str(cliente_id or "").strip()
+    mid = normalize_machine_id(machine_id, cid)
+    if not cid or not mid or not operador_id or not operador_nome:
+        raise ValueError("Empresa, máquina e operador são obrigatórios.")
+    try:
+        request_id = str(uuid.UUID(str(payload.get("request_id") or "")))
+    except ValueError as exc:
+        raise ValueError("Identificador do lançamento inválido. Atualize a tela.") from exc
+    raw = payload.get("itens")
+    if not isinstance(raw, list) or not raw or len(raw) > 20:
+        raise ValueError("Informe pelo menos uma quantidade para registrar.")
+    items = {}
+    for item in raw:
+        if not isinstance(item, dict):
+            raise ValueError("Lançamento inválido.")
+        type_id, quantity = str(item.get("tipo_id") or ""), item.get("quantidade")
+        if type_id in items or isinstance(quantity, bool) or not isinstance(quantity, int) or quantity < 1 or quantity > 1000000000:
+            raise ValueError("Use quantidades inteiras positivas, sem repetir o tipo de ocorrência.")
+        items[type_id] = quantity
+    conn = get_db()
+    try:
+        _ensure_occurrence_tables(conn)
+        conn.execute("BEGIN IMMEDIATE")
+        existing = conn.execute("""
+            SELECT tipo_id, quantidade FROM operacao_ocorrencia_registros
+            WHERE cliente_id=? AND machine_id=? AND request_id=?
+        """, (cid, mid, request_id)).fetchall()
+        if existing:
+            if {r["tipo_id"]: int(r["quantidade"]) for r in existing} != items:
+                raise ValueError("Este lançamento já foi salvo com outros valores. Atualize a tela.")
+            return {"duplicado": True, "resumo": _occurrence_summary(conn, cid, mid, now_local())}
+        types = {r["id"]: dict(r) for r in conn.execute("""
+            SELECT id, nome, desconta_producao FROM operacao_ocorrencia_tipos
+            WHERE cliente_id=? AND machine_id=? AND ativo=1
+        """, (cid, mid)).fetchall()}
+        if any(type_id not in types for type_id in items):
+            raise ValueError("A configuração de ocorrências mudou. Atualize a tela.")
+        now = now_local()
+        summary = _occurrence_summary(conn, cid, mid, now)
+        new_discount = sum(quantity for type_id, quantity in items.items() if types[type_id]["desconta_producao"])
+        if summary["descontos"] + new_discount > summary["producao_bruta"]:
+            raise ValueError("Os descontos não podem ultrapassar a produção registrada hoje.")
+        op_id = None
+        if _table_exists(conn, "ordens_producao"):
+            op = conn.execute("SELECT id FROM ordens_producao WHERE cliente_id=? "
+                              "AND lower(machine_id)=lower(?) AND status='ATIVA' ORDER BY id DESC LIMIT 1",
+                              (cid, mid)).fetchone()
+            op_id = int(op["id"]) if op else None
+        stamp = now.isoformat()
+        for type_id, quantity in items.items():
+            occurrence = types[type_id]
+            conn.execute("""
+                INSERT INTO operacao_ocorrencia_registros
+                (cliente_id, machine_id, request_id, tipo_id, nome, quantidade,
+                 desconta_producao, data_ref, operador_id, operador_nome, op_id, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (cid, mid, request_id, type_id, occurrence["nome"], quantity,
+                  occurrence["desconta_producao"], summary["data_ref"], operador_id, operador_nome, op_id, stamp))
+        result = _occurrence_summary(conn, cid, mid, now)
+        conn.commit()
+        return {"duplicado": False, "resumo": result}
+    finally:
+        conn.close()

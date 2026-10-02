@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\paradas\templates\paradas_home.html
-Último recode: 2026-09-02 21:10 (America/Bahia)
-Motivo: Padronizar o filtro de período pelo modelo do Histórico Operacional, preservando classificação e telemetria existentes.
+Último recode: 2026-10-02 11:37:23 (America/Bahia)
+Motivo: Atualizar automaticamente as ocorrências e o tempo parado a cada cinco segundos, preservando filtros e classificação em edição.
 #}
 
 {% extends "base.html" %}
@@ -78,6 +78,7 @@ let occurrences = [];
 let smallStops = [];
 let stopStats = null;
 let selectedOccurrence = null;
+let stopRequestSequence=0,stopPollingBusy=false;
 const tz = 'America/Bahia';
 function isoToday(){ return new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()); }
 function isoAdd(value,delta){ const p=String(value||'').split('-').map(Number); if(p.length!==3||p.some(x=>!Number.isFinite(x)))return value; const d=new Date(Date.UTC(p[0],p[1]-1,p[2]+delta)); return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`; }
@@ -96,8 +97,9 @@ async function loadContext(){
 }
 function setDefaultDates(){ const inicio=qs.get('inicio'),fim=qs.get('fim'),data=qs.get('date'); if(inicio&&fim){els('filterPeriod').value='custom';els('filterStart').value=inicio;els('filterEnd').value=fim;}else if(data){els('filterPeriod').value='custom';els('filterStart').value=data;els('filterEnd').value=data;}else{els('filterPeriod').value='today';const r=rangeForPeriod('today');els('filterStart').value=r[0];els('filterEnd').value=r[1];}syncPeriodControls(); }
 async function loadStops(){
+  const sequence=++stopRequestSequence;
   const p=new URLSearchParams({inicio:els('filterStart').value,fim:els('filterEnd').value}); const mid=els('filterMachine').value; if(mid)p.set('machine_id',mid); if(els('onlyUnclassified').checked)p.set('nao_classificadas','1'); if(qs.get('teste')==='1')p.set('teste','1');
-  const r=await fetch('/paradas/api/ocorrencias?'+p.toString()); const j=await r.json(); if(!r.ok||!j.ok) throw new Error(j.error||'Falha ao carregar paradas'); occurrences=j.rows||[]; smallStops=j.small_stops||[]; stopStats=j.stats||null; renderStops(); maybeAutoOpen();
+  const r=await fetch('/paradas/api/ocorrencias?'+p.toString(),{cache:'no-store'}); const j=await r.json(); if(sequence!==stopRequestSequence)return;if(!r.ok||!j.ok) throw new Error(j.error||'Falha ao carregar paradas'); occurrences=j.rows||[]; smallStops=j.small_stops||[]; stopStats=j.stats||null; renderStops(); maybeAutoOpen();
 }
 function renderStops(){
   const fallbackTotal=occurrences.length+smallStops.reduce((a,x)=>a+Number(x.count||0),0);
@@ -129,6 +131,15 @@ async function saveClassification(){ if(!selectedOccurrence)return; const motivo
 async function ensureFromQuery(){ const mid=qs.get('machine_id'), start=Number(qs.get('start_ms')||0), end=Number(qs.get('end_ms')||0); if(!mid||!start)return null; const r=await fetch('/paradas/api/ocorrencias/garantir',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({machine_id:mid,started_at_ms:start,ended_at_ms:end||null})}); const j=await r.json(); return r.ok&&j.ok?Number(j.id):null; }
 let autoOpened=false; async function maybeAutoOpen(){ if(autoOpened)return; let target=null; if(qs.get('start_ms'))target=await ensureFromQuery(); if(!target&&qs.get('acao')==='classificar'){ const mid=qs.get('machine_id'); const candidates=occurrences.filter(x=>(!mid||String(x.machine_id).toLowerCase()===mid.toLowerCase())&&x.status==='ABERTA'&&x.can_classify); if(candidates.length)target=Number(candidates[0].id); } if(target){autoOpened=true; const found=occurrences.find(x=>Number(x.id)===target); if(found)openClassification(target); else{await loadStops();}} }
 els('modalCategory').addEventListener('change',()=>{selectedOccurrence={...(selectedOccurrence||{}),motivo_id:null};fillReasons();}); els('closeModal').onclick=closeModal; els('cancelModal').onclick=closeModal; els('saveClassification').onclick=saveClassification; els('filterPeriod').onchange=syncPeriodControls; els('btnApply').onclick=applyPeriod; els('onlyUnclassified').onchange=applyPeriod; els('classifyModal').addEventListener('click',e=>{if(e.target===els('classifyModal'))closeModal();});
-(async()=>{try{if(qs.get('teste')==='1')els('testModeNotice').style.display='block';setDefaultDates();await loadContext();await loadStops();}catch(e){els('stopList').innerHTML=`<div class="stop-empty">${esc(e.message)}</div>`;}})();
+async function refreshStops(){
+  if(stopPollingBusy||document.hidden)return;
+  stopPollingBusy=true;
+  try{
+    if(els('filterPeriod').value!=='custom')syncPeriodControls();
+    await loadStops();
+  }catch(e){console.warn('Atualização de paradas:',e.message);}
+  finally{stopPollingBusy=false;}
+}
+(async()=>{try{if(qs.get('teste')==='1')els('testModeNotice').style.display='block';setDefaultDates();await loadContext();await loadStops();setInterval(refreshStops,5000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshStops();});}catch(e){els('stopList').innerHTML=`<div class="stop-empty">${esc(e.message)}</div>`;}})();
 </script>
 {% endblock %}

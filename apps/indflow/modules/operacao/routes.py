@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\operacao\routes.py
-# Último recode: 2026-09-02 21:45 (America/Bahia)
-# Motivo: Adicionar edição completa e exclusão de operadores para a nova lista administrativa.
+# Último recode: 2026-10-02 11:37:23 (America/Bahia)
+# Motivo: Autorizar lançamentos de ocorrências somente para operadores e administradores na empresa e máquina da sessão.
 
 from __future__ import annotations
 
@@ -27,6 +27,7 @@ from modules.operacao.services import (
     list_operational_machines,
     list_operational_reasons,
     save_operational_config,
+    save_production_occurrences,
 )
 
 operacao_bp = Blueprint("operacao", __name__, template_folder="templates")
@@ -1302,5 +1303,29 @@ def api_config():
     try:
         config = save_operational_config(cid, machine_id, payload)
         return jsonify({"ok": True, "config": config})
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+
+@operacao_bp.post("/api/ocorrencias")
+@login_required
+def api_save_production_occurrences():
+    cid = _cliente_id()
+    if not cid:
+        return jsonify({"ok": False, "error": "Cliente da sessão não identificado."}), 403
+    if _role() not in ("operator", "admin", "superadmin"):
+        return jsonify({"ok": False, "error": "Sem permissão para registrar ocorrências."}), 403
+    payload = request.get_json(silent=True) or {}
+    if not isinstance(payload, dict):
+        return jsonify({"ok": False, "error": "Lançamento inválido."}), 400
+    requested = normalize_machine_id(payload.get("machine_id") or "", cid)
+    machine_id, _ = _resolve_machine(cid, requested)
+    if not requested or not machine_id or machine_id.casefold() != requested.casefold():
+        return jsonify({"ok": False, "error": "Máquina não autorizada para esta sessão."}), 403
+    operator_id = str(session.get("operator_id") or session.get("user_id") or session.get("email") or _role())
+    operator_name = str(session.get("operator_name") or session.get("nome") or session.get("email") or _role())
+    try:
+        result = save_production_occurrences(cid, machine_id, payload, operator_id, operator_name)
+        return jsonify({"ok": True, **result})
     except ValueError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 400
