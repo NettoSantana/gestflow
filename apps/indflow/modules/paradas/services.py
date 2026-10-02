@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\paradas\services.py
-# Último recode: 2026-09-02 10:18 (America/Bahia)
-# Motivo: Adicionar séries diárias e paradas por turno aos Indicadores, preservando os cálculos existentes de OEE, MTTR e MTBF.
+# Último recode: 2026-10-02 16:26:27 (America/Bahia)
+# Motivo: Integrar eventos operacionais marcados como Desconta ao cálculo de Qualidade e OEE por máquina, consolidado e diário, considerando edições e exclusões e preservando os refugos antigos.
 
 from __future__ import annotations
 
@@ -799,21 +799,40 @@ def _sum_production(conn: sqlite3.Connection, cliente_id: str, machine_id: str, 
     return total
 
 def _sum_refugo(conn: sqlite3.Connection, cliente_id: str, machine_id: str, start_day: date, end_day: date) -> int:
-    if not _table_exists(conn, "refugo_horaria"):
-        return 0
-    cols = _columns(conn, "refugo_horaria")
-    if not {"cliente_id", "machine_id", "dia_ref"}.issubset(cols):
-        return 0
+    # Preserva os refugos antigos e inclui os eventos de qualidade operacionais.
     mids = machine_candidates(cliente_id, machine_id)
-    placeholders = ",".join("?" for _ in mids)
-    value_col = "refugo" if "refugo" in cols else ("qtd" if "qtd" in cols else None)
-    if not value_col:
+    if not mids:
         return 0
+    placeholders = ",".join("?" for _ in mids)
+    total = 0
+    cols = _columns(conn, "refugo_horaria")
+    value_col = "refugo" if "refugo" in cols else ("qtd" if "qtd" in cols else None)
+    if value_col and {"cliente_id", "machine_id", "dia_ref"}.issubset(cols):
+        row = conn.execute(
+            f"SELECT COALESCE(SUM({value_col}),0) FROM refugo_horaria WHERE cliente_id=? AND machine_id IN ({placeholders}) AND dia_ref>=? AND dia_ref<=?",
+            [cliente_id, *mids, start_day.isoformat(), end_day.isoformat()],
+        ).fetchone()
+        total = int(row[0] or 0) if row else 0
+
+    if not _table_exists(conn, "operacao_ocorrencia_registros"):
+        return total
+    quantity, join, active = "r.quantidade", "", ""
+    if _table_exists(conn, "operacao_ocorrencia_ajustes"):
+        quantity = "COALESCE(a.quantidade, r.quantidade)"
+        join = "LEFT JOIN operacao_ocorrencia_ajustes a USING (cliente_id, machine_id, request_id, tipo_id)"
+        active = "AND COALESCE(a.excluido, 0)=0"
     row = conn.execute(
-        f"SELECT COALESCE(SUM({value_col}),0) FROM refugo_horaria WHERE cliente_id=? AND machine_id IN ({placeholders}) AND dia_ref>=? AND dia_ref<=?",
-        [cliente_id, *mids, start_day.isoformat(), end_day.isoformat()],
+        f"""
+        SELECT COALESCE(SUM({quantity}), 0)
+        FROM operacao_ocorrencia_registros r
+        {join}
+        WHERE r.cliente_id=? AND lower(r.machine_id) IN ({placeholders})
+          AND r.data_ref>=? AND r.data_ref<=? AND r.desconta_producao=1
+          {active}
+        """,
+        [cliente_id, *(mid.lower() for mid in mids), start_day.isoformat(), end_day.isoformat()],
     ).fetchone()
-    return int(row[0] or 0) if row else 0
+    return total + (int(row[0] or 0) if row else 0)
 
 
 def _sum_meta(conn: sqlite3.Connection, cliente_id: str, machine_id: str, start_day: date, end_day: date) -> int:
