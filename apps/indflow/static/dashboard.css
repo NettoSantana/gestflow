@@ -1,14 +1,14 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\dashboard.css
-Último recode: 2026-09-02 09:50 (America/Bahia)
-Motivo: Incorporar ao card do Painel Industrial progresso da meta, tempo parado e atalhos operacionais.
+Último recode: 2026-10-05 16:49 (America/Bahia)
+Motivo: Ajustar a apresentação do card com gramatura, OEE e ocorrências por turno e hora.
 */
 
 .machine-grid{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;}
 .machine-card{position:relative;background:#fff;border:1px solid #e2e8f0;border-radius:13px;padding:15px;box-shadow:0 4px 14px rgba(15,23,42,.04);cursor:pointer;transition:.15s ease;min-width:0;}
 .machine-card:hover{border-color:#bfdbfe;box-shadow:0 8px 22px rgba(15,23,42,.08);transform:translateY(-1px);}
 .machine-header{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding-bottom:11px;border-bottom:1px solid #eef2f7;}
-.machine-name{font-size:15px;font-weight:900;color:#0f172a;letter-spacing:.015em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.machine-name{font-size:18px;font-weight:900;color:#0f172a;letter-spacing:.015em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .machine-caption{margin-top:3px;color:#94a3b8;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
 .machine-status{display:inline-flex;align-items:center;justify-content:center;padding:5px 8px;border-radius:999px;color:#fff;font-size:9px;font-weight:900;letter-spacing:.04em;white-space:nowrap;text-transform:uppercase;}
 .status-auto{background:#16a34a}.status-manual{background:#dc2626}.status-stop{background:#dc2626}
@@ -18,7 +18,7 @@ Motivo: Incorporar ao card do Painel Industrial progresso da meta, tempo parado 
 .percent-value{font-size:27px;font-weight:900;line-height:1;color:#0f172a;letter-spacing:-.04em;}
 .percent-label{margin-top:5px;color:#64748b;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.055em;}
 .divider{width:1px;background:#e2e8f0;align-self:stretch;}
-.stats-sub{margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;color:#64748b;font-size:10px;font-weight:700;}.stats-sub b{color:#0f172a;font-size:11px;font-weight:900;white-space:nowrap;}
+.stats-sub{margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;color:#64748b;font-size:12px;font-weight:700;}.stats-sub b{color:#0f172a;font-size:14px;font-weight:900;white-space:nowrap;}
 .machine-progress{margin-top:13px;padding-top:11px;border-top:1px solid #eef2f7;}.machine-progress-head,.machine-stop-summary{display:flex;align-items:center;justify-content:space-between;gap:10px;color:#64748b;font-size:10px;font-weight:800;}.machine-progress-head strong,.machine-stop-summary b{color:#0f172a;font-size:11px;font-weight:900;white-space:nowrap;}
 .machine-progress-track{height:7px;margin-top:7px;background:#e2e8f0;border-radius:999px;overflow:hidden;}.machine-progress-fill{height:100%;width:0;background:#2563eb;border-radius:999px;transition:width .25s ease;}
 .machine-stop-summary{margin-top:9px;}
@@ -30,3 +30,6 @@ Motivo: Incorporar ao card do Painel Industrial progresso da meta, tempo parado 
 
 @media(max-width:1280px){.machine-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media(max-width:720px){.machine-grid{grid-template-columns:1fr}.machine-card{padding:14px}.percent-value{font-size:25px;}}
+
+.machine-gramatura{margin-top:4px;color:#dc2626;font-size:14px;font-weight:900;}
+.card-oee{padding-bottom:6px;border-bottom:1px solid #eef2f7;}.card-oee span,.card-oee b{font-weight:900;}

@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\dashboard.update.js
-Último recode: 2026-09-02 09:50 (America/Bahia)
-Motivo: Atualizar em tempo real o progresso da meta e o tempo parado incorporados ao Painel Industrial.
+Último recode: 2026-10-05 16:49 (America/Bahia)
+Motivo: Atualizar o card com gramatura, OEE, ocorrências e paradas do turno e da hora, sem misturar os períodos.
 */
 
 // static/dashboard.update.js
@@ -150,124 +150,90 @@ function indicadorPorRitmoDaHora(metaHora, produzidoHora){
    UPDATE
    =========================== */
 
+const dashboardCardCache = new Map();
+
+function fetchCardMetrics(machineId){
+  const key = Math.floor(Date.now() / 3600000);
+  const cached = dashboardCardCache.get(machineId);
+  if(cached && cached.key === key && Date.now() - cached.at < 5000) return Promise.resolve(cached.data);
+  if(cached && cached.pending) return cached.pending;
+  const entry = { key, at: 0, data: null };
+  entry.pending = fetch(`/indicadores/api/card/${encodeURIComponent(machineId)}`, { cache: "no-store" })
+    .then(r => r.ok ? r.json() : Promise.reject(new Error("card")))
+    .then(payload => {
+      if(!payload.ok) throw new Error("card");
+      entry.data = payload.data;
+      return entry.data;
+    })
+    .catch(() => null)
+    .finally(() => { entry.at = Date.now(); entry.pending = null; });
+  dashboardCardCache.set(machineId, entry);
+  return entry.pending;
+}
+
+function renderCardPeriod(sid, scope, metrics, status){
+  const u1 = normUnidade(status.unidade_1) || "pcs";
+  const u2 = normUnidade(status.unidade_2);
+  const conversion = Number(status.conv_m_por_pcs);
+  const showU2 = !!u2 && u2 !== u1;
+  [u1, u2].forEach((unit, index) => {
+    const slot = index + 1;
+    if(index === 1){
+      setVisible(`row-meta-${scope}-u2-${sid}`, showU2);
+      setVisible(`row-prod-${scope}-u2-${sid}`, showU2);
+    }
+    if(!unit) return;
+    const convert = value => {
+      if(value === null || value === undefined) return "—";
+      if(unit === "m") return conversion > 0 ? fmt(Number(value) * conversion) : "—";
+      return fmt(value);
+    };
+    setText(`lbl-meta-${scope}-u${slot}-${sid}`, `Meta (${labelUnidade(unit)})`);
+    setText(`lbl-prod-${scope}-u${slot}-${sid}`, `Produção (${labelUnidade(unit)})`);
+    setText(`meta-${scope}-u${slot}-${sid}`, convert(metrics?.meta));
+    setText(`prod-${scope}-u${slot}-${sid}`, convert(metrics?.producao));
+  });
+  if(scope === "turno") setText(`period-turno-${sid}`, metrics?.label || "Turno");
+  const oee = metrics?.oee;
+  setText(`oee-${scope}-${sid}`, oee !== null && oee !== undefined && Number.isFinite(Number(oee)) ? `${fmt(Number(oee) * 100)}%` : "—");
+  setText(`stops-${scope}-${sid}`, metrics ? fmt(metrics.paradas) : "—");
+  const quality = document.getElementById(`quality-${scope}-${sid}`);
+  if(quality){
+    quality.replaceChildren();
+    (metrics?.ocorrencias || []).forEach(item => {
+      const row = document.createElement("div");
+      row.className = "stats-sub";
+      const label = document.createElement("span");
+      const value = document.createElement("b");
+      label.textContent = item.nome;
+      value.textContent = fmt(item.quantidade);
+      row.append(label, value);
+      quality.appendChild(row);
+    });
+  }
+}
+
 function updateMachine(machineId){
   const sid = safeSid(machineId);
-
-  fetch(`/machine/status?machine_id=${machineId}`)
-    .then(r => r.json())
-    .then(data => {
-
-      const statusBadge = document.getElementById(`status-badge-${sid}`);
-      if(!statusBadge) return;
-
-      // ✅ STATUS: PRODUZINDO / PARADA (padronizado)
-      const statusUI = resolveStatusUI(data);
-      const produzindo = (statusUI === "PRODUZINDO");
-
-      statusBadge.textContent = statusUI;
-      statusBadge.className =
-        "machine-status " + (produzindo ? "status-auto" : "status-manual");
-
-      // ✅ Linha "XX min parados" (se existir no card)
-      const stopEl = document.getElementById(`stopline-${sid}`);
-      if(stopEl){
-        const mins = resolveParadoMin(data);
-        if(!produzindo && mins !== null){
-          stopEl.textContent = `${mins} min parados`;
-          stopEl.style.display = "";
-        }else{
-          stopEl.textContent = "";
-          stopEl.style.display = "none";
-        }
-      }
-
-      const u1 = normUnidade(data.unidade_1) || "pcs";
-      const u2 = normUnidade(data.unidade_2);
-
-      const u1Label = labelUnidade(u1);
-      const u2Label = u2 ? labelUnidade(u2) : null;
-
-      /* ===== PERCENTUAIS COM SINAL (ANTES DO NÚMERO) ===== */
-
-      // Dia: mantém sinal baseado no percentual_turno (como está hoje)
-      const pTurno = Number(data.percentual_turno ?? 0);
-
-      // Hora: número continua sendo percentual_hora (exibe 78%),
-      // mas o sinal/cor é por ritmo dentro da hora (ex: 19:45 = 75%)
-      const pHora  = Number(data.percentual_hora ?? 0);
-
-      const elTurno = document.getElementById(`percent-turno-${sid}`);
-      const elHora  = document.getElementById(`percent-hora-${sid}`);
-
-      renderPercentWithIndicator(elTurno, pTurno);
-
-      const progressFill = document.getElementById(`progress-fill-${sid}`);
-      const progressPct = document.getElementById(`progress-pct-${sid}`);
-      const pTurnoSafe = Math.max(0, Math.min(100, pTurno));
-      if(progressFill) progressFill.style.width = `${pTurnoSafe}%`;
-      if(progressPct) progressPct.textContent = `${Math.round(pTurno)}%`;
-
-      const paradoResumo = document.getElementById(`parado-resumo-${sid}`);
-      const paradoMin = resolveParadoMin(data);
-      if(paradoResumo) paradoResumo.textContent = `${paradoMin ?? 0} min`;
-
-      const metaHora = Number(data.meta_hora_pcs ?? 0);
-      const prodHora = Number(data.producao_hora ?? 0);
-      const indHoraRitmo = indicadorPorRitmoDaHora(metaHora, prodHora);
-
-      renderPercentWithIndicator(elHora, pHora, indHoraRitmo);
-
-      /* ===== TURNO ===== */
-
-      const vTurnoU1 = pickValuesByUnit(u1, data, "turno");
-      setText(`lbl-meta-turno-u1-${sid}`, `Meta (${u1Label})`);
-      setText(`lbl-prod-turno-u1-${sid}`, `Produzido (${u1Label})`);
-      setText(`meta-turno-u1-${sid}`, vTurnoU1.meta);
-      setText(`prod-turno-u1-${sid}`, vTurnoU1.prod);
-
-      const showU2 = !!u2Label;
-      setVisible(`row-meta-turno-u2-${sid}`, showU2);
-      setVisible(`row-prod-turno-u2-${sid}`, showU2);
-
-      if(showU2){
-        const vTurnoU2 = pickValuesByUnit(u2, data, "turno");
-        setText(`lbl-meta-turno-u2-${sid}`, `Meta (${u2Label})`);
-        setText(`lbl-prod-turno-u2-${sid}`, `Produzido (${u2Label})`);
-        setText(`meta-turno-u2-${sid}`, vTurnoU2.meta);
-        setText(`prod-turno-u2-${sid}`, vTurnoU2.prod);
-      }
-
-      /* ===== HORA ===== */
-
-      const vHoraU1 = pickValuesByUnit(u1, data, "hora");
-      setText(`lbl-meta-hora-u1-${sid}`, `Meta (${u1Label})`);
-      setText(`lbl-prod-hora-u1-${sid}`, `Produzido (${u1Label})`);
-      setText(`meta-hora-u1-${sid}`, vHoraU1.meta);
-      setText(`prod-hora-u1-${sid}`, vHoraU1.prod);
-
-      setVisible(`row-meta-hora-u2-${sid}`, showU2);
-      setVisible(`row-prod-hora-u2-${sid}`, showU2);
-
-      if(showU2){
-        const vHoraU2 = pickValuesByUnit(u2, data, "hora");
-        setText(`lbl-meta-hora-u2-${sid}`, `Meta (${u2Label})`);
-        setText(`lbl-prod-hora-u2-${sid}`, `Produzido (${u2Label})`);
-        setText(`meta-hora-u2-${sid}`, vHoraU2.meta);
-        setText(`prod-hora-u2-${sid}`, vHoraU2.prod);
-      }
-
-      /* ===== RITMO ===== */
-
-      const elRitmo = document.getElementById(`ritmo-medio-${sid}`);
-      const tempoMedioTxt = formatTempoMedio(data.tempo_medio_min_por_peca);
-      if(elRitmo){
-        elRitmo.textContent =
-          tempoMedioTxt !== "—"
-            ? `Ritmo médio: ${tempoMedioTxt} min/peça`
-            : "Ritmo médio: —";
-      }
-    })
-    .catch(() => {});
+  return Promise.all([
+    fetch(`/machine/status?machine_id=${encodeURIComponent(machineId)}`).then(r => r.ok ? r.json() : Promise.reject(new Error("status"))),
+    fetchCardMetrics(machineId)
+  ]).then(([status, metrics]) => {
+    if(!document.getElementById(`status-badge-${sid}`)) return;
+    applyStatusToCard(machineId, status);
+    const gram = String(metrics?.gramatura || "").trim();
+    const gramLabel = gram && /^\d+(?:[.,]\d+)?$/.test(gram) ? `${gram} GR` : gram;
+    setText(`gramatura-${sid}`, gramLabel);
+    setVisible(`gramatura-${sid}`, !!gramLabel);
+    renderCardPeriod(sid, "turno", metrics?.turno, status);
+    renderCardPeriod(sid, "hora", metrics?.hora, status);
+    const tempo = formatTempoMedio(status.tempo_medio_min_por_peca);
+    setText(`ritmo-medio-${sid}`, tempo === "—" ? "Ritmo médio: —" : `Ritmo médio: ${tempo} min/peça`);
+  }).catch(() => {
+    renderCardPeriod(sid, "turno", null, {});
+    renderCardPeriod(sid, "hora", null, {});
+    setText(`gramatura-${sid}`, "");
+  });
 }
 
 function updateAll(){

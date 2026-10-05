@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\dashboard.ui.js
-Último recode: 2026-10-05 11:35 (America/Bahia)
-Motivo: Tornar opcional por máquina a exibição da hora atual no Painel Industrial.
+Último recode: 2026-10-05 16:49 (America/Bahia)
+Motivo: Exibir gramatura da OP, OEE e ocorrências por período no card, preservando a hora opcional e retirando os atalhos.
 */
 
 function fmt(n){
@@ -225,42 +225,35 @@ function cardHTML(machineId){
     <article class="machine-card" onclick="window.location.href='/producao/config/${encodeURIComponent(machineId)}'">
       <div class="machine-header">
         <div style="min-width:0;">
+          <div class="machine-caption">Máquina</div>
           <div class="machine-name">${upper}</div>
-          <div class="machine-caption">Acompanhamento do turno</div>
+          <div class="machine-gramatura" id="gramatura-${sid}"></div>
         </div>
         <div id="status-badge-${sid}" class="machine-status status-manual">AGUARDANDO</div>
       </div>
 
       <div class="percent-container" id="percent-container-${sid}">
         <div class="percent-block">
-          <div class="percent-value" id="percent-turno-${sid}">0%</div>
-          <div class="percent-label">Turno</div>
+          <div class="percent-label" id="period-turno-${sid}">Turno</div>
           <div class="stats-sub"><span id="lbl-meta-turno-u1-${sid}">Meta</span><b id="meta-turno-u1-${sid}">0</b></div>
           <div class="stats-sub"><span id="lbl-prod-turno-u1-${sid}">Produzido</span><b id="prod-turno-u1-${sid}">0</b></div>
           <div class="stats-sub" id="row-meta-turno-u2-${sid}"><span id="lbl-meta-turno-u2-${sid}">Meta</span><b id="meta-turno-u2-${sid}">0</b></div>
           <div class="stats-sub" id="row-prod-turno-u2-${sid}"><span id="lbl-prod-turno-u2-${sid}">Produzido</span><b id="prod-turno-u2-${sid}">0</b></div>
+          <div class="stats-sub card-oee"><span>OEE</span><b id="oee-turno-${sid}">—</b></div>
+          <div id="quality-turno-${sid}"></div>
+          <div class="stats-sub"><span>Paradas</span><b id="stops-turno-${sid}">—</b></div>
         </div>
         <div class="divider" id="hour-divider-${sid}"></div>
         <div class="percent-block" id="hour-block-${sid}">
-          <div class="percent-value" id="percent-hora-${sid}">0%</div>
           <div class="percent-label">Hora atual</div>
           <div class="stats-sub"><span id="lbl-meta-hora-u1-${sid}">Meta</span><b id="meta-hora-u1-${sid}">0</b></div>
           <div class="stats-sub"><span id="lbl-prod-hora-u1-${sid}">Produzido</span><b id="prod-hora-u1-${sid}">0</b></div>
           <div class="stats-sub" id="row-meta-hora-u2-${sid}"><span id="lbl-meta-hora-u2-${sid}">Meta</span><b id="meta-hora-u2-${sid}">0</b></div>
           <div class="stats-sub" id="row-prod-hora-u2-${sid}"><span id="lbl-prod-hora-u2-${sid}">Produzido</span><b id="prod-hora-u2-${sid}">0</b></div>
+          <div class="stats-sub card-oee"><span>OEE</span><b id="oee-hora-${sid}">—</b></div>
+          <div id="quality-hora-${sid}"></div>
+          <div class="stats-sub"><span>Paradas</span><b id="stops-hora-${sid}">—</b></div>
         </div>
-      </div>
-
-      <div class="machine-progress">
-        <div class="machine-progress-head"><span>Progresso da meta</span><strong id="progress-pct-${sid}">0%</strong></div>
-        <div class="machine-progress-track"><div class="machine-progress-fill" id="progress-fill-${sid}"></div></div>
-      </div>
-      <div class="machine-stop-summary"><span>Tempo parado</span><b id="parado-resumo-${sid}">0 min</b></div>
-
-      <div class="machine-actions" onclick="event.stopPropagation()">
-        <a class="btn btn-primary" href="/producao/config/${encodeURIComponent(machineId)}">Detalhe operacional</a>
-        <a class="btn btn-secondary" href="/indicadores/maquina/${encodeURIComponent(machineId)}">Indicadores</a>
-        <a class="btn btn-secondary" href="/producao/historico?machine_id=${encodeURIComponent(machineId)}">Histórico</a>
       </div>
 
       <div id="wifi-wrap-${sid}" style="position:absolute;left:15px;bottom:14px;width:24px;height:20px;pointer-events:none;">
