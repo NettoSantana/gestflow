@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\machine_routes.py
-# Último recode: 2026-08-31 14:50 (America/Bahia)
-# Motivo: Isolar refugo por tenant e impedir atribuicao automatica insegura de historico legado sem cliente_id.
+# Último recode: 2026-10-05 11:35 (America/Bahia)
+# Motivo: Tornar opcional por máquina a exibição da hora atual no Painel Industrial.
 
 import os
 import json
@@ -2066,6 +2066,10 @@ def _cfgv2_break_rel(shift_start: int, br_start: int, br_end: int) -> tuple[int,
 
 def _cfgv2_validate(raw: dict) -> dict:
     cfg = {}
+    show_hour_tracking = raw.get("show_hour_tracking", True)
+    if not isinstance(show_hour_tracking, bool):
+        raise ValueError("show_hour_tracking deve ser booleano")
+    cfg["show_hour_tracking"] = show_hour_tracking
 
     # active_days: aceita 0..7 no payload, mas persiste padrao 1..7 (domingo=7)
     ad = raw.get("active_days")
@@ -2228,6 +2232,7 @@ def _cfgv2_normalize_payload(data: dict) -> dict:
         conv = None
 
     cfg = {
+        "show_hour_tracking": data.get("show_hour_tracking", True),
         "active_days": [1, 2, 3, 4, 5, 6, 7],
         "shifts": [{"name": "A", "start": inicio, "end": fim, "meta_pcs": meta_turno, "breaks": []}],
         "oee": {"ideal_sec_per_piece": None, "no_count_stop_sec": (ncss if ncss >= 5 else None), "ramp_percent": rampa},

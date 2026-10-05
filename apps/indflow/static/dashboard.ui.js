@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\dashboard.ui.js
-Último recode: 2026-09-02 09:50 (America/Bahia)
-Motivo: Incorporar ao card do Painel Industrial progresso da meta, tempo parado e atalhos operacionais.
+Último recode: 2026-10-05 11:35 (America/Bahia)
+Motivo: Tornar opcional por máquina a exibição da hora atual no Painel Industrial.
 */
 
 function fmt(n){
@@ -89,6 +89,11 @@ function applyWifiToCard(machineId, data){
 
 function applyStatusToCard(machineId, data){
   const sid = safeSid(machineId);
+  const showHour = data?.config_v2?.show_hour_tracking !== false;
+  setVisible(`hour-block-${sid}`, showHour);
+  setVisible(`hour-divider-${sid}`, showHour);
+  const percentContainer = document.getElementById(`percent-container-${sid}`);
+  if(percentContainer) percentContainer.style.gridTemplateColumns = showHour ? "" : "minmax(0,1fr)";
   const badge = document.getElementById(`status-badge-${sid}`);
   const stopEl = document.getElementById(`stopline-${sid}`);
   const statusUI = resolveStatusUI(data);
@@ -226,7 +231,7 @@ function cardHTML(machineId){
         <div id="status-badge-${sid}" class="machine-status status-manual">AGUARDANDO</div>
       </div>
 
-      <div class="percent-container">
+      <div class="percent-container" id="percent-container-${sid}">
         <div class="percent-block">
           <div class="percent-value" id="percent-turno-${sid}">0%</div>
           <div class="percent-label">Turno</div>
@@ -235,8 +240,8 @@ function cardHTML(machineId){
           <div class="stats-sub" id="row-meta-turno-u2-${sid}"><span id="lbl-meta-turno-u2-${sid}">Meta</span><b id="meta-turno-u2-${sid}">0</b></div>
           <div class="stats-sub" id="row-prod-turno-u2-${sid}"><span id="lbl-prod-turno-u2-${sid}">Produzido</span><b id="prod-turno-u2-${sid}">0</b></div>
         </div>
-        <div class="divider"></div>
-        <div class="percent-block">
+        <div class="divider" id="hour-divider-${sid}"></div>
+        <div class="percent-block" id="hour-block-${sid}">
           <div class="percent-value" id="percent-hora-${sid}">0%</div>
           <div class="percent-label">Hora atual</div>
           <div class="stats-sub"><span id="lbl-meta-hora-u1-${sid}">Meta</span><b id="meta-hora-u1-${sid}">0</b></div>

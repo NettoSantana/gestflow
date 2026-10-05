@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\producao\templates\config_maquina_for.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-10-05 11:35 (America/Bahia)
+Motivo: Tornar opcional por máquina a exibição da hora atual no Painel Industrial.
 #}
 
 {% extends "base.html" %}
@@ -110,6 +110,13 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
 
       <label class="mt-20" for="conv_m_por_pcs">Conversao (1 pcs = X metros) (use quando houver pcs e metros):</label>
       <input type="number" id="conv_m_por_pcs" class="input" step="0.001" min="0.001" placeholder="Ex: 0.85">
+
+      <label class="mt-20" for="show_hour_tracking">Exibir acompanhamento por hora:</label>
+      <select id="show_hour_tracking" class="input">
+        <option value="true">Sim</option>
+        <option value="false">Não</option>
+      </select>
+      <div class="help-text">Controla a exibição da hora atual no Painel Industrial desta máquina.</div>
 
       <button class="btn btn-primary mt-20" type="submit">Salvar Configuracao</button>
     </form>
@@ -589,6 +596,8 @@ function garantirSemDuplicar(){ const u1=document.getElementById("unidade_1"); c
 document.getElementById("unidade_1").addEventListener("change",garantirSemDuplicar);
 document.getElementById("unidade_2").addEventListener("change",garantirSemDuplicar);
 
+document.getElementById("show_hour_tracking").addEventListener("change", markConfigDirty);
+
 // Submit config v2
 document.getElementById("config-form").addEventListener("submit", function(e){
   e.preventDefault();
@@ -625,6 +634,7 @@ document.getElementById("config-form").addEventListener("submit", function(e){
   const payload = {
     machine_id: machine_id,
     version: 2,
+    show_hour_tracking: document.getElementById("show_hour_tracking").value === "true",
     active_days: getActiveDays(),
     shifts: shiftsState.map(s=>({
       name: String(s.name||"").trim(),
@@ -689,6 +699,7 @@ async function fetchStatus(){
 }
 
 function applyConfigFromStatus(data){
+  document.getElementById("show_hour_tracking").value = data.config_v2?.show_hour_tracking === false ? "false" : "true";
   // units
   document.getElementById("unidade_1").value = data.unidade_1 ?? data.units?.unidade_1 ?? "";
   document.getElementById("unidade_2").value = data.unidade_2 ?? data.units?.unidade_2 ?? "";
