@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\dashboard.ui.js
-Último recode: 2026-10-06 10:35 (America/Bahia)
-Motivo: Recolocar o balizador da meta acumulada por minuto, com igualdade e cores para abaixo, acima e meta atingida.
+Último recode: 2026-10-06 11:00 (America/Bahia)
+Motivo: Preservar os cards e a configuração de horas durante ajustes de tamanho, paginação e tela inteira.
 */
 
 function fmt(n){
@@ -83,7 +83,14 @@ function resolveCardStatusUI(machineId, data){
 
 function applyStatusToCard(machineId, data){
   const sid = safeSid(machineId);
-  const showHour = data?.config_v2?.show_hour_tracking !== false;
+  const flag = data?.config_v2?.show_hour_tracking;
+  if(typeof flag === "boolean"){
+    const previous = machineDisplayConfig(machineId);
+    machineDisplay[normalizeId(machineId)] = {
+      ...previous, config_v2:{...previous.config_v2, show_hour_tracking:flag}
+    };
+  }
+  const showHour = machineDisplayConfig(machineId)?.config_v2?.show_hour_tracking !== false;
   const card = document.getElementById(`machine-card-${sid}`);
   if(card) card.classList.toggle("machine-card-compact", !showHour);
   setVisible(`hour-block-${sid}`, showHour);
@@ -272,14 +279,49 @@ function cardHTML(machineId){
   `;
 }
 
+const dashboardCardElements = new Map();
+
 function renderMachines(){
   const grid = document.getElementById("machineGrid");
   if(!grid) return;
   clampCurrentPage();
   const pageItems = getMachinesPage();
-  grid.innerHTML = pageItems.length ? pageItems.map(cardHTML).join("") : `<div class="empty-state"><strong>Nenhuma máquina cadastrada.</strong></div>`;
+  const allIds = new Set(getMachines());
+  for(const id of dashboardCardElements.keys()){
+    if(!allIds.has(id)) dashboardCardElements.delete(id);
+  }
+  const cards = pageItems.map(machineId => {
+    let card = dashboardCardElements.get(machineId);
+    if(!card){
+      const template = document.createElement("template");
+      template.innerHTML = cardHTML(machineId).trim();
+      card = template.content.firstElementChild;
+      dashboardCardElements.set(machineId, card);
+    }
+    return card;
+  });
+  const visible = new Set(cards);
+  Array.from(grid.children).forEach(child => {
+    if(!visible.has(child)) child.remove();
+  });
+  let position = grid.firstElementChild;
+  cards.forEach(card => {
+    if(card !== position) grid.insertBefore(card, position);
+    position = card.nextElementSibling;
+  });
+  if(!cards.length){
+    grid.innerHTML = `<div class="empty-state"><strong>Nenhuma máquina cadastrada.</strong></div>`;
+  }
+  cards.forEach((card, index) => {
+    const mid = pageItems[index];
+    const showHour = machineDisplayConfig(mid)?.config_v2?.show_hour_tracking !== false;
+    card.classList.toggle("machine-card-compact", !showHour);
+    setVisible(`hour-block-${safeSid(mid)}`, showHour);
+    setVisible(`hour-divider-${safeSid(mid)}`, showHour);
+    const percent = card.querySelector(".percent-container");
+    if(percent) percent.style.gridTemplateColumns = showHour ? "" : "minmax(0,1fr)";
+  });
   renderPager();
-  refreshStatuses();
   queueDashboardLayout();
 }
 
