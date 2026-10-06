@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\indicadores\routes.py
-# Último recode: 2026-10-06 10:18 (America/Bahia)
-# Motivo: Exibir tempo de paradas abaixo da produção e status colorido de comunicação sem ícone de Wi-Fi.
+# Último recode: 2026-10-06 10:35 (America/Bahia)
+# Motivo: Recolocar o balizador da meta acumulada por minuto, com igualdade e cores para abaixo, acima e meta atingida.
 
 from __future__ import annotations
 
@@ -211,15 +211,21 @@ def _card_period_summary(conn, cid, mid, config, windows, types, start, end, ref
     production = _card_production(conn, cid, mid, start, elapsed_end)
     quality, discount = _card_quality(conn, cid, mid, start, elapsed_end, types)
     goal = 0.0
+    expected_goal = 0.0
+    minute_reference = reference.replace(second=0, microsecond=0)
     for _, _, shift, planned in windows:
         duration = sum((pe - ps).total_seconds() for ps, pe in planned)
         inside = sum(max(0, (min(end, pe) - max(start, ps)).total_seconds()) for ps, pe in planned)
         if duration > 0:
-            goal += float(shift.get("meta_pcs") or 0) * inside / duration
+            rate = float(shift.get("meta_pcs") or 0) / duration
+            goal += rate * inside
+            elapsed = sum(max(0, (min(end, minute_reference, pe) - max(start, ps)).total_seconds()) for ps, pe in planned)
+            expected_goal += rate * elapsed
     values = _daily_indicator_row(start.date(), metrics["tempo_produzindo_sec"], metrics["tempo_parado_sec"],
                                   production or 0, discount, round(goal), _ideal_sec(conn, cid, mid, start.date()))
     return {"label": label, "inicio": start.replace(tzinfo=TZ_BAHIA).isoformat(),
             "fim": end.replace(tzinfo=TZ_BAHIA).isoformat(), "meta": round(goal),
+            "meta_esperada": round(min(round(goal), max(0, expected_goal)), 6),
             "producao": production, "oee": values["oee"], "ocorrencias": quality,
             "paradas": metrics["paradas"], "tempo_parado_sec": metrics["tempo_parado_sec"]}
 

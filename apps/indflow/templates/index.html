@@ -1,14 +1,14 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\templates\index.html
-Último recode: 2026-10-06 10:18 (America/Bahia)
-Motivo: Exibir tempo de paradas abaixo da produção e status colorido de comunicação sem ícone de Wi-Fi.
+Último recode: 2026-10-06 10:35 (America/Bahia)
+Motivo: Recolocar o balizador da meta acumulada por minuto, com igualdade e cores para abaixo, acima e meta atingida.
 #}
 
 {% extends "base.html" %}
 {% block title %}Painel Industrial — IndFlow{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="/static/dashboard.css?v=20261006-status-paradas">
+<link rel="stylesheet" href="/static/dashboard.css?v=20261006-balizador-minuto">
 
 <style>
 @media (min-width:981px){
@@ -94,7 +94,7 @@ Motivo: Exibir tempo de paradas abaixo da produção e status colorido de comuni
 </div>
 
 
-<script src="/static/dashboard.state.js?v=20261006-status-paradas"></script>
-<script src="/static/dashboard.ui.js?v=20261006-status-paradas"></script>
-<script src="/static/dashboard.update.js?v=20261006-status-paradas"></script>
+<script src="/static/dashboard.state.js?v=20261006-balizador-minuto"></script>
+<script src="/static/dashboard.ui.js?v=20261006-balizador-minuto"></script>
+<script src="/static/dashboard.update.js?v=20261006-balizador-minuto"></script>
 {% endblock %}

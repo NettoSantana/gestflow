@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\dashboard.css
-Último recode: 2026-10-06 10:18 (America/Bahia)
-Motivo: Exibir tempo de paradas abaixo da produção e status colorido de comunicação sem ícone de Wi-Fi.
+Último recode: 2026-10-06 10:35 (America/Bahia)
+Motivo: Recolocar o balizador da meta acumulada por minuto, com igualdade e cores para abaixo, acima e meta atingida.
 */
 
 .machine-grid{width:100%;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));align-items:start;gap:8px;}
@@ -66,3 +66,6 @@ Motivo: Exibir tempo de paradas abaixo da produção e status colorido de comuni
 .dashboard-display .page-title{font-size:20px;}
 .dashboard-display:fullscreen .page-actions,.dashboard-display:fullscreen .dashboard-register{display:none;}
 @media(max-width:720px){.dashboard-controls{gap:6px;font-size:10px;}.dashboard-display .section-shell-header{flex-wrap:wrap;}}
+
+.card-balizador{display:flex;align-items:center;gap:6px;min-height:23px;font-size:19px;font-weight:900;line-height:1.1;margin:3px 0 4px;white-space:nowrap;}
+.card-balizador-sinal{font-size:23px;line-height:1;}

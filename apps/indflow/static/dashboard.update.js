@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\dashboard.update.js
-Último recode: 2026-10-06 10:18 (America/Bahia)
-Motivo: Exibir tempo de paradas abaixo da produção e status colorido de comunicação sem ícone de Wi-Fi.
+Último recode: 2026-10-06 10:35 (America/Bahia)
+Motivo: Recolocar o balizador da meta acumulada por minuto, com igualdade e cores para abaixo, acima e meta atingida.
 */
 
 // static/dashboard.update.js
@@ -85,65 +85,41 @@ function resolveParadoMin(data){
    INDICADOR VISUAL
    =========================== */
 
-function calcularIndicador(percentual){
-  const p = Number(percentual) || 0;
-
-  if(p >= 102){
-    return { icon: "▲", color: "#16a34a" }; // verde
-  }
-
-  if(p <= 98){
-    return { icon: "▼", color: "#dc2626" }; // vermelho
-  }
-
-  return { icon: "—", color: "#2563eb" }; // azul
-}
-
-function renderPercentWithIndicator(el, percentual, indicadorOverride){
+function renderGoalIndicator(sid, scope, metrics){
+  const el = document.getElementById(`balizador-${scope}-${sid}`);
   if(!el) return;
-
-  const p = Number(percentual) || 0;
-  const ind = indicadorOverride ? indicadorOverride : calcularIndicador(p);
-
-  el.innerHTML = `
-    <span style="display:inline-flex; align-items:baseline; gap:10px; white-space:nowrap;">
-      <span style="font-size:26px; font-weight:900; line-height:1; color:${ind.color};">${ind.icon}</span>
-      <span>${p}%</span>
-    </span>
-  `;
-}
-
-/* ===========================
-   HORA: RITMO DENTRO DA HORA
-   =========================== */
-
-function getFracHoraAtual(){
-  const now = new Date();
-  const m = now.getMinutes();
-  const s = now.getSeconds();
-  const frac = (m * 60 + s) / 3600;
-  return Math.min(1, Math.max(0, frac));
-}
-
-function indicadorPorRitmoDaHora(metaHora, produzidoHora){
-  const meta = Number(metaHora) || 0;
-  const prod = Number(produzidoHora) || 0;
-
-  // Se não tem meta, não julga (normal)
-  if(meta <= 0){
-    return { icon: "—", color: "#2563eb" };
+  const goal = Number(metrics?.meta);
+  const production = Number(metrics?.producao);
+  const expected = Number(metrics?.meta_esperada);
+  el.replaceChildren();
+  el.style.color = "";
+  el.title = "";
+  if(!metrics || metrics.producao === null || metrics.producao === undefined ||
+     metrics.meta_esperada === null || metrics.meta_esperada === undefined ||
+     !Number.isFinite(goal) || goal <= 0 || !Number.isFinite(production) ||
+     !Number.isFinite(expected) || production < 0 || expected < 0){
+    el.textContent = "—";
+    return;
   }
-
-  const frac = getFracHoraAtual();
-  const esperadoAgora = meta * frac;
-
-  // muito no começo da hora (ex: 1% da hora) evita ruído
-  if(esperadoAgora <= 0.5){
-    return { icon: "—", color: "#2563eb" };
+  let symbol = "=";
+  let color = "#475569";
+  let label = "Dentro da meta";
+  if(production >= goal){
+    symbol = "↑"; color = "#2563eb"; label = "Meta atingida";
+  }else if(production < expected - 0.000001){
+    symbol = "↓"; color = "#dc2626"; label = "Abaixo do esperado";
+  }else if(production > expected + 0.000001){
+    symbol = "↑"; color = "#16a34a"; label = "Acima do esperado";
   }
-
-  const pctVsEsperado = (prod / esperadoAgora) * 100;
-  return calcularIndicador(pctVsEsperado);
+  const sign = document.createElement("span");
+  sign.className = "card-balizador-sinal";
+  sign.textContent = symbol;
+  sign.setAttribute("aria-label", label);
+  const percent = document.createElement("span");
+  percent.textContent = `${fmt(production / goal * 100)}%`;
+  el.style.color = color;
+  el.title = `${label}. Produção: ${fmt(production)}. Esperado até este minuto: ${fmt(expected)}. Meta total: ${fmt(goal)}.`;
+  el.append(sign, percent);
 }
 
 /* ===========================
@@ -153,7 +129,7 @@ function indicadorPorRitmoDaHora(metaHora, produzidoHora){
 const dashboardCardCache = new Map();
 
 function fetchCardMetrics(machineId){
-  const key = Math.floor(Date.now() / 3600000);
+  const key = Math.floor(Date.now() / 60000);
   const cached = dashboardCardCache.get(machineId);
   if(cached && cached.key === key && Date.now() - cached.at < 5000) return Promise.resolve(cached.data);
   if(cached && cached.pending) return cached.pending;
@@ -205,6 +181,7 @@ function renderCardPeriod(sid, scope, metrics, status){
     setText(`meta-${scope}-u${slot}-${sid}`, convert(metrics?.meta));
     setText(`prod-${scope}-u${slot}-${sid}`, convert(metrics?.producao));
   });
+  renderGoalIndicator(sid, scope, metrics);
   if(scope === "turno") setText(`period-turno-${sid}`, metrics?.label || "Turno");
   const oee = metrics?.oee;
   setText(`oee-${scope}-${sid}`, oee !== null && oee !== undefined && Number.isFinite(Number(oee)) ? `${fmt(Number(oee) * 100)}%` : "—");

@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\dashboard.ui.js
-Último recode: 2026-10-06 10:18 (America/Bahia)
-Motivo: Exibir tempo de paradas abaixo da produção e status colorido de comunicação sem ícone de Wi-Fi.
+Último recode: 2026-10-06 10:35 (America/Bahia)
+Motivo: Recolocar o balizador da meta acumulada por minuto, com igualdade e cores para abaixo, acima e meta atingida.
 */
 
 function fmt(n){
@@ -243,6 +243,7 @@ function cardHTML(machineId){
       <div class="percent-container" id="percent-container-${sid}">
         <div class="percent-block">
           <div class="percent-label" id="period-turno-${sid}">Turno</div>
+          <div class="card-balizador" id="balizador-turno-${sid}" aria-label="Acompanhamento da meta do turno">—</div>
           <div class="stats-sub"><span id="lbl-meta-turno-u1-${sid}">Meta</span><b id="meta-turno-u1-${sid}">0</b></div>
           <div class="stats-sub"><span id="lbl-prod-turno-u1-${sid}">Produzido</span><b id="prod-turno-u1-${sid}">0</b></div>
           <div class="stats-sub" id="row-meta-turno-u2-${sid}"><span id="lbl-meta-turno-u2-${sid}">Meta</span><b id="meta-turno-u2-${sid}">0</b></div>
@@ -254,6 +255,7 @@ function cardHTML(machineId){
         <div class="divider" id="hour-divider-${sid}"></div>
         <div class="percent-block" id="hour-block-${sid}">
           <div class="percent-label">Hora atual</div>
+          <div class="card-balizador" id="balizador-hora-${sid}" aria-label="Acompanhamento da meta da hora">—</div>
           <div class="stats-sub"><span id="lbl-meta-hora-u1-${sid}">Meta</span><b id="meta-hora-u1-${sid}">0</b></div>
           <div class="stats-sub"><span id="lbl-prod-hora-u1-${sid}">Produzido</span><b id="prod-hora-u1-${sid}">0</b></div>
           <div class="stats-sub" id="row-meta-hora-u2-${sid}"><span id="lbl-meta-hora-u2-${sid}">Meta</span><b id="meta-hora-u2-${sid}">0</b></div>
