@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\dashboard.state.js
-Último recode: 2026-10-06 09:25 (America/Bahia)
-Motivo: Respeitar a hora opcional nas máquinas sem dispositivo e compactar os cards sem acompanhamento por hora.
+Último recode: 2026-10-06 09:43 (America/Bahia)
+Motivo: Ajustar até dez máquinas ao espaço da tela, adicionar tela inteira e troca automática de páginas por intervalo.
 */
 
 // static/dashboard.state.js
@@ -23,7 +23,7 @@ function machineHasDevice(machineId){
 }
 
 /* PAGINAÇÃO */
-const PAGE_SIZE = 6;
+let PAGE_SIZE = 10;
 let currentPage = 0;
 
 /* ===========================
@@ -161,18 +161,14 @@ function ensurePager(){
 
   btnPrev.addEventListener("click", () => {
     if(currentPage > 0){
-      currentPage--;
-      renderMachines();
-      updateAll();
+      changeDashboardPage(-1);
     }
   });
 
   btnNext.addEventListener("click", () => {
     const tp = totalPages();
     if(currentPage < tp - 1){
-      currentPage++;
-      renderMachines();
-      updateAll();
+      changeDashboardPage(1);
     }
   });
 }

@@ -1,37 +1,38 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\templates\index.html
-Último recode: 2026-10-06 09:25 (America/Bahia)
-Motivo: Respeitar a hora opcional nas máquinas sem dispositivo e compactar os cards sem acompanhamento por hora.
+Último recode: 2026-10-06 09:43 (America/Bahia)
+Motivo: Ajustar até dez máquinas ao espaço da tela, adicionar tela inteira e troca automática de páginas por intervalo.
 #}
 
 {% extends "base.html" %}
 {% block title %}Painel Industrial — IndFlow{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="/static/dashboard.css?v=20261006-card-compacto">
+<link rel="stylesheet" href="/static/dashboard.css?v=20261006-painel-tv">
 
 <style>
 @media (min-width:981px){
   .industrial-dashboard-shell .industrial-topbar{height:48px;min-height:48px;padding:0 24px;}
   .industrial-dashboard-shell .industrial-topbar-context{display:none;}
   .industrial-dashboard-shell .industrial-topbar-user{padding:5px 9px;}
-  .industrial-dashboard-shell .industrial-content{padding:12px 24px 24px;}
+  .industrial-dashboard-shell .industrial-content{padding:8px 12px 12px;}
   .industrial-dashboard-shell .page-header{align-items:center;flex-wrap:nowrap;gap:14px;margin-bottom:9px;}
   .industrial-dashboard-shell .page-title{font-size:20px;line-height:1.1;letter-spacing:-.015em;}
   .industrial-dashboard-shell .page-actions{margin-left:auto;flex-wrap:nowrap;}
   .industrial-dashboard-shell .page-actions .btn{min-height:34px;padding:6px 11px;}
-  .industrial-dashboard-shell .kpi-grid{gap:8px;margin-bottom:10px;}
-  .industrial-dashboard-shell .kpi-card{min-height:62px;padding:8px 11px;border-radius:10px;box-shadow:0 3px 10px rgba(15,23,42,.035);justify-content:center;}
+  .industrial-dashboard-shell .kpi-grid{gap:7px;margin-bottom:8px;}
+  .industrial-dashboard-shell .kpi-card{min-height:46px;padding:7px 10px;border-radius:10px;box-shadow:0 3px 10px rgba(15,23,42,.035);justify-content:center;}
   .industrial-dashboard-shell .kpi-label{font-size:9px;line-height:1.1;}
-  .industrial-dashboard-shell .kpi-value{margin-top:5px;font-size:21px;line-height:1;}
+  .industrial-dashboard-shell .kpi-value{margin-top:3px;font-size:19px;line-height:1;}
   .industrial-dashboard-shell .kpi-detail{display:none;}
-  .industrial-dashboard-shell .section-shell{padding:12px 18px 18px;}
-  .industrial-dashboard-shell .section-shell-header{margin-bottom:10px;}
-  .industrial-dashboard-shell .section-shell-header h2{font-size:16px;}
+  .industrial-dashboard-shell .section-shell{padding:10px 12px;}
+  .industrial-dashboard-shell .section-shell-header{margin-bottom:8px;}
+  .industrial-dashboard-shell .section-shell-header h2{font-size:14px;}
   .industrial-dashboard-shell .section-shell-header p{margin-top:2px;font-size:11px;}
 }
 </style>
 
+<div class="dashboard-display" id="dashboardDisplay">
 <div class="page-header">
   <div class="page-heading">
     <h1 class="page-title">Painel Industrial</h1>
@@ -79,14 +80,21 @@ Motivo: Respeitar a hora opcional nas máquinas sem dispositivo e compactar os c
     <div>
       <h2>Máquinas</h2>
     </div>
-    {% if (session.get('role') or '')|lower in ['admin', 'superadmin'] %}<a class="btn btn-ghost" href="/devices/#cadastro-maquinas">Cadastrar máquina</a>{% endif %}
+    <div class="dashboard-controls">
+      <span id="dashboardPage">Página 1 de 1</span>
+      <label><input type="checkbox" id="dashboardAutoRotate" checked> Troca automática</label>
+      <label>A cada <input type="number" id="dashboardRotationSeconds" min="5" max="3600" step="1" value="15" aria-label="Intervalo de troca em segundos"> s</label>
+      <button class="btn btn-secondary" id="dashboardFullscreen" type="button">Tela inteira</button>
+      {% if (session.get('role') or '')|lower in ['admin', 'superadmin'] %}<a class="btn btn-ghost dashboard-register" href="/devices/#cadastro-maquinas">Cadastrar máquina</a>{% endif %}
+    </div>
   </div>
 
   <div class="machine-grid" id="machineGrid"></div>
 </section>
+</div>
 
 
-<script src="/static/dashboard.state.js?v=20261006-card-compacto"></script>
-<script src="/static/dashboard.ui.js?v=20261006-card-compacto"></script>
-<script src="/static/dashboard.update.js?v=20261006-card-compacto"></script>
+<script src="/static/dashboard.state.js?v=20261006-painel-tv"></script>
+<script src="/static/dashboard.ui.js?v=20261006-painel-tv"></script>
+<script src="/static/dashboard.update.js?v=20261006-painel-tv"></script>
 {% endblock %}

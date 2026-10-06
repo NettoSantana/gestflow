@@ -1,12 +1,13 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\dashboard.css
-Último recode: 2026-10-06 09:25 (America/Bahia)
-Motivo: Respeitar a hora opcional nas máquinas sem dispositivo e compactar os cards sem acompanhamento por hora.
+Último recode: 2026-10-06 09:43 (America/Bahia)
+Motivo: Ajustar até dez máquinas ao espaço da tela, adicionar tela inteira e troca automática de páginas por intervalo.
 */
 
-.machine-grid{width:100%;display:flex;flex-wrap:wrap;align-items:flex-start;gap:13px;}
-.machine-card{position:relative;background:#fff;border:1px solid #e2e8f0;border-radius:13px;padding:15px;box-shadow:0 4px 14px rgba(15,23,42,.04);cursor:pointer;transition:.15s ease;min-width:0;flex:0 1 380px;max-width:100%;}
-.machine-card-compact{flex-basis:225px;padding:12px;}
+.machine-grid{width:100%;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));align-items:start;gap:8px;}
+.machine-card{position:relative;background:#fff;border:1px solid #e2e8f0;border-radius:13px;padding:0;box-shadow:0 4px 14px rgba(15,23,42,.04);cursor:pointer;transition:.15s ease;min-width:0;max-width:100%;overflow:hidden;}
+.machine-card-body{position:relative;padding:8px;transform-origin:top left;}
+.machine-card-compact{min-width:0;}
 .machine-card-compact .machine-status{font-size:8px;}
 .machine-card:hover{border-color:#bfdbfe;box-shadow:0 8px 22px rgba(15,23,42,.08);transform:translateY(-1px);}
 .machine-header{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding-bottom:11px;border-bottom:1px solid #eef2f7;}
@@ -30,7 +31,39 @@ Motivo: Respeitar a hora opcional nas máquinas sem dispositivo e compactar os c
 
 #wifi-wrap-maquina01{} /* Mantem especificidade neutra para os wrappers criados via JS. */
 
-@media(max-width:720px){.machine-card{padding:14px}.machine-card-compact{padding:12px}.percent-value{font-size:25px;}}
+@media(max-width:720px){.percent-value{font-size:25px;}}
 
 .machine-gramatura{margin-top:4px;color:#dc2626;font-size:14px;font-weight:900;}
 .card-oee{padding-bottom:6px;border-bottom:1px solid #eef2f7;}.card-oee span,.card-oee b{font-weight:900;}
+
+.dashboard-display{width:100%;}
+.dashboard-display:fullscreen{height:100%;width:100%;padding:10px 14px;background:#f1f5f9;overflow:hidden;box-sizing:border-box;}
+.dashboard-controls{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;font-size:11px;color:#475569;}
+.dashboard-controls label{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;margin:0;}
+.dashboard-controls input[type=number]{width:64px;min-height:28px;padding:5px;border:1px solid #cbd5e1;border-radius:6px;}
+.dashboard-controls input[type=checkbox]{width:auto;min-height:0;margin:0;padding:0;}
+.dashboard-controls .btn{min-height:30px;padding:5px 9px;font-size:11px;}
+.dashboard-display .machine-header{padding-bottom:7px;gap:7px;}
+.dashboard-display .machine-name{font-size:16px;}
+.dashboard-display .machine-caption{font-size:8px;margin-top:0;}
+.dashboard-display .machine-gramatura{font-size:11px;margin-top:2px;}
+.dashboard-display .percent-container{margin-top:5px;}
+.dashboard-display .percent-label{font-size:9px;margin-top:0;}
+.dashboard-display .stats-sub{margin-top:3px;font-size:11px;line-height:1.2;}
+.dashboard-display .stats-sub b{font-size:12px;}
+.dashboard-display .card-oee{padding-bottom:3px;}
+.dashboard-display .ritmo-medio{margin-top:5px;padding-top:7px;font-size:9px;line-height:1.2;}
+.dashboard-display .machine-card:hover{transform:none;}
+.dashboard-display .pager{margin-top:8px;}
+.dashboard-display .pager button{height:26px;}
+.dashboard-display .section-shell{padding:10px 12px;}
+.dashboard-display .section-shell-header{margin-bottom:8px;}
+.dashboard-display .section-shell-header h2{font-size:14px;}
+.dashboard-display .kpi-grid{gap:7px;margin-bottom:8px;}
+.dashboard-display .kpi-card{min-height:46px;padding:7px 10px;}
+.dashboard-display .kpi-value{font-size:19px;margin-top:3px;}
+.dashboard-display .kpi-detail{display:none;}
+.dashboard-display .page-header{margin-bottom:8px;}
+.dashboard-display .page-title{font-size:20px;}
+.dashboard-display:fullscreen .page-actions,.dashboard-display:fullscreen .dashboard-register{display:none;}
+@media(max-width:720px){.dashboard-controls{gap:6px;font-size:10px;}.dashboard-display .section-shell-header{flex-wrap:wrap;}}
