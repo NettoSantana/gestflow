@@ -1,14 +1,14 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\templates\index.html
-Último recode: 2026-10-06 08:51 (America/Bahia)
-Motivo: Permitir cadastro de máquinas sem dispositivo e remover textos internos da interface.
+Último recode: 2026-10-06 09:25 (America/Bahia)
+Motivo: Respeitar a hora opcional nas máquinas sem dispositivo e compactar os cards sem acompanhamento por hora.
 #}
 
 {% extends "base.html" %}
 {% block title %}Painel Industrial — IndFlow{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="/static/dashboard.css?v=20261006-maquinas">
+<link rel="stylesheet" href="/static/dashboard.css?v=20261006-card-compacto">
 
 <style>
 @media (min-width:981px){
@@ -86,7 +86,7 @@ Motivo: Permitir cadastro de máquinas sem dispositivo e remover textos internos
 </section>
 
 
-<script src="/static/dashboard.state.js?v=20261006-maquinas"></script>
-<script src="/static/dashboard.ui.js?v=20261006-maquinas"></script>
-<script src="/static/dashboard.update.js?v=20261006-maquinas"></script>
+<script src="/static/dashboard.state.js?v=20261006-card-compacto"></script>
+<script src="/static/dashboard.ui.js?v=20261006-card-compacto"></script>
+<script src="/static/dashboard.update.js?v=20261006-card-compacto"></script>
 {% endblock %}

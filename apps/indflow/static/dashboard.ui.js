@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\dashboard.ui.js
-Último recode: 2026-10-06 08:51 (America/Bahia)
-Motivo: Permitir cadastro de máquinas sem dispositivo e remover textos internos da interface.
+Último recode: 2026-10-06 09:25 (America/Bahia)
+Motivo: Respeitar a hora opcional nas máquinas sem dispositivo e compactar os cards sem acompanhamento por hora.
 */
 
 function fmt(n){
@@ -90,6 +90,8 @@ function applyWifiToCard(machineId, data){
 function applyStatusToCard(machineId, data){
   const sid = safeSid(machineId);
   const showHour = data?.config_v2?.show_hour_tracking !== false;
+  const card = document.getElementById(`machine-card-${sid}`);
+  if(card) card.classList.toggle("machine-card-compact", !showHour);
   setVisible(`hour-block-${sid}`, showHour);
   setVisible(`hour-divider-${sid}`, showHour);
   const percentContainer = document.getElementById(`percent-container-${sid}`);
@@ -159,7 +161,7 @@ function updateIndustrialOverview(rows){
 
 function refreshStatuses(){
   const machines = getMachines();
-  machines.filter(id => !machineHasDevice(id)).forEach(id => applyStatusToCard(id, {}));
+  machines.filter(id => !machineHasDevice(id)).forEach(id => applyStatusToCard(id, machineDisplayConfig(id)));
   const jobs = machines.filter(machineHasDevice).map(machineId =>
     fetch(`/machine/status?machine_id=${encodeURIComponent(machineId)}`)
       .then(r => r.ok ? r.json() : Promise.reject(new Error("status")))
@@ -225,7 +227,7 @@ function cardHTML(machineId){
   const upper = String(machineId).toUpperCase();
 
   return `
-    <article class="machine-card" onclick="window.location.href='/producao/config/${encodeURIComponent(machineId)}'">
+    <article id="machine-card-${sid}" class="machine-card${machineDisplayConfig(machineId)?.config_v2?.show_hour_tracking === false ? ' machine-card-compact' : ''}" onclick="window.location.href='/producao/config/${encodeURIComponent(machineId)}'">
       <div class="machine-header">
         <div style="min-width:0;">
           <div class="machine-caption">Máquina</div>

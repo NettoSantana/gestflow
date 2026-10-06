@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\dashboard.state.js
-Último recode: 2026-10-06 08:51 (America/Bahia)
-Motivo: Permitir cadastro de máquinas sem dispositivo e remover textos internos da interface.
+Último recode: 2026-10-06 09:25 (America/Bahia)
+Motivo: Respeitar a hora opcional nas máquinas sem dispositivo e compactar os cards sem acompanhamento por hora.
 */
 
 // static/dashboard.state.js
@@ -12,6 +12,11 @@ Motivo: Permitir cadastro de máquinas sem dispositivo e remover textos internos
 
 let tenantMachines = [];
 let linkedMachines = new Set();
+let machineDisplay = {};
+
+function machineDisplayConfig(machineId){
+  return machineDisplay[normalizeId(machineId)] || {};
+}
 
 function machineHasDevice(machineId){
   return linkedMachines.has(normalizeId(machineId));
@@ -56,6 +61,7 @@ function loadTenantMachines(){
     .then(data => {
       setMachines(Array.isArray(data && data.machines) ? data.machines : []);
       linkedMachines = new Set((Array.isArray(data.linked_machines) ? data.linked_machines : data.machines || []).map(normalizeId));
+      machineDisplay = data.machine_display && typeof data.machine_display === "object" ? data.machine_display : {};
       currentPage = 0;
 
       if(typeof renderMachines === "function") renderMachines();
@@ -66,6 +72,7 @@ function loadTenantMachines(){
     .catch(() => {
       setMachines([]);
       linkedMachines.clear();
+      machineDisplay = {};
       currentPage = 0;
 
       if(typeof renderMachines === "function") renderMachines();

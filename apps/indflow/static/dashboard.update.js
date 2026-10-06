@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\dashboard.update.js
-Último recode: 2026-10-06 08:51 (America/Bahia)
-Motivo: Permitir cadastro de máquinas sem dispositivo e remover textos internos da interface.
+Último recode: 2026-10-06 09:25 (America/Bahia)
+Motivo: Respeitar a hora opcional nas máquinas sem dispositivo e compactar os cards sem acompanhamento por hora.
 */
 
 // static/dashboard.update.js
@@ -216,9 +216,10 @@ function renderCardPeriod(sid, scope, metrics, status){
 function updateMachine(machineId){
   const sid = safeSid(machineId);
   if(!machineHasDevice(machineId)){
-    applyStatusToCard(machineId, {});
-    renderCardPeriod(sid, "turno", null, {});
-    renderCardPeriod(sid, "hora", null, {});
+    const display = machineDisplayConfig(machineId);
+    applyStatusToCard(machineId, display);
+    renderCardPeriod(sid, "turno", null, display);
+    renderCardPeriod(sid, "hora", null, display);
     setText(`gramatura-${sid}`, "");
     setVisible(`gramatura-${sid}`, false);
     setText(`ritmo-medio-${sid}`, "Ritmo médio: —");

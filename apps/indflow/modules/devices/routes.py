@@ -1,10 +1,11 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\devices\routes.py
-# Último recode: 2026-10-06 08:51 (America/Bahia)
-# Motivo: Permitir cadastro de máquinas sem dispositivo e remover textos internos da interface.
+# Último recode: 2026-10-06 09:25 (America/Bahia)
+# Motivo: Respeitar a hora opcional nas máquinas sem dispositivo e compactar os cards sem acompanhamento por hora.
 
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify
 from datetime import datetime
 import hashlib
+import json
 import re
 import secrets
 
@@ -140,14 +141,61 @@ def machines():
     try:
         _ensure_devices_table(db)
         rows = _machine_rows(db, cliente_id)
-        return jsonify({
+        response = jsonify({
             "ok": True,
             "cliente_id": cliente_id,
             "machines": [row["machine_id"] for row in rows],
             "linked_machines": [row["machine_id"] for row in rows if row["linked"]],
+            "machine_display": _machine_display_configs(db, cliente_id, rows),
         })
+        response.headers["Cache-Control"] = "no-store"
+        return response
     finally:
         db.close()
+
+
+def _machine_display_configs(db, cliente_id, machine_rows):
+    configs = {}
+    # Configuração por empresa; o legado é lido apenas por chave scoped.
+    for table in ("machine_config_tenant", "machine_config"):
+        columns = {row[1] for row in db.execute(f"PRAGMA table_info({table})")}
+        if not {"machine_id", "config_json"}.issubset(columns):
+            continue
+        if "cliente_id" in columns:
+            rows = db.execute(
+                f"SELECT machine_id, config_json FROM {table} WHERE cliente_id=?",
+                (cliente_id,),
+            ).fetchall()
+        else:
+            rows = db.execute(
+                f"SELECT machine_id, config_json FROM {table} WHERE machine_id LIKE ?",
+                (f"{cliente_id}::%",),
+            ).fetchall()
+        for row in rows:
+            mid = _norm_machine_id(row[0])
+            prefix = f"{cliente_id}::"
+            if mid.startswith(prefix):
+                mid = mid[len(prefix):]
+            if mid in configs:
+                continue
+            try:
+                cfg = json.loads(row[1] or "{}")
+            except (TypeError, ValueError):
+                continue
+            if isinstance(cfg, dict):
+                configs[mid] = cfg
+    out = {}
+    for machine in machine_rows:
+        mid = machine["machine_id"]
+        cfg = configs.get(mid, {})
+        units = cfg.get("units")
+        units = units if isinstance(units, dict) else {}
+        out[mid] = {
+            "config_v2": {"show_hour_tracking": cfg.get("show_hour_tracking") is not False},
+            "unidade_1": units.get("u1") or cfg.get("unidade_1") or "pcs",
+            "unidade_2": units.get("u2") or cfg.get("unidade_2"),
+        }
+    return out
 
 
 def _ensure_machine_registry(db):
