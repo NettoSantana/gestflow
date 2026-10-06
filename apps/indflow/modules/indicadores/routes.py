@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\indicadores\routes.py
-# Último recode: 2026-10-05 16:49 (America/Bahia)
-# Motivo: Disponibilizar dados do card por turno e hora, com OEE existente, ocorrências configuradas e gramatura da OP ativa.
+# Último recode: 2026-10-06 10:18 (America/Bahia)
+# Motivo: Exibir tempo de paradas abaixo da produção e status colorido de comunicação sem ícone de Wi-Fi.
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from modules.paradas.services import _daily_indicator_row, _ideal_sec, machine_c
 from modules.producao.historico_routes import (
     _get_columns, _load_machine_config, _parse_hhmm, _planned_intervals_for_day,
     _state_segments_for_day, _operational_segments_for_range, _state_metrics,
-    _fetch_horaria, TZ_BAHIA,
+    _fetch_horaria, _communication_status, TZ_BAHIA,
 )
 from modules.paradas.services import general_indicator_summary, list_tenant_machines, machine_indicator_summary, normalize_machine_id, now_local
 
@@ -221,7 +221,7 @@ def _card_period_summary(conn, cid, mid, config, windows, types, start, end, ref
     return {"label": label, "inicio": start.replace(tzinfo=TZ_BAHIA).isoformat(),
             "fim": end.replace(tzinfo=TZ_BAHIA).isoformat(), "meta": round(goal),
             "producao": production, "oee": values["oee"], "ocorrencias": quality,
-            "paradas": metrics["paradas"]}
+            "paradas": metrics["paradas"], "tempo_parado_sec": metrics["tempo_parado_sec"]}
 
 
 @indicadores_bp.get("/api/card/<machine_id>")
@@ -267,7 +267,9 @@ def api_card(machine_id):
         if cv2.get("show_hour_tracking") is not False:
             hs = reference.replace(minute=0, second=0, microsecond=0)
             hour = _card_period_summary(conn, cid, mid, config, windows, types, hs, hs + timedelta(hours=1), reference, "Hora atual")
-        response = jsonify({"ok": True, "data": {"gramatura": gram, "turno": main, "hora": hour}})
+        communication = _communication_status(conn, cid, mid)
+        response = jsonify({"ok": True, "data": {"gramatura": gram, "turno": main, "hora": hour,
+                                                "communication": communication}})
         response.headers["Cache-Control"] = "no-store"
         return response
     finally:

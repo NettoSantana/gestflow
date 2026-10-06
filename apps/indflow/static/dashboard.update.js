@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\dashboard.update.js
-Último recode: 2026-10-06 09:25 (America/Bahia)
-Motivo: Respeitar a hora opcional nas máquinas sem dispositivo e compactar os cards sem acompanhamento por hora.
+Último recode: 2026-10-06 10:18 (America/Bahia)
+Motivo: Exibir tempo de paradas abaixo da produção e status colorido de comunicação sem ícone de Wi-Fi.
 */
 
 // static/dashboard.update.js
@@ -171,6 +171,18 @@ function fetchCardMetrics(machineId){
   return entry.pending;
 }
 
+
+function formatStopDuration(value){
+  if(value === null || value === undefined || value === "") return "—";
+  const seconds = Number(value);
+  if(!Number.isFinite(seconds) || seconds < 0) return "—";
+  const total = Math.floor(seconds);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const rest = total % 60;
+  return [hours, minutes, rest].map(v => String(v).padStart(2, "0")).join(":");
+}
+
 function renderCardPeriod(sid, scope, metrics, status){
   const u1 = normUnidade(status.unidade_1) || "pcs";
   const u2 = normUnidade(status.unidade_2);
@@ -196,7 +208,7 @@ function renderCardPeriod(sid, scope, metrics, status){
   if(scope === "turno") setText(`period-turno-${sid}`, metrics?.label || "Turno");
   const oee = metrics?.oee;
   setText(`oee-${scope}-${sid}`, oee !== null && oee !== undefined && Number.isFinite(Number(oee)) ? `${fmt(Number(oee) * 100)}%` : "—");
-  setText(`stops-${scope}-${sid}`, metrics ? fmt(metrics.paradas) : "—");
+  setText(`stops-${scope}-${sid}`, formatStopDuration(metrics?.tempo_parado_sec));
   const quality = document.getElementById(`quality-${scope}-${sid}`);
   if(quality){
     quality.replaceChildren();
@@ -230,6 +242,7 @@ function updateMachine(machineId){
     fetchCardMetrics(machineId)
   ]).then(([status, metrics]) => {
     if(!document.getElementById(`status-badge-${sid}`)) return;
+    status.communication = metrics?.communication;
     applyStatusToCard(machineId, status);
     const gram = String(metrics?.gramatura || "").trim();
     const gramLabel = gram && /^\d+(?:[.,]\d+)?$/.test(gram) ? `${gram} GR` : gram;
@@ -240,8 +253,10 @@ function updateMachine(machineId){
     const tempo = formatTempoMedio(status.tempo_medio_min_por_peca);
     setText(`ritmo-medio-${sid}`, tempo === "—" ? "Ritmo médio: —" : `Ritmo médio: ${tempo} min/peça`);
   }).catch(() => {
-    renderCardPeriod(sid, "turno", null, {});
-    renderCardPeriod(sid, "hora", null, {});
+    const display = {...machineDisplayConfig(machineId), status_fetch_failed:true};
+    applyStatusToCard(machineId, display);
+    renderCardPeriod(sid, "turno", null, display);
+    renderCardPeriod(sid, "hora", null, display);
     setText(`gramatura-${sid}`, "");
   });
 }

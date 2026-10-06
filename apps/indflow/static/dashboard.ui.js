@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\dashboard.ui.js
-Último recode: 2026-10-06 09:43 (America/Bahia)
-Motivo: Ajustar até dez máquinas ao espaço da tela, adicionar tela inteira e troca automática de páginas por intervalo.
+Último recode: 2026-10-06 10:18 (America/Bahia)
+Motivo: Exibir tempo de paradas abaixo da produção e status colorido de comunicação sem ícone de Wi-Fi.
 */
 
 function fmt(n){
@@ -35,11 +35,12 @@ function resolveParadoMin(data){
   return null;
 }
 
-const WIFI_OFFLINE_THRESHOLD_SEC = 45;
+const WIFI_OFFLINE_THRESHOLD_SEC = 60;
 
 function resolveLastSeenMs(data){
   const candidates = [
     data && data.last_seen_ms,
+    data && data._last_esp_ts_ms_seen,
     data && data.last_seen_ts,
     data && data.last_seen,
     data && data.device_last_seen,
@@ -62,6 +63,11 @@ function resolveLastSeenMs(data){
 }
 
 function resolveWifiState(data){
+  if(data?.status_fetch_failed) return "OFFLINE";
+  const expires = Number(data?.communication?.expires_at_ms);
+  if(data?.communication?.monitored && Number.isFinite(expires)){
+    return Date.now() < expires ? "ONLINE" : "OFFLINE";
+  }
   const lastMs = resolveLastSeenMs(data);
   if(lastMs === null) return "SEM_DADOS";
   const diffSec = (Date.now() - lastMs) / 1000;
@@ -69,22 +75,10 @@ function resolveWifiState(data){
   return diffSec <= WIFI_OFFLINE_THRESHOLD_SEC ? "ONLINE" : "OFFLINE";
 }
 
-function applyWifiToCard(machineId, data){
-  const sid = safeSid(machineId);
-  const svg = document.getElementById(`wifi-svg-${sid}`);
-  const xsvg = document.getElementById(`wifi-xsvg-${sid}`);
-  if(!svg || !xsvg) return;
-  const st = resolveWifiState(data);
-  if(st === "ONLINE"){
-    svg.style.color = "#2563eb";
-    xsvg.style.display = "none";
-  }else if(st === "OFFLINE"){
-    svg.style.color = "#64748b";
-    xsvg.style.display = "";
-  }else{
-    svg.style.color = "#94a3b8";
-    xsvg.style.display = "none";
-  }
+function resolveCardStatusUI(machineId, data){
+  if(!machineHasDevice(machineId)) return "SEM DISPOSITIVO";
+  if(resolveWifiState(data) !== "ONLINE") return "OFFLINE";
+  return resolveStatusUI(data);
 }
 
 function applyStatusToCard(machineId, data){
@@ -98,14 +92,13 @@ function applyStatusToCard(machineId, data){
   if(percentContainer) percentContainer.style.gridTemplateColumns = showHour ? "" : "minmax(0,1fr)";
   const badge = document.getElementById(`status-badge-${sid}`);
   const stopEl = document.getElementById(`stopline-${sid}`);
-  const statusUI = machineHasDevice(machineId) ? resolveStatusUI(data) : "SEM DISPOSITIVO";
+  const statusUI = resolveCardStatusUI(machineId, data);
   const produzindo = statusUI === "PRODUZINDO";
 
   if(badge){
     badge.textContent = statusUI;
-    badge.className = `machine-status ${produzindo ? "status-auto" : "status-manual"}`;
-    if(!machineHasDevice(machineId)) badge.style.background = "#64748b";
-    else badge.style.background = "";
+    const classes = {"PRODUZINDO":"status-auto", "PARADA":"status-manual", "OFFLINE":"status-offline", "SEM DISPOSITIVO":"status-unlinked"};
+    badge.className = `machine-status ${classes[statusUI]}`;
   }
 
   if(stopEl){
@@ -119,7 +112,6 @@ function applyStatusToCard(machineId, data){
     }
   }
 
-  applyWifiToCard(machineId, data);
   queueDashboardLayout();
 }
 
@@ -139,10 +131,11 @@ function updateIndustrialOverview(rows){
   let meta = 0;
   let scrap = 0;
 
-  valid.forEach(({data}) => {
-    if(resolveStatusUI(data) === "PRODUZINDO") running += 1;
-    else stopped += 1;
-    if(resolveWifiState(data) === "OFFLINE") offline += 1;
+  valid.forEach(({machineId, data}) => {
+    const status = resolveCardStatusUI(machineId, data);
+    if(status === "PRODUZINDO") running += 1;
+    else if(status === "PARADA") stopped += 1;
+    else if(status === "OFFLINE") offline += 1;
     production += Number(data.producao_turno) || 0;
     meta += Number(data.meta_turno) || 0;
     scrap += refugoTotal(data);
@@ -166,11 +159,17 @@ function refreshStatuses(){
   const jobs = machines.filter(machineHasDevice).map(machineId =>
     fetch(`/machine/status?machine_id=${encodeURIComponent(machineId)}`)
       .then(r => r.ok ? r.json() : Promise.reject(new Error("status")))
-      .then(data => {
+      .then(async data => {
+        const metrics = await fetchCardMetrics(machineId);
+        data.communication = metrics?.communication;
         applyStatusToCard(machineId, data);
         return { machineId, data };
       })
-      .catch(() => ({ machineId, data: null }))
+      .catch(() => {
+        const data = {...machineDisplayConfig(machineId), status_fetch_failed:true};
+        applyStatusToCard(machineId, data);
+        return {machineId, data};
+      })
   );
 
   Promise.all(jobs).then(updateIndustrialOverview).catch(() => {});
@@ -248,9 +247,9 @@ function cardHTML(machineId){
           <div class="stats-sub"><span id="lbl-prod-turno-u1-${sid}">Produzido</span><b id="prod-turno-u1-${sid}">0</b></div>
           <div class="stats-sub" id="row-meta-turno-u2-${sid}"><span id="lbl-meta-turno-u2-${sid}">Meta</span><b id="meta-turno-u2-${sid}">0</b></div>
           <div class="stats-sub" id="row-prod-turno-u2-${sid}"><span id="lbl-prod-turno-u2-${sid}">Produzido</span><b id="prod-turno-u2-${sid}">0</b></div>
+          <div class="stats-sub"><span>Paradas</span><b id="stops-turno-${sid}">—</b></div>
           <div class="stats-sub card-oee"><span>OEE</span><b id="oee-turno-${sid}">—</b></div>
           <div id="quality-turno-${sid}"></div>
-          <div class="stats-sub"><span>Paradas</span><b id="stops-turno-${sid}">—</b></div>
         </div>
         <div class="divider" id="hour-divider-${sid}"></div>
         <div class="percent-block" id="hour-block-${sid}">
@@ -259,24 +258,12 @@ function cardHTML(machineId){
           <div class="stats-sub"><span id="lbl-prod-hora-u1-${sid}">Produzido</span><b id="prod-hora-u1-${sid}">0</b></div>
           <div class="stats-sub" id="row-meta-hora-u2-${sid}"><span id="lbl-meta-hora-u2-${sid}">Meta</span><b id="meta-hora-u2-${sid}">0</b></div>
           <div class="stats-sub" id="row-prod-hora-u2-${sid}"><span id="lbl-prod-hora-u2-${sid}">Produzido</span><b id="prod-hora-u2-${sid}">0</b></div>
+          <div class="stats-sub"><span>Paradas</span><b id="stops-hora-${sid}">—</b></div>
           <div class="stats-sub card-oee"><span>OEE</span><b id="oee-hora-${sid}">—</b></div>
           <div id="quality-hora-${sid}"></div>
-          <div class="stats-sub"><span>Paradas</span><b id="stops-hora-${sid}">—</b></div>
         </div>
       </div>
 
-      <div id="wifi-wrap-${sid}" style="position:absolute;left:15px;bottom:14px;width:24px;height:20px;pointer-events:none;">
-        <svg id="wifi-svg-${sid}" viewBox="0 0 64 48" style="width:24px;height:20px;color:#94a3b8;">
-          <path d="M8 16 C24 2, 40 2, 56 16" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
-          <path d="M16 24 C28 14, 36 14, 48 24" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
-          <path d="M24 32 C30 27, 34 27, 40 32" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
-          <circle cx="32" cy="40" r="4.5" fill="currentColor"/>
-        </svg>
-        <svg id="wifi-xsvg-${sid}" viewBox="0 0 20 20" style="position:absolute;right:-2px;top:-2px;width:12px;height:12px;display:none;">
-          <circle cx="10" cy="10" r="9" fill="#dc2626"/>
-          <path d="M6 6 L14 14 M14 6 L6 14" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
-        </svg>
-      </div>
       <div class="ritmo-medio" id="ritmo-medio-${sid}">Ritmo médio: —</div>
       </div>
     </article>

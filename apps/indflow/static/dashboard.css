@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\dashboard.css
-Último recode: 2026-10-06 09:43 (America/Bahia)
-Motivo: Ajustar até dez máquinas ao espaço da tela, adicionar tela inteira e troca automática de páginas por intervalo.
+Último recode: 2026-10-06 10:18 (America/Bahia)
+Motivo: Exibir tempo de paradas abaixo da produção e status colorido de comunicação sem ícone de Wi-Fi.
 */
 
 .machine-grid{width:100%;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));align-items:start;gap:8px;}
@@ -14,7 +14,7 @@ Motivo: Ajustar até dez máquinas ao espaço da tela, adicionar tela inteira e 
 .machine-name{font-size:18px;font-weight:900;color:#0f172a;letter-spacing:.015em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .machine-caption{margin-top:3px;color:#94a3b8;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
 .machine-status{display:inline-flex;align-items:center;justify-content:center;padding:5px 8px;border-radius:999px;color:#fff;font-size:9px;font-weight:900;letter-spacing:.04em;white-space:nowrap;text-transform:uppercase;}
-.status-auto{background:#16a34a}.status-manual{background:#dc2626}.status-stop{background:#dc2626}
+.status-auto{background:#16a34a}.status-manual{background:#dc2626}.status-stop{background:#dc2626}.status-offline{background:#facc15;color:#713f12}.status-unlinked{background:#64748b;color:#fff}
 .machine-stopline{margin:8px 0 -1px;color:#b91c1c;font-size:10px;font-weight:800;text-align:right;}
 .percent-container{display:grid;grid-template-columns:minmax(0,1fr) 1px minmax(0,1fr);gap:0;margin-top:13px;}
 .percent-block{padding:0 10px;text-align:left;min-width:0;}.percent-block:first-child{padding-left:0}.percent-block:last-child{padding-right:0}
@@ -26,10 +26,9 @@ Motivo: Ajustar até dez máquinas ao espaço da tela, adicionar tela inteira e 
 .machine-progress-track{height:7px;margin-top:7px;background:#e2e8f0;border-radius:999px;overflow:hidden;}.machine-progress-fill{height:100%;width:0;background:#2563eb;border-radius:999px;transition:width .25s ease;}
 .machine-stop-summary{margin-top:9px;}
 .machine-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px;padding-top:11px;border-top:1px solid #eef2f7;}.machine-actions .btn{flex:1;min-width:105px;min-height:32px;padding:6px 8px;font-size:9px;}
-.ritmo-medio{margin-top:13px;padding-top:10px;border-top:1px solid #eef2f7;color:#64748b;font-size:10px;font-weight:700;text-align:right;padding-left:36px;}
+.ritmo-medio{margin-top:13px;padding-top:10px;border-top:1px solid #eef2f7;color:#64748b;font-size:10px;font-weight:700;text-align:right;}
 .pager{display:flex;justify-content:center;gap:6px;margin-top:14px;}.pager button{width:32px;height:30px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#334155;cursor:pointer;font-weight:900}.pager button:disabled{opacity:.35;cursor:not-allowed;}
 
-#wifi-wrap-maquina01{} /* Mantem especificidade neutra para os wrappers criados via JS. */
 
 @media(max-width:720px){.percent-value{font-size:25px;}}
 
