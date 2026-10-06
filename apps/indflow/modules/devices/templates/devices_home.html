@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\devices\templates\devices_home.html
-Último recode: 2026-10-06 08:51 (America/Bahia)
-Motivo: Permitir cadastro de máquinas sem dispositivo e remover textos internos da interface.
+Último recode: 2026-10-06 10:08 (America/Bahia)
+Motivo: Exibir máquinas removidas do painel e permitir restauração com confirmação.
 #}
 
 {% extends "base.html" %}
@@ -27,6 +27,12 @@ Motivo: Permitir cadastro de máquinas sem dispositivo e remover textos internos
   {% if device_notice == 'machine_created' %}Máquina cadastrada.
   {% elif device_notice == 'machine_exists' %}Esta máquina já está cadastrada.
   {% else %}Use até 64 letras sem acentos, números, hífen ou sublinhado. TESTE01 é reservado.{% endif %}
+</div>
+{% elif device_notice in ['machine_archived', 'machine_restored', 'machine_not_found'] %}
+<div class="page-note" style="margin-bottom:14px;">
+  {% if device_notice == 'machine_archived' %}Máquina removida do painel. Restaure-a antes de cadastrar ou vincular novamente.
+  {% elif device_notice == 'machine_restored' %}Máquina restaurada. Vincule um dispositivo para retomar o acompanhamento.
+  {% else %}Máquina não encontrada.{% endif %}
 </div>
 {% elif device_notice == 'owner_conflict' %}
 <div class="page-note" style="margin-bottom:14px;border-color:#fecaca;background:#fef2f2;color:#991b1b;">
@@ -99,6 +105,34 @@ Motivo: Permitir cadastro de máquinas sem dispositivo e remover textos internos
     {% else %}<tr><td colspan="2">Nenhuma máquina cadastrada.</td></tr>{% endfor %}
   </tbody></table></div>
 </div>
+
+
+{% if archived_machines %}
+<div class="section-shell" style="margin-bottom:14px;">
+  <div class="section-shell-header"><div><h2>Máquinas removidas do painel</h2></div></div>
+  <div class="table-wrap"><table class="table"><thead><tr><th>Máquina</th><th>Ações</th></tr></thead><tbody>
+  {% for mid in archived_machines %}
+    <tr><td>{{ mid|upper }}</td><td>
+      {% if _role in ['admin', 'superadmin'] %}
+      <form method="post" action="/devices/machines/restore" class="restore-machine-form" style="margin:0;">
+        <input type="hidden" name="machine_id" value="{{ mid }}">
+        <input type="hidden" name="token" value="{{ machine_action_token }}">
+        <button class="btn btn-secondary" type="submit">Restaurar máquina</button>
+      </form>
+      {% else %}—{% endif %}
+    </td></tr>
+  {% endfor %}
+  </tbody></table></div>
+</div>
+<script>
+document.querySelectorAll(".restore-machine-form").forEach(form => {
+  form.addEventListener("submit", event => {
+    const name = form.elements.machine_id.value.toUpperCase();
+    if(!window.confirm("Restaurar " + name + " no painel? O dispositivo deverá ser vinculado novamente.")) event.preventDefault();
+  });
+});
+</script>
+{% endif %}
 
 <div class="section-shell" style="margin-bottom:14px;">
   <div class="section-shell-header">

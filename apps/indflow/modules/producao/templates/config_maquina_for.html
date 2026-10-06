@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\producao\templates\config_maquina_for.html
-Último recode: 2026-10-06 08:51 (America/Bahia)
-Motivo: Remover explicações internas da interface e simplificar os textos.
+Último recode: 2026-10-06 10:08 (America/Bahia)
+Motivo: Adicionar remoção da máquina do painel com confirmação e histórico preservado.
 #}
 
 {% extends "base.html" %}
@@ -46,6 +46,9 @@ Motivo: Remover explicações internas da interface e simplificar os textos.
     </div>
     <div class="page-actions">
       <a class="btn btn-secondary" href="/producao/">Produção</a>
+      {% if (session.get('role') or '')|lower in ['admin', 'superadmin'] %}
+      <button id="btn-remove-machine" type="button" class="btn btn-danger">Remover do painel</button>
+      {% endif %}
       <button id="btn-reset" type="button" class="btn btn-danger">Zerar Produção</button>
     </div>
   </div>
@@ -162,6 +165,31 @@ Motivo: Remover explicações internas da interface e simplificar os textos.
 <script>
 const machine_id = window.location.pathname.split("/").pop();
 document.getElementById("titulo-maquina").textContent = "Configuracao da Maquina - " + String(machine_id||"").toUpperCase();
+
+
+const removeMachineButton = document.getElementById("btn-remove-machine");
+if(removeMachineButton){
+  removeMachineButton.addEventListener("click", async () => {
+    removeMachineButton.disabled = true;
+    try{
+      const check = await fetch("/devices/machines/removal?machine_id=" + encodeURIComponent(machine_id), {cache:"no-store"});
+      const info = await check.json().catch(() => ({}));
+      if(!check.ok || !info.ok) throw new Error(info.error || "Não foi possível verificar a máquina.");
+      let message = "Remover " + String(machine_id).toUpperCase() + " do painel? O histórico e as configurações serão preservados. A máquina poderá ser restaurada depois.";
+      if(info.linked) message += "\n\nO dispositivo será desvinculado desta máquina e poderá ser vinculado novamente.";
+      if(!window.confirm(message)) return;
+      const body = new URLSearchParams({machine_id, token:info.token});
+      const response = await fetch("/devices/machines/archive", {method:"POST", body});
+      const result = await response.json().catch(() => ({}));
+      if(!response.ok || !result.ok) throw new Error(result.error || "Não foi possível remover a máquina.");
+      window.location.assign("/");
+    }catch(error){
+      window.alert(error.message || "Não foi possível remover a máquina.");
+    }finally{
+      removeMachineButton.disabled = false;
+    }
+  });
+}
 
 function pad2(n){ return String(n).padStart(2,"0"); }
 function buildFaixas24(){ const out=[]; for(let h=0; h<24; h++){ const h2=(h+1)%24; out.push(`${pad2(h)}:00-${pad2(h2)}:00`); } return out; }

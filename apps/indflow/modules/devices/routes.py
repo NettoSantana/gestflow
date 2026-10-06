@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\devices\routes.py
-# Último recode: 2026-10-06 09:25 (America/Bahia)
-# Motivo: Respeitar a hora opcional nas máquinas sem dispositivo e compactar os cards sem acompanhamento por hora.
+# Último recode: 2026-10-06 10:08 (America/Bahia)
+# Motivo: Remover e restaurar máquinas do painel com confirmação, preservando o histórico.
 
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify
 from datetime import datetime
@@ -127,6 +127,8 @@ def home():
         "devices_home.html",
         devices=devices,
         machine_rows=machine_rows,
+        archived_machines=_archived_machine_ids(db, cliente_id),
+        machine_action_token=_machine_action_token(),
         device_notice=(request.args.get("notice") or "").strip().lower(),
     )
 
@@ -207,7 +209,34 @@ def _ensure_machine_registry(db):
             PRIMARY KEY (cliente_id, machine_id)
         )
     """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS indflow_machine_archives (
+            cliente_id TEXT NOT NULL,
+            machine_id TEXT NOT NULL,
+            archived_at TEXT NOT NULL,
+            PRIMARY KEY (cliente_id, machine_id)
+        )
+    """)
     db.commit()
+
+
+def _archived_machine_ids(db, cliente_id):
+    return [row[0] for row in db.execute(
+        "SELECT machine_id FROM indflow_machine_archives WHERE cliente_id=? ORDER BY machine_id",
+        (cliente_id,),
+    ).fetchall()]
+
+
+def _machine_action_token():
+    if not session.get("machine_action_token"):
+        session["machine_action_token"] = secrets.token_urlsafe(32)
+    return session["machine_action_token"]
+
+
+def _machine_action_confirmed():
+    expected = session.get("machine_action_token") or ""
+    received = request.form.get("token") or ""
+    return bool(expected and secrets.compare_digest(expected, received))
 
 
 def _machine_rows(db, cliente_id):
@@ -228,7 +257,8 @@ def _machine_rows(db, cliente_id):
         mid = _norm_machine_id(row[1])
         if mid:
             machines[mid] = {"machine_id": mid, "linked": True}
-    return [machines[mid] for mid in sorted(machines)]
+    archived = set(_archived_machine_ids(db, cliente_id))
+    return [machines[mid] for mid in sorted(machines) if mid not in archived]
 
 
 @devices_bp.route("/machines/create", methods=["POST"])
@@ -246,6 +276,8 @@ def create_machine():
         rows = _machine_rows(db, cliente_id)
         if any(row["machine_id"] == mid for row in rows):
             return redirect(url_for("devices.home", notice="machine_exists"))
+        if mid in _archived_machine_ids(db, cliente_id):
+            return redirect(url_for("devices.home", notice="machine_archived"))
         db.execute(
             "INSERT INTO indflow_machine_registry (cliente_id, machine_id, created_at) VALUES (?, ?, ?)",
             (cliente_id, mid, _now_str()),
@@ -255,6 +287,77 @@ def create_machine():
         db.close()
     return redirect(url_for("devices.home", notice="machine_created"))
 
+
+
+@devices_bp.route("/machines/removal", methods=["GET"])
+@admin_required
+def machine_removal():
+    cliente_id = _cliente_id_atual()
+    if not cliente_id:
+        return jsonify({"ok": False, "error": "Cliente não identificado."}), 403
+    mid = _norm_machine_id(request.args.get("machine_id"))
+    db = get_db()
+    try:
+        _ensure_devices_table(db)
+        machine = next((row for row in _machine_rows(db, cliente_id) if row["machine_id"] == mid), None)
+        if machine is None:
+            return jsonify({"ok": False, "error": "Máquina não encontrada."}), 404
+        response = jsonify({"ok": True, "linked": machine["linked"], "token": _machine_action_token()})
+        response.headers["Cache-Control"] = "no-store"
+        return response
+    finally:
+        db.close()
+
+
+@devices_bp.route("/machines/archive", methods=["POST"])
+@admin_required
+def archive_machine():
+    cliente_id = _cliente_id_atual()
+    if not cliente_id or not _machine_action_confirmed():
+        return jsonify({"ok": False, "error": "Confirmação inválida. Atualize a tela."}), 403
+    mid = _norm_machine_id(request.form.get("machine_id"))
+    db = get_db()
+    try:
+        _ensure_devices_table(db)
+        if not any(row["machine_id"] == mid for row in _machine_rows(db, cliente_id)):
+            return jsonify({"ok": False, "error": "Máquina não encontrada."}), 404
+        db.execute(
+            "INSERT OR IGNORE INTO indflow_machine_registry (cliente_id, machine_id, created_at) VALUES (?, ?, ?)",
+            (cliente_id, mid, _now_str()),
+        )
+        db.execute(
+            "INSERT INTO indflow_machine_archives (cliente_id, machine_id, archived_at) VALUES (?, ?, ?)",
+            (cliente_id, mid, _now_str()),
+        )
+        db.execute(
+            "UPDATE devices SET machine_id=NULL WHERE cliente_id=? AND lower(trim(machine_id))=?",
+            (cliente_id, mid),
+        )
+        db.commit()
+        return jsonify({"ok": True})
+    finally:
+        db.close()
+
+
+@devices_bp.route("/machines/restore", methods=["POST"])
+@admin_required
+def restore_machine():
+    cliente_id = _cliente_id_atual()
+    if not cliente_id or not _machine_action_confirmed():
+        return "Confirmação inválida. Atualize a tela.", 403
+    mid = _norm_machine_id(request.form.get("machine_id"))
+    db = get_db()
+    try:
+        _ensure_machine_registry(db)
+        cursor = db.execute(
+            "DELETE FROM indflow_machine_archives WHERE cliente_id=? AND machine_id=?",
+            (cliente_id, mid),
+        )
+        db.commit()
+        notice = "machine_restored" if cursor.rowcount else "machine_not_found"
+    finally:
+        db.close()
+    return redirect(url_for("devices.home", notice=notice))
 
 @devices_bp.route("/api-key", methods=["POST"])
 @admin_required
@@ -324,6 +427,10 @@ def link_device():
 
     db = get_db()
     _ensure_devices_table(db)
+
+    _ensure_machine_registry(db)
+    if machine_id in _archived_machine_ids(db, cliente_id):
+        return redirect(url_for("devices.home", notice="machine_archived"))
 
     now = _now_str()
     row = db.execute(
