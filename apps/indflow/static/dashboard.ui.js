@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\dashboard.ui.js
-Último recode: 2026-10-05 16:49 (America/Bahia)
-Motivo: Exibir gramatura da OP, OEE e ocorrências por período no card, preservando a hora opcional e retirando os atalhos.
+Último recode: 2026-10-06 08:51 (America/Bahia)
+Motivo: Permitir cadastro de máquinas sem dispositivo e remover textos internos da interface.
 */
 
 function fmt(n){
@@ -96,12 +96,14 @@ function applyStatusToCard(machineId, data){
   if(percentContainer) percentContainer.style.gridTemplateColumns = showHour ? "" : "minmax(0,1fr)";
   const badge = document.getElementById(`status-badge-${sid}`);
   const stopEl = document.getElementById(`stopline-${sid}`);
-  const statusUI = resolveStatusUI(data);
+  const statusUI = machineHasDevice(machineId) ? resolveStatusUI(data) : "SEM DISPOSITIVO";
   const produzindo = statusUI === "PRODUZINDO";
 
   if(badge){
     badge.textContent = statusUI;
     badge.className = `machine-status ${produzindo ? "status-auto" : "status-manual"}`;
+    if(!machineHasDevice(machineId)) badge.style.background = "#64748b";
+    else badge.style.background = "";
   }
 
   if(stopEl){
@@ -143,7 +145,7 @@ function updateIndustrialOverview(rows){
     scrap += refugoTotal(data);
   });
 
-  const monitored = getMachines().length;
+  const monitored = getMachines().filter(machineHasDevice).length;
   const attainment = meta > 0 ? Math.round((production / meta) * 100) : 0;
   setText("kpi-monitored", monitored);
   setText("kpi-running", running);
@@ -157,7 +159,8 @@ function updateIndustrialOverview(rows){
 
 function refreshStatuses(){
   const machines = getMachines();
-  const jobs = machines.map(machineId =>
+  machines.filter(id => !machineHasDevice(id)).forEach(id => applyStatusToCard(id, {}));
+  const jobs = machines.filter(machineHasDevice).map(machineId =>
     fetch(`/machine/status?machine_id=${encodeURIComponent(machineId)}`)
       .then(r => r.ok ? r.json() : Promise.reject(new Error("status")))
       .then(data => {
@@ -278,7 +281,7 @@ function renderMachines(){
   if(!grid) return;
   clampCurrentPage();
   const pageItems = getMachinesPage();
-  grid.innerHTML = pageItems.length ? pageItems.map(cardHTML).join("") : `<div class="empty-state"><strong>Nenhuma máquina monitorada.</strong>A vinculação de equipamentos será controlada pelo GestFlow.</div>`;
+  grid.innerHTML = pageItems.length ? pageItems.map(cardHTML).join("") : `<div class="empty-state"><strong>Nenhuma máquina cadastrada.</strong></div>`;
   renderPager();
   refreshStatuses();
 }

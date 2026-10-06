@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\producao\templates\producao_home.html
-Último recode: 2026-09-01 11:48 (America/Bahia)
-Motivo: Padronizar o indicador Atingimento do turno como Progresso da meta.
+Último recode: 2026-10-06 08:51 (America/Bahia)
+Motivo: Permitir cadastro de máquinas sem dispositivo e remover textos internos da interface.
 #}
 
 {% extends 'base.html' %}
@@ -25,7 +25,7 @@ Motivo: Padronizar o indicador Atingimento do turno como Progresso da meta.
   <div class="page-heading">
     <div class="page-eyebrow">Operação</div>
     <h1 class="page-title">Produção</h1>
-    <p class="page-description">Acompanhe o turno por máquina e entre no detalhe operacional para OP/bobinas, histórico e parâmetros industriais.</p>
+    <p class="page-description">Produção por máquina.</p>
   </div>
   <div class="page-actions">
     <a class="btn btn-secondary" href="/paradas/">Paradas</a>
@@ -37,11 +37,10 @@ Motivo: Padronizar o indicador Atingimento do turno como Progresso da meta.
 
 <div class="production-grid" id="machines-area"></div>
 
-<div class="page-note" style="margin-top:14px;">
-  O cadastro e os dados administrativos do equipamento ficam no GestFlow. Aqui permanecem somente dados operacionais e industriais.
-</div>
 
 <script>
+  let linkedMachines = new Set();
+
   async function monitoredMachines(){
     try{
       const response = await fetch("/devices/machines", {
@@ -51,6 +50,7 @@ Motivo: Padronizar o indicador Atingimento do turno como Progresso da meta.
       });
       if(!response.ok) throw new Error("machines");
       const data = await response.json();
+      linkedMachines = new Set(Array.isArray(data.linked_machines) ? data.linked_machines : data.machines || []);
       return Array.isArray(data?.machines) ? data.machines : [];
     }catch(e){
       return [];
@@ -67,6 +67,7 @@ Motivo: Padronizar o indicador Atingimento do turno como Progresso da meta.
   }
 
   function card(id, data){
+    if(data.sem_dispositivo) return `<article class="production-card"><div class="production-head"><div class="production-name">${esc(id.toUpperCase())}</div><span class="production-status" style="background:#64748b">SEM DISPOSITIVO</span></div><div class="production-metrics"><div class="production-metric"><span>Produção turno</span><strong>—</strong></div><div class="production-metric"><span>Meta turno</span><strong>—</strong></div><div class="production-metric"><span>Hora atual</span><strong>—</strong></div><div class="production-metric"><span>Parado</span><strong>—</strong></div></div></article>`;
     const status = statusUi(data);
     const running = status === "PRODUZINDO";
     const pct = n(data.percentual_turno);
@@ -114,6 +115,7 @@ Motivo: Padronizar o indicador Atingimento do turno como Progresso da meta.
     }
 
     const rows = await Promise.all(ids.map(async id => {
+      if(!linkedMachines.has(id)) return {id, data:{sem_dispositivo:true}};
       try{
         const r = await fetch(`/machine/status?machine_id=${encodeURIComponent(id)}`);
         if(!r.ok) throw new Error("status");

@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\dashboard.update.js
-Último recode: 2026-10-05 16:49 (America/Bahia)
-Motivo: Atualizar o card com gramatura, OEE, ocorrências e paradas do turno e da hora, sem misturar os períodos.
+Último recode: 2026-10-06 08:51 (America/Bahia)
+Motivo: Permitir cadastro de máquinas sem dispositivo e remover textos internos da interface.
 */
 
 // static/dashboard.update.js
@@ -215,6 +215,15 @@ function renderCardPeriod(sid, scope, metrics, status){
 
 function updateMachine(machineId){
   const sid = safeSid(machineId);
+  if(!machineHasDevice(machineId)){
+    applyStatusToCard(machineId, {});
+    renderCardPeriod(sid, "turno", null, {});
+    renderCardPeriod(sid, "hora", null, {});
+    setText(`gramatura-${sid}`, "");
+    setVisible(`gramatura-${sid}`, false);
+    setText(`ritmo-medio-${sid}`, "Ritmo médio: —");
+    return Promise.resolve();
+  }
   return Promise.all([
     fetch(`/machine/status?machine_id=${encodeURIComponent(machineId)}`).then(r => r.ok ? r.json() : Promise.reject(new Error("status"))),
     fetchCardMetrics(machineId)

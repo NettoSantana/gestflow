@@ -1,14 +1,14 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\templates\index.html
-Último recode: 2026-10-05 16:49 (America/Bahia)
-Motivo: Atualizar a versão dos arquivos do card com gramatura, OEE e ocorrências por período.
+Último recode: 2026-10-06 08:51 (America/Bahia)
+Motivo: Permitir cadastro de máquinas sem dispositivo e remover textos internos da interface.
 #}
 
 {% extends "base.html" %}
 {% block title %}Painel Industrial — IndFlow{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="/static/dashboard.css?v=20261005-card">
+<link rel="stylesheet" href="/static/dashboard.css?v=20261006-maquinas">
 
 <style>
 @media (min-width:981px){
@@ -77,20 +77,16 @@ Motivo: Atualizar a versão dos arquivos do card com gramatura, OEE e ocorrênci
 <section class="section-shell">
   <div class="section-shell-header">
     <div>
-      <h2>Máquinas monitoradas</h2>
-      <p>Acompanhe o turno e use os atalhos de cada máquina para abrir detalhe operacional, indicadores e histórico.</p>
+      <h2>Máquinas</h2>
     </div>
-    {% if (session.get('role') or '')|lower in ['admin', 'superadmin'] %}<a class="btn btn-ghost" href="/devices/">Devices</a>{% endif %}
+    {% if (session.get('role') or '')|lower in ['admin', 'superadmin'] %}<a class="btn btn-ghost" href="/devices/#cadastro-maquinas">Cadastrar máquina</a>{% endif %}
   </div>
 
   <div class="machine-grid" id="machineGrid"></div>
 </section>
 
-<div class="page-note" style="margin-top:14px;">
-  Equipamentos, usuários e empresas não são cadastrados novamente no IndFlow. O IndFlow concentra somente monitoramento, produção, histórico, OP/bobinas, utilidades e parâmetros industriais.
-</div>
 
-<script src="/static/dashboard.state.js?v=20260902"></script>
-<script src="/static/dashboard.ui.js?v=20261005-card"></script>
-<script src="/static/dashboard.update.js?v=20261005-card"></script>
+<script src="/static/dashboard.state.js?v=20261006-maquinas"></script>
+<script src="/static/dashboard.ui.js?v=20261006-maquinas"></script>
+<script src="/static/dashboard.update.js?v=20261006-maquinas"></script>
 {% endblock %}

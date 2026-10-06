@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\dashboard.state.js
-Último recode: 2026-08-31 15:38 (America/Bahia)
-Motivo: Carregar a lista de máquinas do tenant pelo backend Devices e eliminar localStorage global.
+Último recode: 2026-10-06 08:51 (America/Bahia)
+Motivo: Permitir cadastro de máquinas sem dispositivo e remover textos internos da interface.
 */
 
 // static/dashboard.state.js
@@ -11,6 +11,11 @@ Motivo: Carregar a lista de máquinas do tenant pelo backend Devices e eliminar 
 // ===========================
 
 let tenantMachines = [];
+let linkedMachines = new Set();
+
+function machineHasDevice(machineId){
+  return linkedMachines.has(normalizeId(machineId));
+}
 
 /* PAGINAÇÃO */
 const PAGE_SIZE = 6;
@@ -50,6 +55,7 @@ function loadTenantMachines(){
     })
     .then(data => {
       setMachines(Array.isArray(data && data.machines) ? data.machines : []);
+      linkedMachines = new Set((Array.isArray(data.linked_machines) ? data.linked_machines : data.machines || []).map(normalizeId));
       currentPage = 0;
 
       if(typeof renderMachines === "function") renderMachines();
@@ -59,6 +65,7 @@ function loadTenantMachines(){
     })
     .catch(() => {
       setMachines([]);
+      linkedMachines.clear();
       currentPage = 0;
 
       if(typeof renderMachines === "function") renderMachines();
@@ -193,8 +200,7 @@ function renderPager(){
 function removeMachine(machineId){
   const id = String(machineId || "").trim().toUpperCase();
   window.alert(
-    `A máquina ${id || "selecionada"} é controlada pelo vínculo em Devices. ` +
-    "Desvincule ou altere o device para atualizar o dashboard."
+    `Gerencie a máquina ${id || "selecionada"} em Máquinas e dispositivos.`
   );
 }
 

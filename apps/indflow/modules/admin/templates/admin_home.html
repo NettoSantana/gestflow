@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\admin\templates\admin_home.html
-Último recode: 2026-08-31 21:09 (America/Bahia)
-Motivo: Remover a gestão de usuários do IndFlow e manter a Administração apenas para recursos técnicos.
+Último recode: 2026-10-06 08:51 (America/Bahia)
+Motivo: Remover explicações internas da interface e simplificar os textos.
 #}
 
 {% extends "base.html" %}
@@ -12,7 +12,7 @@ Motivo: Remover a gestão de usuários do IndFlow e manter a Administração ape
   <div class="page-heading">
     <div class="page-eyebrow">Acesso técnico</div>
     <h1 class="page-title">Administração Técnica</h1>
-    <p class="page-description">Área de suporte do IndFlow. Empresas e usuários de gestão são administrados pelo GestFlow; operadores são administrados na área Operadores do IndFlow.</p>
+    <p class="page-description">Administração do IndFlow.</p>
   </div>
   <div class="page-actions"><a class="btn btn-primary" href="/">Painel Industrial</a></div>
 </div>
@@ -29,5 +29,5 @@ Motivo: Remover a gestão de usuários do IndFlow e manter a Administração ape
   </section>
 </div>
 
-<div class="page-note" style="margin-top:14px;">Role técnico atual: <strong>{{ (session.get("role") or "viewer")|upper }}</strong>. Usuários de gestão ficam centralizados no GestFlow; o IndFlow mantém somente os vínculos internos necessários ao SSO.</div>
+
 {% endblock %}

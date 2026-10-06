@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\devices\routes.py
-# Último recode: 2026-08-31 16:41 (America/Bahia)
-# Motivo: Exibir mensagens claras no vínculo de devices sem permitir takeover entre tenants.
+# Último recode: 2026-10-06 08:51 (America/Bahia)
+# Motivo: Permitir cadastro de máquinas sem dispositivo e remover textos internos da interface.
 
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify
 from datetime import datetime
@@ -102,6 +102,8 @@ def home():
     """, (cliente_id,))
     rows = cur.fetchall()
 
+    machine_rows = _machine_rows(db, cliente_id)
+
     devices = []
     for r in rows:
         try:
@@ -123,6 +125,7 @@ def home():
     return render_template(
         "devices_home.html",
         devices=devices,
+        machine_rows=machine_rows,
         device_notice=(request.args.get("notice") or "").strip().lower(),
     )
 
@@ -130,54 +133,79 @@ def home():
 @devices_bp.route("/machines", methods=["GET"])
 @login_required
 def machines():
-    """
-    Lista somente máquinas vinculadas a MACs válidos do tenant autenticado.
-    O dashboard usa este endpoint como fonte da verdade e não usa localStorage.
-    """
     cliente_id = _cliente_id_atual()
     if not cliente_id:
         return jsonify({"ok": False, "error": "Cliente da sessao nao identificado"}), 403
-
     db = get_db()
-    _ensure_devices_table(db)
+    try:
+        _ensure_devices_table(db)
+        rows = _machine_rows(db, cliente_id)
+        return jsonify({
+            "ok": True,
+            "cliente_id": cliente_id,
+            "machines": [row["machine_id"] for row in rows],
+            "linked_machines": [row["machine_id"] for row in rows if row["linked"]],
+        })
+    finally:
+        db.close()
 
-    rows = db.execute(
-        """
-        SELECT device_id, machine_id
-        FROM devices
-        WHERE cliente_id = ?
-          AND machine_id IS NOT NULL
-          AND TRIM(machine_id) <> ''
-        ORDER BY machine_id ASC
-        """,
+
+def _ensure_machine_registry(db):
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS indflow_machine_registry (
+            cliente_id TEXT NOT NULL,
+            machine_id TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            PRIMARY KEY (cliente_id, machine_id)
+        )
+    """)
+    db.commit()
+
+
+def _machine_rows(db, cliente_id):
+    _ensure_machine_registry(db)
+    machines = {}
+    for row in db.execute(
+        "SELECT machine_id FROM indflow_machine_registry WHERE cliente_id=?",
         (cliente_id,),
-    ).fetchall()
-
-    machines_seen = set()
-    machines_out = []
-
-    for row in rows:
-        try:
-            device_id = row["device_id"]
-            machine_id = row["machine_id"]
-        except Exception:
-            device_id, machine_id = row
-
-        if not _is_valid_mac(_norm_device_id(device_id)):
+    ).fetchall():
+        mid = _norm_machine_id(row[0])
+        machines[mid] = {"machine_id": mid, "linked": False}
+    for row in db.execute(
+        "SELECT device_id, machine_id FROM devices WHERE cliente_id=?",
+        (cliente_id,),
+    ).fetchall():
+        if not _is_valid_mac(_norm_device_id(row[0])):
             continue
+        mid = _norm_machine_id(row[1])
+        if mid:
+            machines[mid] = {"machine_id": mid, "linked": True}
+    return [machines[mid] for mid in sorted(machines)]
 
-        mid = _norm_machine_id(machine_id)
-        if not mid or mid in machines_seen:
-            continue
 
-        machines_seen.add(mid)
-        machines_out.append(mid)
-
-    return jsonify({
-        "ok": True,
-        "cliente_id": cliente_id,
-        "machines": machines_out,
-    })
+@devices_bp.route("/machines/create", methods=["POST"])
+@admin_required
+def create_machine():
+    cliente_id = _cliente_id_atual()
+    if not cliente_id:
+        return "Cliente da sessao nao identificado", 403
+    mid = _norm_machine_id(request.form.get("machine_id"))
+    if not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,63}", mid) or mid == "teste01":
+        return redirect(url_for("devices.home", notice="invalid_machine"))
+    db = get_db()
+    try:
+        _ensure_devices_table(db)
+        rows = _machine_rows(db, cliente_id)
+        if any(row["machine_id"] == mid for row in rows):
+            return redirect(url_for("devices.home", notice="machine_exists"))
+        db.execute(
+            "INSERT INTO indflow_machine_registry (cliente_id, machine_id, created_at) VALUES (?, ?, ?)",
+            (cliente_id, mid, _now_str()),
+        )
+        db.commit()
+    finally:
+        db.close()
+    return redirect(url_for("devices.home", notice="machine_created"))
 
 
 @devices_bp.route("/api-key", methods=["POST"])

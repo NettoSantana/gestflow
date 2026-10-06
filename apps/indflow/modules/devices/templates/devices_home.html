@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\devices\templates\devices_home.html
-Último recode: 2026-08-31 16:41 (America/Bahia)
-Motivo: Exibir mensagens claras no vínculo de devices sem permitir takeover entre tenants.
+Último recode: 2026-10-06 08:51 (America/Bahia)
+Motivo: Permitir cadastro de máquinas sem dispositivo e remover textos internos da interface.
 #}
 
 {% extends "base.html" %}
@@ -12,7 +12,7 @@ Motivo: Exibir mensagens claras no vínculo de devices sem permitir takeover ent
   <div class="page-heading">
     <div class="page-eyebrow">Infraestrutura técnica</div>
     <h1 class="page-title">Devices</h1>
-    <p class="page-description">Gerencie ESPs/PLCs e o vínculo técnico com a identificação operacional da máquina. O equipamento mestre continua cadastrado no GestFlow.</p>
+    <p class="page-description">Máquinas e dispositivos</p>
   </div>
   <div class="page-actions">
     <form method="post" action="/devices/cleanup-invalid" style="margin:0;">
@@ -22,7 +22,13 @@ Motivo: Exibir mensagens claras no vínculo de devices sem permitir takeover ent
   </div>
 </div>
 
-{% if device_notice == 'owner_conflict' %}
+{% if device_notice in ['machine_created', 'machine_exists', 'invalid_machine'] %}
+<div class="page-note" style="margin-bottom:14px;">
+  {% if device_notice == 'machine_created' %}Máquina cadastrada.
+  {% elif device_notice == 'machine_exists' %}Esta máquina já está cadastrada.
+  {% else %}Use até 64 letras sem acentos, números, hífen ou sublinhado. TESTE01 é reservado.{% endif %}
+</div>
+{% elif device_notice == 'owner_conflict' %}
 <div class="page-note" style="margin-bottom:14px;border-color:#fecaca;background:#fef2f2;color:#991b1b;">
   <strong>MAC já vinculado.</strong> Este MAC já está vinculado a outra empresa. Desvincule-o da empresa atual antes de vinculá-lo aqui.
 </div>
@@ -46,7 +52,7 @@ Motivo: Exibir mensagens claras no vínculo de devices sem permitir takeover ent
   <div class="section-shell-header">
     <div>
       <h2>API Key do ESP</h2>
-      <p>Credencial do tenant usada pelo equipamento no header <strong>X-API-Key</strong>.</p>
+      <p>Chave de acesso dos dispositivos.</p>
     </div>
   </div>
 
@@ -80,9 +86,23 @@ Motivo: Exibir mensagens claras no vínculo de devices sem permitir takeover ent
 </div>
 {% endif %}
 
+<div class="section-shell" style="margin-bottom:14px;" id="cadastro-maquinas">
+  <div class="section-shell-header"><div><h2>Máquinas</h2></div></div>
+  {% if _role in ['admin', 'superadmin'] %}
+  <form method="post" action="/devices/machines/create" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:14px;">
+    <div><label>Identificação da máquina</label><input class="input" name="machine_id" placeholder="Ex.: corpo02" maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9_-]{0,63}" required></div>
+    <button class="btn btn-primary" type="submit">Cadastrar máquina</button>
+  </form>
+  {% endif %}
+  <div class="table-wrap"><table class="table"><thead><tr><th>Máquina</th><th>Dispositivo</th></tr></thead><tbody>
+    {% for m in machine_rows %}<tr><td>{{ m.machine_id|upper }}</td><td>{{ 'Vinculado' if m.linked else 'Sem dispositivo' }}</td></tr>
+    {% else %}<tr><td colspan="2">Nenhuma máquina cadastrada.</td></tr>{% endfor %}
+  </tbody></table></div>
+</div>
+
 <div class="section-shell" style="margin-bottom:14px;">
   <div class="section-shell-header">
-    <div><h2>Devices detectados</h2><p>MAC, comunicação, vínculo e alias técnico por cliente.</p></div>
+    <div><h2>Dispositivos</h2><p>MAC, máquina e comunicação.</p></div>
   </div>
   <div class="table-wrap">
     <table class="table">
@@ -126,13 +146,12 @@ Motivo: Exibir mensagens claras no vínculo de devices sem permitir takeover ent
 </div>
 
 <div class="section-shell">
-  <div class="section-shell-header"><div><h2>Vincular device</h2><p>Associe o MAC técnico à identificação operacional da máquina monitorada.</p></div></div>
+  <div class="section-shell-header"><div><h2>Vincular dispositivo</h2></div></div>
   <form method="post" action="/devices/link" style="display:grid;grid-template-columns:minmax(220px,1fr) minmax(220px,1fr) auto;gap:10px;align-items:end;">
-    <div><label>MAC (device_id)</label><input name="device_id" class="input" placeholder="Ex: A4CF12B3D91E" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;" required></div>
-    <div><label>Máquina (machine_id)</label><input name="machine_id" class="input" placeholder="Ex: maquina01" required></div>
+    <div><label>MAC do dispositivo</label><input name="device_id" class="input" placeholder="Ex: A4CF12B3D91E" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;" required></div>
+    <div><label>Identificação da máquina</label><input name="machine_id" class="input" placeholder="Ex: maquina01" required></div>
     <button class="btn btn-primary" type="submit">Salvar vínculo</button>
   </form>
-  <div class="page-note" style="margin-top:12px;">Este vínculo é técnico. Na próxima etapa de integração com o GestFlow, a identificação operacional será associada ao equipamento mestre do GestFlow sem duplicar cadastro.</div>
 </div>
 
 {% if _role in ['admin', 'superadmin'] %}
