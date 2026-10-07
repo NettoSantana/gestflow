@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\producao\historico_routes.py
-# Último recode: 2026-10-02 17:26:16 (America/Bahia)
-# Motivo: Identificar lacunas de comunicação como NO_DATA a partir dos novos registros, separar esse tempo de RUN/STOP e preservar os dias anteriores ao monitoramento.
+# Último recode: 2026-10-07 06:30:28 (America/Bahia)
+# Motivo: Aplicar 120 segundos na comunicação e usar a mesma produção horária na lista e no detalhe, preservando OPs e períodos fora de turno.
 
 from __future__ import annotations
 
@@ -411,32 +411,44 @@ def _production_for_day(
     machine_id: str,
     day: date,
 ) -> dict:
-    start_ms, end_ms = _day_bounds_ms(day)
-    found, total = _production_from_events(
-        conn,
-        cliente_id,
-        machine_id,
-        start_ms,
-        end_ms,
-    )
-
     fallback = _daily_production_fallback(
-        conn,
-        cliente_id,
-        machine_id,
-        day.isoformat(),
+        conn, cliente_id, machine_id, day.isoformat(),
     )
+    total = 0
+    found = False
+    for hour in range(24):
+        hour_found, produced = _production_for_hour(
+            conn, cliente_id, machine_id, day, hour,
+        )
+        found = found or hour_found
+        total += produced
+    if not found:
+        return fallback
+    meta = _safe_int(fallback.get("meta"), 0)
+    return {
+        "produzido": total,
+        "meta": meta,
+        "percentual": int(round(total / meta * 100)) if meta > 0 else 0,
+    }
 
+
+def _production_for_hour(conn, cliente_id, machine_id, day, hour, end=None):
+    """Mesma leitura por hora para a lista diária e o detalhe, sem somar fontes."""
+    start = datetime(day.year, day.month, day.day, hour)
+    if end is None:
+        end = min(start + timedelta(hours=1),
+                  datetime.now(TZ_BAHIA).replace(tzinfo=None))
+    if end <= start:
+        return False, 0
+    start_ms = int(start.replace(tzinfo=TZ_BAHIA).timestamp() * 1000)
+    end_ms = int(end.replace(tzinfo=TZ_BAHIA).timestamp() * 1000)
+    found, produced = _production_from_events(
+        conn, cliente_id, machine_id, start_ms, end_ms,
+    )
     if found:
-        meta = _safe_int(fallback.get("meta"), 0)
-        percentual = int(round((total / meta) * 100)) if meta > 0 else 0
-        return {
-            "produzido": max(0, total),
-            "meta": meta,
-            "percentual": percentual,
-        }
-
-    return fallback
+        return True, produced
+    produced = _hourly_fallback(conn, cliente_id, machine_id, day, hour)
+    return produced > 0, produced
 
 
 def _refugo_for_day(
@@ -706,8 +718,8 @@ def _communication_status(conn, cliente_id, machine_id, reference_ms=None):
     if not row or row[0] is None:
         return {"monitored": False, "online": None}
     now_ms = reference_ms if reference_ms is not None else int(datetime.now(TZ_BAHIA).timestamp() * 1000)
-    expires = int(row[0]) + 60000
-    return {"monitored": True, "online": now_ms < expires, "expires_at_ms": expires, "timeout_sec": 60}
+    expires = int(row[0]) + 120000
+    return {"monitored": True, "online": now_ms < expires, "expires_at_ms": expires, "timeout_sec": 120}
 
 
 def _apply_communication_to_segments(conn, cliente_id, machine_id, day, segments):
@@ -731,9 +743,9 @@ def _apply_communication_to_segments(conn, cliente_id, machine_id, day, segments
         return segments
     start_ms = int(start.replace(tzinfo=TZ_BAHIA).timestamp()*1000)
     end_ms = int(end.replace(tzinfo=TZ_BAHIA).timestamp()*1000)
-    rows = conn.execute("SELECT started_at_ms, last_seen_ms FROM machine_communication_sessions WHERE " + clause + " AND started_at_ms<? AND last_seen_ms+60000>? ORDER BY started_at_ms", [*params, end_ms, start_ms]).fetchall()
+    rows = conn.execute("SELECT started_at_ms, last_seen_ms FROM machine_communication_sessions WHERE " + clause + " AND started_at_ms<? AND last_seen_ms+120000>? ORDER BY started_at_ms", [*params, end_ms, start_ms]).fetchall()
     online = [(max(start, datetime.fromtimestamp(int(r[0])/1000, TZ_BAHIA).replace(tzinfo=None)),
-               min(end, datetime.fromtimestamp((int(r[1])+60000)/1000, TZ_BAHIA).replace(tzinfo=None))) for r in rows]
+               min(end, datetime.fromtimestamp((int(r[1])+120000)/1000, TZ_BAHIA).replace(tzinfo=None))) for r in rows]
     boundaries = {start, end}
     if start < observed < end:
         boundaries.add(observed)
@@ -2174,33 +2186,9 @@ def api_producao_detalhe_dia():
                 elif now_local < end:
                     end_calc = now_local
 
-            start_ms = int(
-                start.replace(tzinfo=TZ_BAHIA).timestamp() * 1000
+            _, produced = _production_for_hour(
+                conn, cliente_id, machine_id, data_ref, hour, end_calc,
             )
-            end_ms = int(
-                end_calc.replace(tzinfo=TZ_BAHIA).timestamp() * 1000
-            )
-
-            produced_found = False
-            produced = 0
-
-            if end_ms > start_ms:
-                produced_found, produced = _production_from_events(
-                    conn,
-                    cliente_id,
-                    machine_id,
-                    start_ms,
-                    end_ms,
-                )
-
-            if not produced_found:
-                produced = _hourly_fallback(
-                    conn,
-                    cliente_id,
-                    machine_id,
-                    data_ref,
-                    hour,
-                )
 
             refugo = _hourly_refugo(
                 conn,

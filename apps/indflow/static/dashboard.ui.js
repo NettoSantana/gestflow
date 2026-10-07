@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\dashboard.ui.js
-Último recode: 2026-10-06 11:00 (America/Bahia)
-Motivo: Preservar os cards e a configuração de horas durante ajustes de tamanho, paginação e tela inteira.
+Último recode: 2026-10-07 06:30:28 (America/Bahia)
+Motivo: Priorizar FORA DE TURNO/PAUSA em cinza no painel e usar 120 segundos no fallback de comunicação, preservando os cards.
 */
 
 function fmt(n){
@@ -35,7 +35,7 @@ function resolveParadoMin(data){
   return null;
 }
 
-const WIFI_OFFLINE_THRESHOLD_SEC = 60;
+const WIFI_OFFLINE_THRESHOLD_SEC = 120;
 
 function resolveLastSeenMs(data){
   const candidates = [
@@ -77,6 +77,8 @@ function resolveWifiState(data){
 
 function resolveCardStatusUI(machineId, data){
   if(!machineHasDevice(machineId)) return "SEM DISPOSITIVO";
+  const scheduled = data?.schedule_status;
+  if(scheduled === "FORA DE TURNO" || scheduled === "PAUSA") return scheduled;
   if(resolveWifiState(data) !== "ONLINE") return "OFFLINE";
   return resolveStatusUI(data);
 }
@@ -104,13 +106,13 @@ function applyStatusToCard(machineId, data){
 
   if(badge){
     badge.textContent = statusUI;
-    const classes = {"PRODUZINDO":"status-auto", "PARADA":"status-manual", "OFFLINE":"status-offline", "SEM DISPOSITIVO":"status-unlinked"};
+    const classes = {"PRODUZINDO":"status-auto", "PARADA":"status-manual", "OFFLINE":"status-offline", "SEM DISPOSITIVO":"status-unlinked", "FORA DE TURNO":"status-unlinked", "PAUSA":"status-unlinked"};
     badge.className = `machine-status ${classes[statusUI]}`;
   }
 
   if(stopEl){
     const mins = resolveParadoMin(data);
-    if(!produzindo && mins !== null){
+    if(statusUI === "PARADA" && mins !== null){
       stopEl.textContent = `${mins} min parados`;
       stopEl.style.display = "";
     }else{
@@ -169,6 +171,7 @@ function refreshStatuses(){
       .then(async data => {
         const metrics = await fetchCardMetrics(machineId);
         data.communication = metrics?.communication;
+        data.schedule_status = metrics?.schedule_status;
         applyStatusToCard(machineId, data);
         return { machineId, data };
       })

@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\indicadores\routes.py
-# Último recode: 2026-10-06 10:35 (America/Bahia)
-# Motivo: Recolocar o balizador da meta acumulada por minuto, com igualdade e cores para abaixo, acima e meta atingida.
+# Último recode: 2026-10-07 06:30:28 (America/Bahia)
+# Motivo: Informar FORA DE TURNO/PAUSA antes de OFFLINE e impedir que o card selecione o turno de ontem fora do expediente.
 
 from __future__ import annotations
 
@@ -104,6 +104,15 @@ def _card_shift_windows(config, reference):
                         planned.append((ps, pe))
             windows.append((start, end, shift, planned))
     return windows
+
+
+def _card_schedule_status(windows, reference):
+    active = [window for window in windows if window[0] <= reference < window[1]]
+    if not active:
+        return "FORA DE TURNO"
+    if any(ps <= reference < pe for window in active for ps, pe in window[3]):
+        return "EM TURNO"
+    return "PAUSA"
 
 
 def _card_production(conn, cid, mid, start, end):
@@ -247,7 +256,7 @@ def api_card(machine_id):
         windows = _card_shift_windows(config, reference)
         eligible = [window for window in windows if window[0] <= reference]
         active = [window for window in eligible if reference < window[1]]
-        chosen = max(active or eligible, key=lambda window: window[0]) if eligible else None
+        chosen = max(active, key=lambda window: window[0]) if active else None
         day_start = reference.replace(hour=0, minute=0, second=0, microsecond=0)
         start, end, label = day_start, day_start + timedelta(days=1), "Dia"
         if chosen:
@@ -274,8 +283,9 @@ def api_card(machine_id):
             hs = reference.replace(minute=0, second=0, microsecond=0)
             hour = _card_period_summary(conn, cid, mid, config, windows, types, hs, hs + timedelta(hours=1), reference, "Hora atual")
         communication = _communication_status(conn, cid, mid)
+        schedule_status = _card_schedule_status(windows, reference) if cv2.get("shifts") else None
         response = jsonify({"ok": True, "data": {"gramatura": gram, "turno": main, "hora": hour,
-                                                "communication": communication}})
+                                                "communication": communication, "schedule_status": schedule_status}})
         response.headers["Cache-Control"] = "no-store"
         return response
     finally:

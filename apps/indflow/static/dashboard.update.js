@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\dashboard.update.js
-Último recode: 2026-10-06 10:35 (America/Bahia)
-Motivo: Recolocar o balizador da meta acumulada por minuto, com igualdade e cores para abaixo, acima e meta atingida.
+Último recode: 2026-10-07 06:30:28 (America/Bahia)
+Motivo: Repassar a programação atual para o status do card, preservando balizador, produção e tempos.
 */
 
 // static/dashboard.update.js
@@ -220,6 +220,7 @@ function updateMachine(machineId){
   ]).then(([status, metrics]) => {
     if(!document.getElementById(`status-badge-${sid}`)) return;
     status.communication = metrics?.communication;
+    status.schedule_status = metrics?.schedule_status;
     applyStatusToCard(machineId, status);
     const gram = String(metrics?.gramatura || "").trim();
     const gramLabel = gram && /^\d+(?:[.,]\d+)?$/.test(gram) ? `${gram} GR` : gram;

@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\machine\device_helpers.py
-# Último recode: 2026-10-02 17:26:16 (America/Bahia)
-# Motivo: Registrar intervalos de comunicação real do ESP por empresa, máquina e dispositivo, usando 60 segundos de tolerância para identificar falta de dados sem inferir pela ausência de produção.
+# Último recode: 2026-10-07 06:30:28 (America/Bahia)
+# Motivo: Usar 120 segundos de tolerância entre recebimentos reais do ESP, sem mudar a parada por falta de pulso.
 
 # modules/machine/device_helpers.py
 import re
@@ -95,7 +95,7 @@ def touch_device_seen(device_id: str) -> None:
                 WHERE cliente_id=? AND lower(machine_id)=lower(?) AND device_id=?
                 ORDER BY last_seen_ms DESC LIMIT 1
             """, (cid, mid, device_id)).fetchone()
-            if previous and received_ms <= int(previous["last_seen_ms"]) + 60000:
+            if previous and received_ms <= int(previous["last_seen_ms"]) + 120000:
                 conn.execute("UPDATE machine_communication_sessions SET last_seen_ms=MAX(last_seen_ms, ?) WHERE id=?",
                              (received_ms, int(previous["id"])))
             else:
