@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\producao\routes.py
-# Ultimo recode: 2026-09-02 09:50 (America/Bahia)
-# Motivo: Redirecionar a tela raiz de Produção para o Painel Industrial, preservando detalhe operacional e Histórico.
+# Último recode: 2026-10-07 06:54:58 (America/Bahia)
+# Motivo: Limitar a cinco OPs abertas, reutilizar posições livres e evitar ativação simultânea ou reinício do contador de uma OP já ativa.
 
 from flask import Blueprint, render_template, redirect, request, jsonify, session
 from datetime import datetime, timedelta, timezone
@@ -1220,7 +1220,17 @@ def _calc_pcs_from_metros(metros: int, conv_m_por_pcs: float) -> int:
 
 def _insert_op_row(payload: dict) -> int:
     conn = _get_conn()
+    conn.execute("BEGIN IMMEDIATE")
     cur = conn.cursor()
+    rows = cur.execute(
+        "SELECT posicao FROM ordens_producao WHERE cliente_id=? AND machine_id=? "
+        "AND status IN ('ATIVA', 'FILA') AND ended_at IS NULL",
+        (payload.get("cliente_id"), payload.get("machine_id")),
+    ).fetchall()
+    if len(rows) >= 5 or any(r[0] == payload.get("posicao") for r in rows):
+        conn.rollback()
+        conn.close()
+        raise ValueError("Fila cheia ou posicao ocupada. Atualize a fila e tente novamente.")
 
     cur.execute(
         """
@@ -2964,7 +2974,7 @@ def op_iniciar():
         return jsonify({"error": "OS, Lote e Operador sao obrigatorios"}), 400
 
     with _op_lock:
-        # Fila incremental (sem limite de quantidade)
+        # Cinco OPs abertas por máquina (ativa e fila).
         # - Se posicao nao vier no payload, usamos a proxima posicao (max + 1)
         # - Mantemos unicidade: nao pode haver duas OPs ativas/fila com a mesma posicao
         raw_pos = data.get("posicao")
@@ -2983,8 +2993,8 @@ def op_iniciar():
         if posicao == 0:
             posicao = None
 
-        if posicao is not None and posicao < 1:
-            return jsonify({"error": "posicao deve ser um numero >= 1"}), 400
+        if posicao is not None and not 1 <= posicao <= 5:
+            return jsonify({"error": "Posicao deve estar entre 1 e 5"}), 400
 
         # Descobrir posicoes ocupadas (ATIVA/FILA, sem ended_at)
         with _get_conn() as conn:
@@ -3000,10 +3010,14 @@ def op_iniciar():
                 """,
                 (cliente_id, machine_id),
             )
-            ocupadas = {int(r[0]) for r in cur.fetchall() if r[0] is not None}
+            abertas = cur.fetchall()
+            ocupadas = {int(r[0]) for r in abertas if r[0] is not None}
+
+        if len(abertas) >= 5:
+            return jsonify({"error": "Limite de 5 OPs abertas por maquina (ativa e fila)"}), 409
 
         if posicao is None:
-            posicao = (max(ocupadas) + 1) if ocupadas else 1
+            posicao = next(p for p in range(1, 6) if p not in ocupadas)
 
         if posicao in ocupadas:
             return jsonify({"error": f"Posicao {posicao} ja possui uma OP (ativa/fila)"}), 409
@@ -3061,6 +3075,8 @@ def op_iniciar():
 
     try:
         op_id = _insert_op_row(row_payload)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
     except Exception:
         return jsonify({"error": "Falha ao salvar OP no banco"}), 500
 
@@ -3818,6 +3834,7 @@ def op_ativar():
     try:
         stage = "conn"
         conn = _get_conn()
+        conn.execute("BEGIN IMMEDIATE")
         cur = conn.cursor()
 
         stage = "fetch_op"
@@ -3837,7 +3854,10 @@ def op_ativar():
         if not machine_id:
             return jsonify({"error": "machine_id invalido"}), 400
 
-        if status not in ("FILA", "ATIVA"):
+        if status == "ATIVA":
+            return jsonify({"ok": True, "op_id": op_id, "machine_id": machine_id})
+
+        if status != "FILA":
             return jsonify({"error": "OP nao pode ser ativada neste status", "status": status}), 409
 
         stage = "check_other_active"
