@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\operacao\routes.py
-# Último recode: 2026-10-02 14:48:31 (America/Bahia)
-# Motivo: Disponibilizar consulta, edição e exclusão de lançamentos de qualidade com autorização pela empresa, máquina e perfil da sessão.
+# Último recode: 2026-10-07 06:54:58 (America/Bahia)
+# Motivo: Exibir fila e gramatura na operação e permitir ativação autorizada pela empresa e máquina usando a rotina de produção existente.
 
 from __future__ import annotations
 
@@ -1260,7 +1260,11 @@ def api_estado():
     if not machine_id:
         return jsonify({"ok": False, "error": "Nenhuma máquina disponível para a empresa atual."}), 404
     try:
-        return jsonify({"ok": True, "data": get_operational_state(cid, machine_id)})
+        state = get_operational_state(cid, machine_id)
+        orders = _operational_orders(cid, machine_id)
+        state["order_queue"] = [op for op in orders if op["status"] == "FILA"]
+        state["active_order"] = next((op for op in orders if op["status"] == "ATIVA"), None)
+        return jsonify({"ok": True, "data": state})
     except ValueError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 400
 
@@ -1369,3 +1373,49 @@ def api_change_production_occurrence():
         return jsonify({"ok": True, **result})
     except ValueError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 400
+
+
+def _operational_orders(cliente_id: str, machine_id: str) -> list[dict]:
+    conn = get_db()
+    try:
+        if not conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='ordens_producao'").fetchone():
+            return []
+        rows = conn.execute(
+            "SELECT id, os, lote, operador, posicao, status, gr_fio, started_at "
+            "FROM ordens_producao WHERE cliente_id=? AND lower(machine_id)=lower(?) "
+            "AND status IN ('ATIVA', 'FILA') AND ended_at IS NULL "
+            "ORDER BY posicao, id",
+            (cliente_id, machine_id),
+        ).fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        conn.close()
+
+
+@operacao_bp.post("/api/op/ativar")
+@login_required
+def api_activate_order():
+    cid = _cliente_id()
+    if not cid or _role() not in ("operator", "admin", "superadmin"):
+        return jsonify({"ok": False, "error": "Sem permissão para ativar OP."}), 403
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"ok": False, "error": "Solicitação inválida."}), 400
+    requested = normalize_machine_id(payload.get("machine_id") or "", cid)
+    machine_id, _ = _resolve_machine(cid, requested)
+    if not requested or not machine_id or machine_id.casefold() != requested.casefold():
+        return jsonify({"ok": False, "error": "Máquina não autorizada para esta sessão."}), 403
+    try:
+        op_id = int(payload.get("op_id") or 0)
+    except (ValueError, TypeError):
+        op_id = 0
+    orders = _operational_orders(cid, machine_id)
+    selected = next((op for op in orders if op["id"] == op_id), None)
+    if not selected:
+        return jsonify({"ok": False, "error": "OP não pertence à fila desta máquina."}), 404
+    if selected["status"] == "ATIVA":
+        return jsonify({"ok": True, "op_id": op_id, "machine_id": machine_id})
+    if any(op["status"] == "ATIVA" for op in orders):
+        return jsonify({"ok": False, "error": "Encerre a OP ativa antes de ativar outra."}), 409
+    from modules.producao.routes import op_ativar
+    return op_ativar()
