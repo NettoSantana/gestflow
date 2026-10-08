@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\producao\historico_routes.py
-# Último recode: 2026-10-07 06:30:28 (America/Bahia)
-# Motivo: Aplicar 120 segundos na comunicação e usar a mesma produção horária na lista e no detalhe, preservando OPs e períodos fora de turno.
+# Último recode: 2026-10-08 11:45:02 (America/Bahia)
+# Motivo: Histórico de OPs por criação enquanto pendentes e por ativação após iniciar, com detalhes completos e preservação da criação.
 
 from __future__ import annotations
 
@@ -504,169 +504,178 @@ def _refugo_for_day(
     return 0
 
 
-def _ops_for_day(
-    conn: sqlite3.Connection,
-    cliente_id: str,
-    machine_id: str,
-    day: date,
-) -> list[dict]:
-    table = "ordens_producao"
-    cols = _get_columns(conn, table)
+def _op_datetime(value):
+    try:
+        parsed = datetime.fromisoformat(str(value or '').replace('Z', '+00:00'))
+        if parsed.tzinfo:
+            parsed = parsed.astimezone(TZ_BAHIA).replace(tzinfo=None)
+        return parsed
+    except (ValueError, TypeError):
+        return None
 
-    if "machine_id" not in cols:
+
+def _history_order_rows(conn, cliente_id, machine_id):
+    cols = _get_columns(conn, 'ordens_producao')
+    if 'machine_id' not in cols:
         return []
-
-    if cliente_id and "cliente_id" not in cols:
-        # Só permite tabela legada quando a própria machine_id estiver scoped.
-        candidates = [
-            value
-            for value in _matching_machine_ids(
-                conn,
-                table,
-                cliente_id,
-                machine_id,
-                "machine_id",
-            )
-            if value.startswith(f"{cliente_id}::")
-        ]
-    else:
-        candidates = _matching_machine_ids(
-            conn,
-            table,
-            cliente_id,
-            machine_id,
-            "machine_id",
-        )
-
-    if not candidates:
-        return []
-
-    date_fields = [
-        name
-        for name in (
-            "ativada_at",
-            "activated_at",
-            "started_at",
-            "inicio_iso",
-            "created_at",
-        )
-        if name in cols
-    ]
-    if not date_fields:
-        return []
-
-    date_exprs = [f"datetime(replace({name}, 'T', ' '))" for name in date_fields]
-    ref_expr = (
-        date_exprs[0]
-        if len(date_exprs) == 1
-        else f"COALESCE({', '.join(date_exprs)})"
-    )
-
-    desired = [
-        "id",
-        "op_id",
-        "op",
-        "os",
-        "lote",
-        "operador",
-        "inicio_iso",
-        "fim_iso",
-        "status",
-        "ativada_at",
-        "activated_at",
-        "started_at",
-        "created_at",
-        "observacoes",
-    ]
-    select_cols = [name for name in desired if name in cols]
-    if not select_cols:
-        return []
-
-    day_start = datetime(day.year, day.month, day.day)
-    day_end = day_start + timedelta(days=1)
-    start_sql = day_start.strftime("%Y-%m-%d %H:%M:%S")
-    end_sql = day_end.strftime("%Y-%m-%d %H:%M:%S")
-
-    out: list[dict] = []
-    seen = set()
-
-    for candidate in candidates:
-        params: list = []
-        where = []
-
-        if cliente_id and "cliente_id" in cols:
-            where.append("cliente_id=?")
+    candidates = _matching_machine_ids(conn, 'ordens_producao', cliente_id, machine_id, 'machine_id')
+    if 'cliente_id' not in cols:
+        candidates = [mid for mid in candidates if mid.startswith(f'{cliente_id}::')]
+    rows = []
+    for mid in candidates:
+        where = 'machine_id=?'
+        params = [mid]
+        if 'cliente_id' in cols:
+            where += ' AND cliente_id=?'
             params.append(cliente_id)
+        rows.extend(dict(r) for r in conn.execute('SELECT * FROM ordens_producao WHERE ' + where, params))
+    return rows
 
-        where.append("machine_id=?")
-        params.append(candidate)
-        where.append(f"{ref_expr}>=datetime(?)")
-        params.append(start_sql)
-        where.append(f"{ref_expr}<datetime(?)")
-        params.append(end_sql)
 
-        sql = (
-            f"SELECT {', '.join(select_cols)}, {ref_expr} AS data_pertencimento "
-            f"FROM {table} WHERE {' AND '.join(where)} ORDER BY {ref_expr} ASC"
-        )
+def _order_item(row, cliente_id):
+    pending = str(row.get('status') or '').upper() in ('FILA', 'PENDENTE')
+    activated = None if pending else next((row.get(k) for k in ('ativada_at', 'activated_at', 'started_at', 'inicio_iso') if _op_datetime(row.get(k))), None)
+    created = row.get('created_at') or (row.get('started_at') if pending else None)
+    reference = created if pending else activated
+    return {
+        'op_id': row.get('id') or row.get('op_id'), 'os': row.get('os') or row.get('op'),
+        'lote': row.get('lote'), 'operador': row.get('operador'), 'gr_fio': row.get('gr_fio'),
+        'status': 'PENDENTE' if pending else ('FINALIZADA' if row.get('ended_at') or str(row.get('status')).upper() in ('ENCERRADA', 'FINALIZADA') else row.get('status')),
+        'machine_id': _canonical_machine_id(row.get('machine_id'), cliente_id),
+        'created_at': created, 'activated_at': activated, 'ended_at': row.get('ended_at') or row.get('fim_iso'),
+        'data_pertencimento': reference, 'observacoes': row.get('observacoes'),
+    }
 
-        try:
-            rows = conn.execute(sql, tuple(params)).fetchall()
-        except Exception:
-            continue
 
-        for row in rows:
-            op_id = None
-            for key in ("id", "op_id"):
-                if key in row.keys() and row[key] is not None:
-                    op_id = row[key]
-                    break
-
-            op_value = row["op"] if "op" in row.keys() else None
-            os_value = row["os"] if "os" in row.keys() else None
-            lote = row["lote"] if "lote" in row.keys() else None
-            operador = row["operador"] if "operador" in row.keys() else None
-            status = row["status"] if "status" in row.keys() else None
-            data_pertencimento = row["data_pertencimento"]
-
-            signature = (
-                str(op_id or ""),
-                str(op_value or ""),
-                str(os_value or ""),
-                str(lote or ""),
-                str(operador or ""),
-                str(data_pertencimento or ""),
-            )
-            if signature in seen:
-                continue
-            seen.add(signature)
-
-            item = {
-                "op_id": op_id,
-                "op": op_value,
-                "os": os_value,
-                "lote": lote,
-                "operador": operador,
-                "status": status,
-                "machine_id": _canonical_machine_id(candidate, cliente_id),
-                "data_pertencimento": data_pertencimento,
-            }
-
-            for name in (
-                "inicio_iso",
-                "fim_iso",
-                "ativada_at",
-                "activated_at",
-                "started_at",
-                "created_at",
-                "observacoes",
-            ):
-                if name in row.keys():
-                    item[name] = row[name]
-
+def _ops_for_day(conn, cliente_id, machine_id, day):
+    out = []
+    seen = set()
+    for row in _history_order_rows(conn, cliente_id, machine_id):
+        item = _order_item(row, cliente_id)
+        ref = _op_datetime(item['data_pertencimento'])
+        key = item['op_id']
+        if ref and ref.date() == day and key not in seen:
+            seen.add(key)
             out.append(item)
+    return sorted(out, key=lambda item: str(item['data_pertencimento'] or ''), reverse=True)
 
-    return out
+
+def _order_counter_snapshot(conn, cliente_id, machine_id):
+    values = []
+    for table, day_col, hour_col in (('baseline_diario', 'dia_ref', None), ('producao_horaria', 'data_ref', 'hora_idx')):
+        cols = _get_columns(conn, table)
+        if not {'cliente_id', 'machine_id', 'esp_last', day_col}.issubset(cols):
+            continue
+        order = day_col + ' DESC'
+        if hour_col and hour_col in cols:
+            order += ', ' + hour_col + ' DESC'
+        if 'updated_at' in cols:
+            order += ', updated_at DESC'
+        for mid in _matching_machine_ids(conn, table, cliente_id, machine_id, 'machine_id'):
+            row = conn.execute(f'SELECT esp_last FROM {table} WHERE cliente_id=? AND machine_id=? ORDER BY {order} LIMIT 1', (cliente_id, mid)).fetchone()
+            if row and row[0] is not None:
+                values.append(max(0, int(row[0])))
+    return max(values) if values else None
+
+
+def _order_details(conn, cliente_id, machine_id, row):
+    item = _order_item(row, cliente_id)
+    oid = item['op_id']
+    start = _op_datetime(item['activated_at'])
+    now = datetime.now(TZ_BAHIA).replace(tzinfo=None)
+    end = min(_op_datetime(item['ended_at']) or now, now)
+    pending = item['status'] == 'PENDENTE'
+    pcs = 0 if pending else row.get('op_pcs')
+    metres = 0 if pending else row.get('op_metros')
+    conv = float(row.get('op_conv_m_por_pcs') or 0)
+    if not pending and not item['ended_at']:
+        absolute = _order_counter_snapshot(conn, cliente_id, machine_id)
+        pcs = max(0, int(absolute) - int(row.get('baseline_pcs') or 0)) if absolute is not None else None
+        metres = round(pcs * conv, 3) if pcs is not None and conv > 0 else None
+    metrics = {'tempo_produzindo_sec': 0, 'tempo_parado_sec': 0, 'tempo_sem_dados_sec': 0, 'tempo_fora_turno_sec': 0}
+    if start and end > start:
+        config = _load_machine_config(conn, cliente_id, machine_id)
+        day = start.date()
+        while day <= end.date():
+            left = max(start, datetime.combine(day, datetime.min.time()))
+            right = min(end, datetime.combine(day + timedelta(days=1), datetime.min.time()))
+            segments = _operational_segments_for_range(
+                _state_segments_for_day(conn, cliente_id, machine_id, day),
+                _planned_intervals_for_day(config, day), left, right)
+            for s, e, state in segments:
+                key = {'RUN': 'tempo_produzindo_sec', 'STOP': 'tempo_parado_sec', 'NO_DATA': 'tempo_sem_dados_sec', 'NP': 'tempo_fora_turno_sec'}.get(state)
+                if key:
+                    metrics[key] += max(0, int((e-s).total_seconds()))
+            day += timedelta(days=1)
+    bobinas = []
+    if 'op_id' in _get_columns(conn, 'ordens_producao_bobina_eventos'):
+        for event in conn.execute('SELECT * FROM ordens_producao_bobina_eventos WHERE op_id=? ORDER BY seq', (oid,)):
+            event = dict(event)
+            close = None
+            if 'op_id' in _get_columns(conn, 'ordens_producao_bobinas'):
+                close = conn.execute('SELECT * FROM ordens_producao_bobinas WHERE op_id=? AND idx=?', (oid, event['seq'])).fetchone()
+            total = None
+            if event.get('end_abs_pcs') is not None:
+                total = max(0, int(event['end_abs_pcs']) - int(event.get('start_abs_pcs') or 0))
+            elif not pending and pcs is not None and not item['ended_at']:
+                total = max(0, int(row.get('baseline_pcs') or 0) + pcs - int(event.get('start_abs_pcs') or 0))
+            event['pcs_total'] = total
+            event['fechamento'] = dict(close) if close else None
+            bobinas.append(event)
+    quality = []
+    qcols = _get_columns(conn, 'operacao_ocorrencia_registros')
+    if {'cliente_id', 'machine_id', 'op_id'}.issubset(qcols):
+        adjusted = bool(_get_columns(conn, 'operacao_ocorrencia_ajustes'))
+        sql = '''SELECT r.*'''
+        if adjusted:
+            sql += ''', COALESCE(a.quantidade, r.quantidade) AS quantidade_atual,
+                COALESCE(a.excluido, 0) AS excluido, a.updated_at AS alterado_at, a.alterado_por_nome'''
+        sql += ' FROM operacao_ocorrencia_registros r '
+        if adjusted:
+            sql += ' LEFT JOIN operacao_ocorrencia_ajustes a USING (cliente_id, machine_id, request_id, tipo_id) '
+        sql += ' WHERE r.cliente_id=? AND r.machine_id=? AND r.op_id=? ORDER BY r.created_at DESC'
+        quality = [dict(r) for r in conn.execute(sql, (cliente_id, row['machine_id'], oid))]
+    stops = []
+    if start and end > start and {'cliente_id', 'machine_id', 'started_at_ms', 'ended_at_ms'}.issubset(_get_columns(conn, 'parada_ocorrencias')):
+        left_ms = int(start.replace(tzinfo=TZ_BAHIA).timestamp() * 1000)
+        right_ms = int(end.replace(tzinfo=TZ_BAHIA).timestamp() * 1000)
+        for stop in conn.execute('SELECT * FROM parada_ocorrencias WHERE cliente_id=? AND machine_id=? AND started_at_ms<? AND COALESCE(ended_at_ms, ?) > ? ORDER BY started_at_ms', (cliente_id, row['machine_id'], right_ms, right_ms, left_ms)):
+            stop = dict(stop)
+            stop['tempo_na_op_sec'] = max(0, (min(stop.get('ended_at_ms') or right_ms, right_ms) - max(stop['started_at_ms'], left_ms)) // 1000)
+            reason = None
+            if stop.get('motivo_id') and {'id', 'cliente_id'}.issubset(_get_columns(conn, 'parada_motivos')):
+                reason = conn.execute('SELECT * FROM parada_motivos WHERE id=? AND cliente_id=?', (stop['motivo_id'], cliente_id)).fetchone()
+            stop['motivo'] = dict(reason) if reason else None
+            stops.append(stop)
+    item.update(producao_pcs=pcs, producao_metros=metres,
+                tempo_total_sec=max(0, int((end-start).total_seconds())) if start else 0,
+                bobinas=bobinas, lancamentos=quality, paradas=stops, **metrics)
+    return item
+
+
+@historico_bp.route('/api/producao/detalhe-op', methods=['GET'])
+def api_producao_detalhe_op():
+    cid = _cliente_id_sessao()
+    if not cid:
+        return jsonify(ok=False, error='Cliente da sessao nao identificado'), 403
+    mid = _canonical_machine_id(request.args.get('machine_id'), cid)
+    oid = _safe_int(request.args.get('op_id'))
+    if not mid or oid <= 0:
+        return jsonify(ok=False, error='Informe maquina e OP'), 400
+    conn = _get_conn()
+    try:
+        if not _machine_allowed(conn, cid, mid):
+            return jsonify(ok=False, error='Maquina nao encontrada para este cliente'), 404
+        row = next((r for r in _history_order_rows(conn, cid, mid) if _safe_int(r.get('id') or r.get('op_id')) == oid), None)
+        if row is None:
+            return jsonify(ok=False, error='OP nao encontrada nesta maquina'), 404
+        return jsonify(ok=True, op=_order_details(conn, cid, mid, row))
+    except Exception:
+        print('ERROR detalhe-op:\n' + traceback.format_exc(), flush=True)
+        return jsonify(ok=False, error='Falha ao consultar detalhes da OP'), 500
+    finally:
+        if not callable(get_db):
+            conn.close()
 
 
 def _state_columns(conn: sqlite3.Connection) -> dict:
@@ -2233,6 +2242,7 @@ def api_producao_detalhe_dia():
                 "effective_machine_id": machine_id,
                 "date": data_ref.isoformat(),
                 "hours": hours,
+                "ops": _ops_for_day(conn, cliente_id, machine_id, data_ref),
             }
         )
     except Exception as exc:

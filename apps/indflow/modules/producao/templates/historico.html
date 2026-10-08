@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\producao\templates\historico.html
-Último recode: 2026-10-02 17:26:16 (America/Bahia)
-Motivo: Adicionar legenda no topo do detalhe, usar amarelo nos intervalos sem comunicação e manter verde, vermelho e cinza para produção, parada e períodos não programados.
+Último recode: 2026-10-08 11:45:02 (America/Bahia)
+Motivo: Expandir Ver dia abaixo do registro, listar OPs e consultar execução, bobinas, qualidade e paradas.
 #}
 
 {% extends "base.html" %}
@@ -733,6 +733,20 @@ Motivo: Adicionar legenda no topo do detalhe, usar amarelo nos intervalos sem co
       grid-template-columns:1fr;
     }
   }
+
+  .history-inline-machine{padding:16px 0;border-top:1px solid #dbe3ee;min-width:0;}
+  .history-inline-machine h3{font-size:15px;margin:12px 0;}
+  .history-inline-table{overflow-x:auto;margin:12px 0;}
+  .history-order{border:1px solid #dbe3ee;border-radius:10px;margin:8px 0;background:#fff;}
+  .history-order summary{padding:12px;cursor:pointer;font-size:12px;overflow-wrap:anywhere;}
+  .history-order-detail{padding:0 12px 12px;min-width:0;}
+  .history-order-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;}
+  .history-order-metrics .history-day-metric-value{white-space:normal;overflow-wrap:anywhere;}
+  .history-order-status{display:inline-block;padding:4px 8px;border-radius:6px;color:#fff;font-size:10px;font-weight:800;}
+  .history-order-status.ativa{background:#4C9F70;}
+  .history-order-status.pendente{background:#6A9FD4;}
+  .history-order-status.finalizada{background:#BFC5CC;color:#243247;}
+
 </style>
 
 <div class="history-page">
@@ -1189,6 +1203,99 @@ Motivo: Adicionar legenda no topo do detalhe, usar amarelo nos intervalos sem co
     return parts.length ? parts.join(" · ") : "OP";
   }
 
+  function orderDate(value){
+    if(!value) return "Não registrado";
+    const text = String(value);
+    const stamp = /(?:Z|[+-]\d\d:\d\d)$/.test(text) ? Date.parse(text) : Date.parse(text.replace(" ","T") + "-03:00");
+    return Number.isFinite(stamp) ? fmtDateTime(stamp) : text;
+  }
+
+  function orderValue(value){
+    return value === null || value === undefined ? "Não registrado" : new Intl.NumberFormat("pt-BR", {maximumFractionDigits:3}).format(Number(value));
+  }
+
+  function detailTable(headers, rows){
+    if(!rows.length) return '<p class="history-helper">Nenhum registro.</p>';
+    return '<div class="history-inline-table"><table class="history-hour-table"><thead><tr>' +
+      headers.map(h => '<th>' + escapeHtml(h) + '</th>').join('') + '</tr></thead><tbody>' +
+      rows.map(row => '<tr>' + row.map(cell => '<td>' + escapeHtml(cell) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>';
+  }
+
+  function orderDetailsHtml(op){
+    const metrics = [
+      ['Criação', orderDate(op.created_at)], ['Ativação', orderDate(op.activated_at)],
+      ['Encerramento', op.ended_at ? orderDate(op.ended_at) : 'Em aberto'],
+      ['Produção total (peças)', orderValue(op.producao_pcs)], ['Produção total (metros)', orderValue(op.producao_metros)],
+      ['Tempo total', fmtDurationDetailed(op.tempo_total_sec)], ['Produzindo', fmtDurationDetailed(op.tempo_produzindo_sec)],
+      ['Parado', fmtDurationDetailed(op.tempo_parado_sec)], ['Sem dados', fmtDurationDetailed(op.tempo_sem_dados_sec)],
+      ['Fora de turno / pausa', fmtDurationDetailed(op.tempo_fora_turno_sec)]
+    ];
+    return '<p class="history-helper">Dados de toda a execução da OP, inclusive quando atravessa vários dias.</p>' +
+      '<div class="history-order-metrics">' + metrics.map(m => metricHtml(m[0], escapeHtml(m[1]))).join('') + '</div>' +
+      '<h4>Bobinas e fechamentos</h4>' + detailTable(
+        ['Bobina','Comprimento (m)','Início','Fim','Peças','Metros consumidos','Material bom','Costuras','Refugo','Sacos/caixa'],
+        (op.bobinas || []).map(b => {const f=b.fechamento || {}; return [Number(b.seq)+1, orderValue(b.comprimento_m), orderDate(b.started_at), b.ended_at ? orderDate(b.ended_at) : 'Em aberto', orderValue(b.pcs_total), orderValue(f.metro_consumido), orderValue(f.qtd_mat_bom), orderValue(f.qtd_cost_elas), orderValue(f.refugo), orderValue(f.qtd_saco_caixa)];})) +
+      '<h4>Lançamentos de qualidade</h4>' + detailTable(
+        ['Data/hora','Tipo','Quantidade atual','Desconta produção','Operador','Situação','Última alteração','Alterado por'],
+        (op.lancamentos || []).map(r => [orderDate(r.created_at), r.nome, orderValue(r.quantidade_atual === undefined ? r.quantidade : r.quantidade_atual), r.desconta_producao ? 'Sim' : 'Não', r.operador_nome, r.excluido ? 'Excluído' : 'Válido', r.alterado_at ? orderDate(r.alterado_at) : '—', r.alterado_por_nome || '—'])) +
+      '<h4>Paradas durante a OP</h4>' + detailTable(
+        ['Início','Fim','Tempo dentro da OP','Motivo','Responsável','Observação'],
+        (op.paradas || []).map(p => [fmtDateTime(p.started_at_ms), p.ended_at_ms ? fmtDateTime(p.ended_at_ms) : 'Em aberto', fmtDurationDetailed(p.tempo_na_op_sec), p.motivo ? (p.motivo.codigo + ' - ' + p.motivo.descricao) : 'Não classificada', p.responsavel || '—', p.observacao || '—'])) +
+      '<p class="history-helper">Observações: ' + escapeHtml(op.observacoes || 'Nenhuma') + '</p>';
+  }
+
+  function renderOrderList(container, ops, machine){
+    container.innerHTML = '<h3>OPs do dia — ' + escapeHtml(machine) + '</h3>' +
+      '<p class="history-helper">Pendentes no dia da criação; ativas e finalizadas no dia da ativação.</p>' +
+      (ops.length ? ops.map(op => {
+        const state = String(op.status || '').toUpperCase();
+        const cls = state === 'ATIVA' ? 'ativa' : (state === 'PENDENTE' ? 'pendente' : 'finalizada');
+        return '<details class="history-order" data-order-id="' + escapeHtml(op.op_id) + '"><summary>' +
+          '<span class="history-order-status ' + cls + '">' + escapeHtml(state) + '</span> ' +
+          '<strong>OP ' + escapeHtml(op.os || op.op_id) + '</strong> · Lote ' + escapeHtml(op.lote || '—') +
+          ' · Gramatura ' + escapeHtml(op.gr_fio || '—') + ' · Operador ' + escapeHtml(op.operador || '—') +
+          ' <span class="history-helper">— Ver detalhes</span></summary><div class="history-order-detail"></div></details>';
+      }).join('') : '<p class="history-helper">Nenhuma OP pertence a este dia.</p>');
+    container.querySelectorAll('details').forEach(detail => {
+      detail.addEventListener('toggle', async function(){
+        if(!detail.open || detail.dataset.loading === '1' || detail.dataset.loaded === '1') return;
+        const body = detail.querySelector('.history-order-detail');
+        detail.dataset.loading = '1';
+        body.textContent = 'Carregando detalhes da OP...';
+        try{
+          const params = new URLSearchParams({machine_id:machine, op_id:detail.dataset.orderId});
+          const response = await fetch('/producao/api/producao/detalhe-op?' + params, {headers:{Accept:'application/json'}});
+          const payload = await response.json();
+          if(!response.ok || !payload.ok) throw new Error(payload.error || 'Falha ao carregar OP.');
+          body.innerHTML = orderDetailsHtml(payload.op);
+          detail.dataset.loaded = '1';
+        }catch(err){
+          body.textContent = (err.message || String(err)) + ' Feche e abra os detalhes para tentar novamente.';
+        }finally{
+          delete detail.dataset.loading;
+        }
+      });
+    });
+  }
+
+  async function loadInlineDay(container, machine, dateIso){
+    container.innerHTML = '<div class="history-loading">Carregando ' + escapeHtml(machine) + '...</div>';
+    try{
+      const params = new URLSearchParams({machine_id:machine, date:dateIso});
+      const response = await fetch('/producao/api/producao/detalhe-dia?' + params, {headers:{Accept:'application/json'}});
+      const payload = await response.json();
+      if(!response.ok || !payload.ok) throw new Error(payload.error || 'Falha ao carregar dia.');
+      container.innerHTML = '<div class="history-inline-orders"></div><h3>Produção por hora — ' + escapeHtml(machine) + '</h3>' +
+        document.querySelector('.history-legend').outerHTML +
+        '<div class="history-inline-table"><table class="history-hour-table"><thead>' +
+        document.querySelector('.history-hour-table thead').innerHTML + '</thead><tbody></tbody></table></div>';
+      renderOrderList(container.querySelector('.history-inline-orders'), payload.ops || [], machine);
+      renderHourDetail(payload, container.querySelector('tbody'));
+    }catch(err){
+      container.innerHTML = '<div class="history-error">' + escapeHtml(err.message || String(err)) + ' Recolha e abra o dia para tentar novamente.</div>';
+    }
+  }
+
   function machineRowHtml(machine, dateIso){
     const ops = Array.isArray(machine.ops) ? machine.ops : [];
     const opsHtml = ops.length
@@ -1268,41 +1375,31 @@ Motivo: Adicionar legenda no topo do detalhe, usar amarelo nos intervalos sem co
             'data-day-date="' + escapeHtml(day.data) + '" ' +
             'data-panel-id="' + panelId + '">Ver dia</button>' +
         '</div>' +
-        '<div id="' + panelId + '" class="history-machine-panel">' +
-          (
-            machines.length
-              ? machines.map(m => machineRowHtml(m, day.data)).join("")
-              : '<div class="history-empty">Sem detalhamento por máquina neste dia.</div>'
-          ) +
-        '</div>';
+        '<div id="' + panelId + '" class="history-machine-panel"></div>';
 
       historyList.appendChild(dayElement);
     });
 
     historyList.querySelectorAll(".history-view-day").forEach(button => {
-      button.addEventListener("click", function(){
-        const dateIso = button.getAttribute("data-day-date") || "";
-
-        if(machineSelect.value !== "all"){
-          openDayDetail(machineSelect.value, dateIso);
-          return;
-        }
-
-        const panelId = button.getAttribute("data-panel-id") || "";
-        const panel = document.getElementById(panelId);
+      button.setAttribute('aria-expanded', 'false');
+      button.setAttribute('aria-controls', button.dataset.panelId);
+      button.addEventListener("click", async function(){
+        const panel = document.getElementById(button.dataset.panelId);
         if(!panel) return;
-
-        const opening = !panel.classList.contains("open");
-        panel.classList.toggle("open", opening);
-        button.textContent = opening ? "Ocultar" : "Ver dia";
-      });
-    });
-
-    historyList.querySelectorAll("[data-detail-machine]").forEach(button => {
-      button.addEventListener("click", function(){
-        const machine = button.getAttribute("data-detail-machine") || "";
-        const dateIso = button.getAttribute("data-detail-date") || "";
-        openDayDetail(machine, dateIso);
+        const opening = !panel.classList.contains('open');
+        panel.classList.toggle('open', opening);
+        button.textContent = opening ? 'Recolher' : 'Ver dia';
+        button.setAttribute('aria-expanded', String(opening));
+        if(!opening) return;
+        panel.innerHTML = '';
+        const day = rows.find(row => row.data === button.dataset.dayDate);
+        const machines = day && Array.isArray(day.machines) ? day.machines : [];
+        await Promise.all(machines.map(machine => {
+          const section = document.createElement('section');
+          section.className = 'history-inline-machine';
+          panel.appendChild(section);
+          return loadInlineDay(section, machine.machine_id, day.data);
+        }));
       });
     });
   }
@@ -1449,15 +1546,16 @@ Motivo: Adicionar legenda no topo do detalhe, usar amarelo nos intervalos sem co
     return '<div class="history-timeline">' + html + '</div>';
   }
 
-  function renderHourDetail(payload){
+  function renderHourDetail(payload, targetBody){
+    const detailBody = targetBody || hourBody;
     const machine = payload.machine_id || "";
     const dateIso = payload.date || "";
     modalTitle.textContent = "Detalhe do dia " + isoToBr(dateIso) + " — " + machine;
-    hourBody.innerHTML = "";
+    detailBody.innerHTML = "";
 
     const hours = Array.isArray(payload.hours) ? payload.hours : [];
     if(!hours.length){
-      hourBody.innerHTML = '<tr><td colspan="7">Sem dados.</td></tr>';
+      detailBody.innerHTML = '<tr><td colspan="7">Sem dados.</td></tr>';
       return;
     }
 
@@ -1471,10 +1569,10 @@ Motivo: Adicionar legenda no topo do detalhe, usar amarelo nos intervalos sem co
         '<td>' + fmtClock(hour.tempo_parado_sec) + '</td>' +
         '<td>' + fmtNum(hour.qtd_paradas) + '</td>' +
         '<td>' + timelineHtml(machine, dateIso, hour.segments) + '</td>';
-      hourBody.appendChild(tr);
+      detailBody.appendChild(tr);
     });
 
-    hourBody.querySelectorAll("[data-stop-machine]").forEach(segment => {
+    detailBody.querySelectorAll("[data-stop-machine]").forEach(segment => {
       segment.addEventListener("click", function(event){
         event.preventDefault();
         event.stopPropagation();
@@ -1488,6 +1586,7 @@ Motivo: Adicionar legenda no topo do detalhe, usar amarelo nos intervalos sem co
         const endMs = bahiaWallToUtcMs(stopDate, stopEnd);
         if(!Number.isFinite(startMs) || !Number.isFinite(endMs)) return;
 
+        activeDayDetail = {machine:stopMachine, dateIso:stopDate, body:detailBody};
         openStopClassification(stopMachine, stopDate, startMs, endMs);
       });
     });
@@ -1689,7 +1788,7 @@ Motivo: Adicionar legenda no topo do detalhe, usar amarelo nos intervalos sem co
     if(!response.ok || !payload || payload.ok === false){
       throw new Error(payload && payload.error ? payload.error : "Falha ao atualizar detalhe do dia.");
     }
-    renderHourDetail(payload);
+    renderHourDetail(payload, activeDayDetail.body);
     if(modalBody) modalBody.scrollTop = savedScrollTop;
   }
 

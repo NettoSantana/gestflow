@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\producao\routes.py
-# Último recode: 2026-10-07 06:54:58 (America/Bahia)
-# Motivo: Limitar a cinco OPs abertas, reutilizar posições livres e evitar ativação simultânea ou reinício do contador de uma OP já ativa.
+# Último recode: 2026-10-08 11:45:02 (America/Bahia)
+# Motivo: Histórico de OPs por criação enquanto pendentes e por ativação após iniciar, com detalhes completos e preservação da criação.
 
 from flask import Blueprint, render_template, redirect, request, jsonify, session
 from datetime import datetime, timedelta, timezone
@@ -924,6 +924,7 @@ def init_op_db():
         "ALTER TABLE ordens_producao ADD COLUMN qtd_saco_caixa INTEGER DEFAULT 0",
         "ALTER TABLE ordens_producao ADD COLUMN posicao INTEGER NOT NULL DEFAULT 1",
         "ALTER TABLE ordens_producao ADD COLUMN cliente_id TEXT",
+        "ALTER TABLE ordens_producao ADD COLUMN created_at TEXT",
     ]:
         try:
             cur.execute(sql)
@@ -1236,11 +1237,11 @@ def _insert_op_row(payload: dict) -> int:
         """
         INSERT INTO ordens_producao (
             cliente_id, machine_id, posicao, os, lote, operador, bobina, gr_fio, observacoes,
-            started_at, ended_at, status,
+            created_at, started_at, ended_at, status,
             baseline_pcs, baseline_u1, baseline_u2,
             op_metros, op_pcs, op_conv_m_por_pcs,
             unidade_1, unidade_2
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             payload.get("cliente_id"),
@@ -1252,6 +1253,7 @@ def _insert_op_row(payload: dict) -> int:
             payload.get("bobina"),
             payload.get("gr_fio"),
             payload.get("observacoes"),
+            payload.get("started_at"),
             payload.get("started_at"),
             payload.get("ended_at"),
             payload.get("status"),
@@ -3876,7 +3878,7 @@ def op_ativar():
         # Regra: a OP pertence ao dia em que foi ATIVADA.
         # Portanto, ao ativar, started_at deve ser sobrescrito com o timestamp da ativacao.
         cur.execute(
-            "UPDATE ordens_producao SET status=?, baseline_pcs=?, started_at=?, ended_at=NULL "
+            "UPDATE ordens_producao SET created_at=COALESCE(created_at, started_at), status=?, baseline_pcs=?, started_at=?, ended_at=NULL "
             "WHERE id=? AND cliente_id=?",
             ("ATIVA", baseline_pcs, now_iso, op_id, cliente_id),
         )
