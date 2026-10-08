@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\producao\routes.py
-# Último recode: 2026-10-08 11:45:02 (America/Bahia)
-# Motivo: Histórico de OPs por criação enquanto pendentes e por ativação após iniciar, com detalhes completos e preservação da criação.
+# Último recode: 2026-10-08 11:52:29 (America/Bahia)
+# Motivo: Publicar a consulta de detalhes da OP no blueprint de produção registrado pelo servidor, com login obrigatório.
 
 from flask import Blueprint, render_template, redirect, request, jsonify, session
 from datetime import datetime, timedelta, timezone
@@ -2555,6 +2555,13 @@ def _incrementar_producao_diaria_por_op(cliente_id: str, machine_id: str, dia_is
 # =====================================================
 # API - DETALHE DO DIA (JSON) - PARA MODAL DO HISTORICO
 # =====================================================
+@producao_bp.route("/api/producao/detalhe-op", methods=["GET"])
+@login_required
+def api_detalhe_op():
+    from modules.producao.historico_routes import api_producao_detalhe_op
+    return api_producao_detalhe_op()
+
+
 @producao_bp.route("/detalhe-dia", methods=["GET"])
 @producao_bp.route("/api/producao/detalhe-dia", methods=["GET"])
 @login_required
