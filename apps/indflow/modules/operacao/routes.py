@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\operacao\routes.py
-# Último recode: 2026-10-07 06:54:58 (America/Bahia)
-# Motivo: Exibir fila e gramatura na operação e permitir ativação autorizada pela empresa e máquina usando a rotina de produção existente.
+# Último recode: 2026-10-08 10:37:49 (America/Bahia)
+# Motivo: Permitir encerramento da OP ativa pela tela operacional, validando perfil, empresa e máquina e preservando o fechamento de produção existente.
 
 from __future__ import annotations
 
@@ -1419,3 +1419,29 @@ def api_activate_order():
         return jsonify({"ok": False, "error": "Encerre a OP ativa antes de ativar outra."}), 409
     from modules.producao.routes import op_ativar
     return op_ativar()
+
+
+@operacao_bp.post("/api/op/encerrar")
+@login_required
+def api_close_order():
+    cid = _cliente_id()
+    if not cid or _role() not in ("operator", "admin", "superadmin"):
+        return jsonify({"ok": False, "error": "Sem permissão para encerrar OP."}), 403
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"ok": False, "error": "Solicitação inválida."}), 400
+    requested = normalize_machine_id(payload.get("machine_id") or "", cid)
+    machine_id, _ = _resolve_machine(cid, requested)
+    if not requested or not machine_id or machine_id.casefold() != requested.casefold():
+        return jsonify({"ok": False, "error": "Máquina não autorizada para esta sessão."}), 403
+    try:
+        op_id = int(payload.get("op_id") or 0)
+    except (ValueError, TypeError):
+        op_id = 0
+    selected = next((op for op in _operational_orders(cid, machine_id) if op["id"] == op_id), None)
+    if not selected:
+        return jsonify({"ok": False, "error": "OP não pertence às ordens abertas desta máquina."}), 404
+    if selected["status"] != "ATIVA":
+        return jsonify({"ok": False, "error": "Somente a OP ativa pode ser encerrada."}), 409
+    from modules.producao.routes import op_encerrar_by_id
+    return op_encerrar_by_id()

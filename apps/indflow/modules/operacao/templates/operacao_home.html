@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\operacao\templates\operacao_home.html
-Último recode: 2026-10-07 06:54:58 (America/Bahia)
-Motivo: Mostrar fila de OPs, botão de ativação e gramatura na tela operacional, com rolagem interna e bloqueio quando já existe OP ativa.
+Último recode: 2026-10-08 10:37:49 (America/Bahia)
+Motivo: Adicionar Encerrar OP no card ativo, confirmar o fechamento e atualizar a fila e a gramatura após o encerramento.
 #}
 
 {% extends "base.html" %}
@@ -23,6 +23,8 @@ Motivo: Mostrar fila de OPs, botão de ativação e gramatura na tela operaciona
 .op-header{grid-template-columns:minmax(260px,1fr) 155px minmax(270px,1.1fr) auto;gap:12px}.op-active-summary{width:auto;box-sizing:border-box}.op-order-queue{min-width:0;padding:12px;min-height:104px;box-sizing:border-box}.op-order-list{max-height:108px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-top:7px;scrollbar-gutter:stable}.op-order-row{display:flex;align-items:center;gap:8px;border:1px solid #dbeafe;border-radius:9px;padding:7px 8px;min-width:0}.op-order-info{flex:1;min-width:0}.op-order-info b{display:block;font-size:12px;overflow-wrap:anywhere}.op-order-info small{font-size:10px;margin-top:2px;overflow-wrap:anywhere}.op-order-row .btn{padding:7px 9px;font-size:11px;white-space:nowrap;flex-shrink:0}.op-order-row .btn:disabled{opacity:.5;cursor:default}.op-order-empty,.op-order-hint{font-size:10px;color:#64748b;margin-top:5px}.op-order-gram{color:#1d4ed8!important;font-weight:800}.op-order-queue .op-error{padding:6px;font-size:10px;margin:6px 0 0}.op-active-summary [hidden]{display:none!important}
 @media(max-width:1100px){.op-header{grid-template-columns:minmax(220px,1fr) 145px minmax(245px,1fr)}.op-actions{grid-column:1/-1}.op-active-summary{width:auto}}
 @media(max-width:700px){.op-header{grid-template-columns:minmax(0,1fr) 140px}.op-order-queue{grid-column:1/-1}.op-active-summary{width:auto}.op-actions{grid-column:1/-1}}
+
+#closeOrderBtn{margin-top:8px;padding:6px 8px;min-height:30px;font-size:11px;color:#b91c1c;border-color:#fecaca}#closeOrderBtn:disabled{opacity:.5;cursor:default}
 </style>
 
 <div class="op-shell">
@@ -43,7 +45,7 @@ Motivo: Mostrar fila de OPs, botão de ativação e gramatura na tela operaciona
       <span id="statusBadge" class="op-status off">CARREGANDO</span>
     </div>
     {% if machines %}
-    <div class="op-card op-active-summary"><span class="label">OP ativa</span><strong id="activeOrder">—</strong><small id="activeOrderDetail">Nenhuma OP ativa</small><small id="activeOrderGram" class="op-order-gram" hidden></small></div>
+    <div class="op-card op-active-summary"><span class="label">OP ativa</span><strong id="activeOrder">—</strong><small id="activeOrderDetail">Nenhuma OP ativa</small><small id="activeOrderGram" class="op-order-gram" hidden></small><button id="closeOrderBtn" type="button" class="btn btn-secondary" hidden>Encerrar OP</button></div>
     <section class="op-card op-order-queue"><span class="label">Fila de OPs</span><div id="orderQueue" class="op-order-list"><div class="op-order-empty">Carregando fila...</div></div><div id="orderQueueHint" class="op-order-hint"></div><div id="orderQueueError" class="op-error" role="alert"></div></section>
     {% endif %}
     <div class="op-actions">
@@ -247,6 +249,8 @@ function renderOrders(){
   const op=opState?.active_order;
   const gram=$('activeOrderGram');
   if(gram){gram.textContent=op?.gr_fio?`Gramatura: ${op.gr_fio}`:'';gram.hidden=!op?.gr_fio;}
+  const closeBtn=$('closeOrderBtn');
+  if(closeBtn){closeBtn.hidden=!op||!canRegister;closeBtn.disabled=orderActivating||simulation.active||!!connectionLostAtMs||qualityChanging||occurrenceBusy;closeBtn.textContent=orderActivating?'Aguarde...':'Encerrar OP';}
   const list=$('orderQueue');if(!list)return;
   const queue=opState?.order_queue||[];
   const blocked=!!op||orderActivating||simulation.active||!canRegister||!!connectionLostAtMs;
@@ -269,6 +273,19 @@ async function activateOrder(id){
   }catch(e){showError('orderQueueError',e.message);await loadState().catch(()=>{});}
   finally{dataRevision++;orderActivating=false;if($('machineSelect'))$('machineSelect').disabled=false;renderOrders();}
 }
+async function closeOrder(){
+  const op=opState?.active_order;
+  if(!op||orderActivating||simulation.active||!canRegister||connectionLostAtMs||qualityChanging||occurrenceBusy)return;
+  if(!confirm(`Encerrar a OP ${op.os||op.id} da máquina ${String(machine).toUpperCase()}? A produção será fechada e preservada no histórico.`))return;
+  orderActivating=true;dataRevision++;showError('orderQueueError','');renderOrders();
+  if($('machineSelect'))$('machineSelect').disabled=true;
+  try{
+    await fetchJson('/operacao/api/op/encerrar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({machine_id:machine,op_id:op.id})});
+    await loadState();
+  }catch(e){showError('orderQueueError',e.message);await loadState().catch(()=>{});}
+  finally{dataRevision++;orderActivating=false;if($('machineSelect'))$('machineSelect').disabled=false;renderOrders();}
+}
+if($('closeOrderBtn'))$('closeOrderBtn').onclick=closeOrder;
 function renderAll(){renderProductive();renderBlocking();renderOrders();}
 function renderConfig(){if(!context?.config)return;if($('cfgMinutes'))$('cfgMinutes').value=context.config.tempo_obrigatorio_min;if($('cfgPageSize'))$('cfgPageSize').value=context.config.botoes_por_pagina;if($('cfgOrder'))$('cfgOrder').value=context.config.ordenacao;renderOccurrenceConfig();}
 
