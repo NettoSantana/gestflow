@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\producao\templates\historico.html
-Último recode: 2026-10-09 05:17:40 (America/Bahia)
-Motivo: Retirar a tabela de paradas dos detalhes da OP, preservando os tempos resumidos e o histórico por hora.
+Último recode: 2026-10-09 11:54:45 (America/Bahia)
+Motivo: Deixar horas futuras sem situação e desenhar os intervalos na escala fixa de 60 minutos.
 #}
 
 {% extends "base.html" %}
@@ -496,6 +496,7 @@ Motivo: Retirar a tabela de paradas dos detalhes da OP, preservando os tempos re
   }
 
   .history-timeline{
+    position:relative;
     min-width:220px;
     height:11px;
     display:flex;
@@ -506,6 +507,7 @@ Motivo: Retirar a tabela de paradas dos detalhes da OP, preservando os tempos re
   }
 
   .history-seg{
+    position:absolute;
     height:100%;
   }
 
@@ -1509,21 +1511,18 @@ Motivo: Retirar a tabela de paradas dos detalhes da OP, preservando os tempos re
     return guess - off2;
   }
 
-  function timelineHtml(machine, dateIso, segments){
+  function timelineHtml(machine, dateIso, segments, hour){
     const list = Array.isArray(segments) ? segments : [];
     if(!list.length){
-      return '<div class="history-timeline"><div class="history-seg idle" style="width:100%"></div></div>';
+      return '<div class="history-timeline"></div>';
     }
 
-    let total = 0;
-    list.forEach(seg => {
-      total += Math.max(0, parseHms(seg.end) - parseHms(seg.start));
-    });
-    if(total <= 0) total = 3600;
+    const hourStart = Number(hour || 0) * 3600;
 
     const html = list.map(seg => {
       const duration = Math.max(0, parseHms(seg.end) - parseHms(seg.start));
-      const pct = Math.max(0, Math.min(100, (duration / total) * 100));
+      const left = Math.max(0, Math.min(100, ((parseHms(seg.start) - hourStart) / 3600) * 100));
+      const pct = Math.max(0, Math.min(100 - left, (duration / 3600) * 100));
       const state = String(seg.state || "IDLE").toUpperCase();
       const cls = state === "RUN" ? "run" : (state === "STOP" ? "stop" : (state === "NO_DATA" ? "no-data" : (state === "NP" ? "np" : "idle")));
 
@@ -1537,7 +1536,7 @@ Motivo: Retirar a tabela de paradas dos detalhes da OP, preservando os tempos re
           )
         : (cls === "no-data" ? ' title="Sem comunicação registrada neste intervalo"' : "");
 
-      return '<div class="history-seg ' + cls + '" style="width:' + pct.toFixed(3) + '%"' + attrs + '></div>';
+      return '<div class="history-seg ' + cls + '" style="left:' + left.toFixed(3) + '%;width:' + pct.toFixed(3) + '%"' + attrs + '></div>';
     }).join("");
 
     return '<div class="history-timeline">' + html + '</div>';
@@ -1565,7 +1564,7 @@ Motivo: Retirar a tabela de paradas dos detalhes da OP, preservando os tempos re
         '<td>' + fmtClock(hour.tempo_produzindo_sec) + '</td>' +
         '<td>' + fmtClock(hour.tempo_parado_sec) + '</td>' +
         '<td>' + fmtNum(hour.qtd_paradas) + '</td>' +
-        '<td>' + timelineHtml(machine, dateIso, hour.segments) + '</td>';
+        '<td>' + timelineHtml(machine, dateIso, hour.segments, hour.hour) + '</td>';
       detailBody.appendChild(tr);
     });
 
