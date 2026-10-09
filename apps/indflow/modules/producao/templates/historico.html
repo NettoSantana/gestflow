@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\producao\templates\historico.html
-Último recode: 2026-10-09 11:54:45 (America/Bahia)
-Motivo: Deixar horas futuras sem situação e desenhar os intervalos na escala fixa de 60 minutos.
+Último recode: 2026-10-09 12:11:13 (America/Bahia)
+Motivo: Mostrar continuação da OP, alternar dados do dia e execução completa e preservar o cabeçalho das horas.
 #}
 
 {% extends "base.html" %}
@@ -1227,14 +1227,14 @@ Motivo: Deixar horas futuras sem situação e desenhar os intervalos na escala f
     const metrics = [
       ['Criação', orderDate(op.created_at)], ['Ativação', orderDate(op.activated_at)],
       ['Encerramento', op.ended_at ? orderDate(op.ended_at) : 'Em aberto'],
-      ['Produção total (peças)', orderValue(op.producao_pcs)], ['Produção total (metros)', orderValue(op.producao_metros)],
-      ['Tempo total', fmtDurationDetailed(op.tempo_total_sec)], ['Produzindo', fmtDurationDetailed(op.tempo_produzindo_sec)],
+      [op.consulta_dia ? 'Produção do dia (peças)' : 'Produção total (peças)', orderValue(op.producao_pcs)], [op.consulta_dia ? 'Produção do dia (metros)' : 'Produção total (metros)', orderValue(op.producao_metros)],
+      [op.consulta_dia ? 'Tempo neste dia' : 'Tempo total', fmtDurationDetailed(op.tempo_total_sec)], ['Produzindo', fmtDurationDetailed(op.tempo_produzindo_sec)],
       ['Parado', fmtDurationDetailed(op.tempo_parado_sec)], ['Sem dados', fmtDurationDetailed(op.tempo_sem_dados_sec)],
       ['Fora de turno / pausa', fmtDurationDetailed(op.tempo_fora_turno_sec)]
     ];
-    return '<p class="history-helper">Dados de toda a execução da OP, inclusive quando atravessa vários dias.</p>' +
+    return '<p class="history-helper">' + (op.consulta_dia ? 'Dados somente de ' + escapeHtml(isoToBr(op.consulta_dia)) + '. Datas de início e fim identificam a OP e suas bobinas.' : 'Dados de toda a execução da OP, inclusive quando atravessa vários dias.') + '</p>' +
       '<div class="history-order-metrics">' + metrics.map(m => metricHtml(m[0], escapeHtml(m[1]))).join('') + '</div>' +
-      '<h4>Bobinas e fechamentos</h4>' + detailTable(
+      '<h4>Bobinas e fechamentos</h4>' + (op.consulta_dia ? '<p class="history-helper">Peças somente deste dia. Fechamentos aparecem no dia em que foram registrados.</p>' : '') + detailTable(
         ['Bobina','Comprimento (m)','Início','Fim','Peças','Metros consumidos','Material bom','Costuras','Refugo','Sacos/caixa'],
         (op.bobinas || []).map(b => {const f=b.fechamento || {}; return [Number(b.seq)+1, orderValue(b.comprimento_m), orderDate(b.started_at), b.ended_at ? orderDate(b.ended_at) : 'Em aberto', orderValue(b.pcs_total), orderValue(f.metro_consumido), orderValue(f.qtd_mat_bom), orderValue(f.qtd_cost_elas), orderValue(f.refugo), orderValue(f.qtd_saco_caixa)];})) +
       '<h4>Lançamentos de qualidade</h4>' + detailTable(
@@ -1243,36 +1243,44 @@ Motivo: Deixar horas futuras sem situação e desenhar os intervalos na escala f
       '<p class="history-helper">Observações: ' + escapeHtml(op.observacoes || 'Nenhuma') + '</p>';
   }
 
-  function renderOrderList(container, ops, machine){
+  function renderOrderList(container, ops, machine, dateIso){
     container.innerHTML = '<h3>OPs do dia — ' + escapeHtml(machine) + '</h3>' +
-      '<p class="history-helper">Pendentes no dia da criação; ativas e finalizadas no dia da ativação.</p>' +
+      '<p class="history-helper">Pendentes no dia da criação; ordens em execução aparecem em cada dia, até o encerramento.</p>' +
       (ops.length ? ops.map(op => {
-        const state = String(op.status || '').toUpperCase();
+        const state = String(op.status_no_dia || op.status || '').toUpperCase();
         const cls = state === 'ATIVA' ? 'ativa' : (state === 'PENDENTE' ? 'pendente' : 'finalizada');
         return '<details class="history-order" data-order-id="' + escapeHtml(op.op_id) + '"><summary>' +
           '<span class="history-order-status ' + cls + '">' + escapeHtml(state) + '</span> ' +
           '<strong>OP ' + escapeHtml(op.os || op.op_id) + '</strong> · Lote ' + escapeHtml(op.lote || '—') +
           ' · Gramatura ' + escapeHtml(op.gr_fio || '—') + ' · Operador ' + escapeHtml(op.operador || '—') +
+          (op.continua_de ? ' · Continuação de ' + escapeHtml(isoToBr(op.continua_de)) : '') +
           ' <span class="history-helper">— Ver detalhes</span></summary><div class="history-order-detail"></div></details>';
       }).join('') : '<p class="history-helper">Nenhuma OP pertence a este dia.</p>');
     container.querySelectorAll('details').forEach(detail => {
-      detail.addEventListener('toggle', async function(){
-        if(!detail.open || detail.dataset.loading === '1' || detail.dataset.loaded === '1') return;
-        const body = detail.querySelector('.history-order-detail');
+      const body = detail.querySelector('.history-order-detail');
+      async function loadDetails(full){
+        if(detail.dataset.loading === '1') return;
         detail.dataset.loading = '1';
         body.textContent = 'Carregando detalhes da OP...';
         try{
           const params = new URLSearchParams({machine_id:machine, op_id:detail.dataset.orderId});
+          if(!full) params.set('date', dateIso);
           const response = await fetch('/producao/api/producao/detalhe-op?' + params, {headers:{Accept:'application/json'}});
           const payload = await response.json();
           if(!response.ok || !payload.ok) throw new Error(payload.error || 'Falha ao carregar OP.');
-          body.innerHTML = orderDetailsHtml(payload.op);
+          body.innerHTML = '<button type="button" class="history-detail-button">' +
+            (full ? 'Voltar aos dados deste dia' : 'Ver execução completa da OP') + '</button>' + orderDetailsHtml(payload.op);
+          body.querySelector('button').addEventListener('click', () => loadDetails(!full));
           detail.dataset.loaded = '1';
         }catch(err){
+          delete detail.dataset.loaded;
           body.textContent = (err.message || String(err)) + ' Feche e abra os detalhes para tentar novamente.';
         }finally{
           delete detail.dataset.loading;
         }
+      }
+      detail.addEventListener('toggle', function(){
+        if(detail.open && detail.dataset.loaded !== '1') loadDetails(false);
       });
     });
   }
@@ -1287,8 +1295,8 @@ Motivo: Deixar horas futuras sem situação e desenhar os intervalos na escala f
       container.innerHTML = '<div class="history-inline-orders"></div><h3>Produção por hora — ' + escapeHtml(machine) + '</h3>' +
         document.querySelector('.history-legend').outerHTML +
         '<div class="history-inline-table"><table class="history-hour-table"><thead>' +
-        document.querySelector('.history-hour-table thead').innerHTML + '</thead><tbody></tbody></table></div>';
-      renderOrderList(container.querySelector('.history-inline-orders'), payload.ops || [], machine);
+        document.querySelector('#historyModalBackdrop .history-hour-table thead').innerHTML + '</thead><tbody></tbody></table></div>';
+      renderOrderList(container.querySelector('.history-inline-orders'), payload.ops || [], machine, dateIso);
       renderHourDetail(payload, container.querySelector('tbody'));
     }catch(err){
       container.innerHTML = '<div class="history-error">' + escapeHtml(err.message || String(err)) + ' Recolha e abra o dia para tentar novamente.</div>';
