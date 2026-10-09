@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\producao\historico_routes.py
-# Último recode: 2026-10-08 11:45:02 (America/Bahia)
-# Motivo: Histórico de OPs por criação enquanto pendentes e por ativação após iniciar, com detalhes completos e preservação da criação.
+# Último recode: 2026-10-09 12:11:13 (America/Bahia)
+# Motivo: Exibir a mesma OP nos dias da execução, consultar registros por dia e contar ordens únicas no período.
 
 from __future__ import annotations
 
@@ -550,12 +550,21 @@ def _order_item(row, cliente_id):
 def _ops_for_day(conn, cliente_id, machine_id, day):
     out = []
     seen = set()
+    now = datetime.now(TZ_BAHIA).replace(tzinfo=None)
+    day_start = datetime.combine(day, datetime.min.time())
+    day_end = day_start + timedelta(days=1)
     for row in _history_order_rows(conn, cliente_id, machine_id):
         item = _order_item(row, cliente_id)
         ref = _op_datetime(item['data_pertencimento'])
+        ended = _op_datetime(item['ended_at'])
+        pending = item['status'] == 'PENDENTE'
+        belongs = bool(ref and (ref.date() == day if pending else
+                       ref <= now and ref < day_end and min(ended or now, now) > day_start))
         key = item['op_id']
-        if ref and ref.date() == day and key not in seen:
+        if belongs and key not in seen:
             seen.add(key)
+            item['continua_de'] = ref.date().isoformat() if not pending and ref.date() < day else None
+            item['status_no_dia'] = item['status'] if pending or (ended and ended <= day_end) else 'ATIVA'
             out.append(item)
     return sorted(out, key=lambda item: str(item['data_pertencimento'] or ''), reverse=True)
 
@@ -578,7 +587,7 @@ def _order_counter_snapshot(conn, cliente_id, machine_id):
     return max(values) if values else None
 
 
-def _order_details(conn, cliente_id, machine_id, row):
+def _order_details(conn, cliente_id, machine_id, row, selected_day=None):
     item = _order_item(row, cliente_id)
     oid = item['op_id']
     start = _op_datetime(item['activated_at'])
@@ -592,6 +601,20 @@ def _order_details(conn, cliente_id, machine_id, row):
         absolute = _order_counter_snapshot(conn, cliente_id, machine_id)
         pcs = max(0, int(absolute) - int(row.get('baseline_pcs') or 0)) if absolute is not None else None
         metres = round(pcs * conv, 3) if pcs is not None and conv > 0 else None
+    if selected_day is not None:
+        day_start = datetime.combine(selected_day, datetime.min.time())
+        day_end = day_start + timedelta(days=1)
+        start = max(start, day_start) if start else None
+        end = min(end, day_end)
+        item['consulta_dia'] = selected_day.isoformat()
+        if start and end > start:
+            found, pcs = _production_from_events(conn, cliente_id, machine_id,
+                int(start.replace(tzinfo=TZ_BAHIA).timestamp() * 1000),
+                int(end.replace(tzinfo=TZ_BAHIA).timestamp() * 1000))
+            pcs = pcs if found else None
+            metres = round(pcs * conv, 3) if pcs is not None and conv > 0 else None
+        else:
+            pcs = metres = 0
     metrics = {'tempo_produzindo_sec': 0, 'tempo_parado_sec': 0, 'tempo_sem_dados_sec': 0, 'tempo_fora_turno_sec': 0}
     if start and end > start:
         config = _load_machine_config(conn, cliente_id, machine_id)
@@ -619,6 +642,18 @@ def _order_details(conn, cliente_id, machine_id, row):
                 total = max(0, int(event['end_abs_pcs']) - int(event.get('start_abs_pcs') or 0))
             elif not pending and pcs is not None and not item['ended_at']:
                 total = max(0, int(row.get('baseline_pcs') or 0) + pcs - int(event.get('start_abs_pcs') or 0))
+            if selected_day is not None:
+                event_start = _op_datetime(event.get('started_at'))
+                event_end = _op_datetime(event.get('ended_at')) or now
+                if not start or not event_start or event_start >= end or event_end <= start:
+                    continue
+                left, right = max(start, event_start), min(end, event_end)
+                found, total = _production_from_events(conn, cliente_id, machine_id,
+                    int(left.replace(tzinfo=TZ_BAHIA).timestamp() * 1000),
+                    int(right.replace(tzinfo=TZ_BAHIA).timestamp() * 1000))
+                total = total if found else None
+                if not event.get('ended_at') or not day_start <= event_end < day_end:
+                    close = None
             event['pcs_total'] = total
             event['fechamento'] = dict(close) if close else None
             bobinas.append(event)
@@ -635,6 +670,9 @@ def _order_details(conn, cliente_id, machine_id, row):
             sql += ' LEFT JOIN operacao_ocorrencia_ajustes a USING (cliente_id, machine_id, request_id, tipo_id) '
         sql += ' WHERE r.cliente_id=? AND r.machine_id=? AND r.op_id=? ORDER BY r.created_at DESC'
         quality = [dict(r) for r in conn.execute(sql, (cliente_id, row['machine_id'], oid))]
+    if selected_day is not None:
+        quality = [r for r in quality if (stamp := _op_datetime(r.get('created_at')))
+                   and day_start <= stamp < day_end]
     stops = []
     if start and end > start and {'cliente_id', 'machine_id', 'started_at_ms', 'ended_at_ms'}.issubset(_get_columns(conn, 'parada_ocorrencias')):
         left_ms = int(start.replace(tzinfo=TZ_BAHIA).timestamp() * 1000)
@@ -662,6 +700,9 @@ def api_producao_detalhe_op():
     oid = _safe_int(request.args.get('op_id'))
     if not mid or oid <= 0:
         return jsonify(ok=False, error='Informe maquina e OP'), 400
+    selected_day = _parse_date_any(request.args.get('date')) if request.args.get('date') else None
+    if request.args.get('date') and selected_day is None:
+        return jsonify(ok=False, error='Data invalida'), 400
     conn = _get_conn()
     try:
         if not _machine_allowed(conn, cid, mid):
@@ -669,7 +710,9 @@ def api_producao_detalhe_op():
         row = next((r for r in _history_order_rows(conn, cid, mid) if _safe_int(r.get('id') or r.get('op_id')) == oid), None)
         if row is None:
             return jsonify(ok=False, error='OP nao encontrada nesta maquina'), 404
-        return jsonify(ok=True, op=_order_details(conn, cid, mid, row))
+        if selected_day is not None and not any(i['op_id'] == oid for i in _ops_for_day(conn, cid, mid, selected_day)):
+            return jsonify(ok=False, error='OP nao pertence a este dia'), 404
+        return jsonify(ok=True, op=_order_details(conn, cid, mid, row, selected_day))
     except Exception:
         print('ERROR detalhe-op:\n' + traceback.format_exc(), flush=True)
         return jsonify(ok=False, error='Falha ao consultar detalhes da OP'), 500
@@ -1986,6 +2029,7 @@ def api_producao_historico():
             "maquinas": len(selected_machines),
         }
 
+        period_op_ids = set()
         days_out = []
         cursor = date_to
 
@@ -2053,7 +2097,9 @@ def api_producao_historico():
                 summary["produzido"] += day_item["produzido"]
                 summary["tempo_produzindo_sec"] += day_item["tempo_produzindo_sec"]
                 summary["tempo_parado_sec"] += day_item["tempo_parado_sec"]
-                summary["ops"] += day_item["ops_count"]
+                for machine_row in machine_rows:
+                    period_op_ids.update(op['op_id'] for op in machine_row.get('ops', []))
+                summary["ops"] = len(period_op_ids)
                 summary["paradas"] += day_item["paradas"]
                 summary["refugo"] += day_item["refugo"]
 
