@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\producao\templates\historico.html
-Último recode: 2026-10-08 11:45:02 (America/Bahia)
-Motivo: Expandir Ver dia abaixo do registro, listar OPs e consultar execução, bobinas, qualidade e paradas.
+Último recode: 2026-10-09 05:17:40 (America/Bahia)
+Motivo: Retirar a tabela de paradas dos detalhes da OP, preservando os tempos resumidos e o histórico por hora.
 #}
 
 {% extends "base.html" %}
@@ -1238,9 +1238,6 @@ Motivo: Expandir Ver dia abaixo do registro, listar OPs e consultar execução, 
       '<h4>Lançamentos de qualidade</h4>' + detailTable(
         ['Data/hora','Tipo','Quantidade atual','Desconta produção','Operador','Situação','Última alteração','Alterado por'],
         (op.lancamentos || []).map(r => [orderDate(r.created_at), r.nome, orderValue(r.quantidade_atual === undefined ? r.quantidade : r.quantidade_atual), r.desconta_producao ? 'Sim' : 'Não', r.operador_nome, r.excluido ? 'Excluído' : 'Válido', r.alterado_at ? orderDate(r.alterado_at) : '—', r.alterado_por_nome || '—'])) +
-      '<h4>Paradas durante a OP</h4>' + detailTable(
-        ['Início','Fim','Tempo dentro da OP','Motivo','Responsável','Observação'],
-        (op.paradas || []).map(p => [fmtDateTime(p.started_at_ms), p.ended_at_ms ? fmtDateTime(p.ended_at_ms) : 'Em aberto', fmtDurationDetailed(p.tempo_na_op_sec), p.motivo ? (p.motivo.codigo + ' - ' + p.motivo.descricao) : 'Não classificada', p.responsavel || '—', p.observacao || '—'])) +
       '<p class="history-helper">Observações: ' + escapeHtml(op.observacoes || 'Nenhuma') + '</p>';
   }
 
