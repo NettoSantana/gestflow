@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\producao\historico_routes.py
-# Último recode: 2026-10-09 12:11:13 (America/Bahia)
-# Motivo: Exibir a mesma OP nos dias da execução, consultar registros por dia e contar ordens únicas no período.
+# Último recode: 2026-10-13 18:42:08 (America/Bahia)
+# Motivo: Impedir que índices de intervalos do turno sejam lidos como horas do relógio e dupliquem a produção histórica.
 
 from __future__ import annotations
 
@@ -1639,11 +1639,12 @@ def _hourly_fallback(
     day: date,
     hour: int,
 ) -> int:
+    # hora_idx identifica o intervalo do turno; não é a hora do relógio.
     table = "producao_horaria"
     cols = _get_columns(conn, table)
     data_col = _resolve_data_col(conn, table)
     hour_col = next(
-        (name for name in ("hora_dia", "hora_idx", "hora", "hora_int") if name in cols),
+        (name for name in ("hora_dia", "hora", "hora_int") if name in cols),
         None,
     )
     prod_col = next(
