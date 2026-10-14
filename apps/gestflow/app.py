@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-09-17 12:30 (America/Bahia)
-# Motivo: Adicionar preferências por empresa para controlar quantidade e valores exibidos no Orçamento Premium no DEV.
+# Último recode: 2026-10-13 20:59:28 (America/Bahia)
+# Motivo: Permitir salvar dados de equipamento e local na edição da mesma OS, preservando número, vínculo e validação da criação.
 
 from __future__ import annotations
 
@@ -37,15 +37,6 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
 import config
-from mercado_pago_runtime import (
-    MercadoPagoErro,
-    consultar_order,
-    criar_order_pix,
-    integracao_mercado_pago_configurada,
-    modo_teste_mercado_pago,
-    obter_webhook_secret,
-    validar_assinatura_webhook,
-)
 
 app = Flask(__name__)
 app.secret_key = getattr(config, "SECRET_KEY", "gestflow-dev-secret-key-trocar-em-producao")
@@ -53,14 +44,6 @@ app.permanent_session_lifetime = timedelta(days=30)
 GESTFLOW_VERSAO = "1.0.0"
 GESTFLOW_INDFLOW_SSO_SALT = "gestflow-indflow-sso-v1"
 GESTFLOW_INDFLOW_SSO_MIN_SECRET_LENGTH = 32
-
-GESTFLOW_SAAS_PLANOS = {
-    "Start": Decimal("29.90"),
-    "Pro": Decimal("49.90"),
-    "Business": Decimal("99.90"),
-}
-GESTFLOW_SAAS_TOLERANCIA_DIAS = 5
-GESTFLOW_SAAS_STATUS_PENDENTES_MP = {"created", "processing", "action_required", "in_review"}
 
 LOGIN_SEGURANCA_JANELA_MINUTOS = 60
 LOGIN_SEGURANCA_BLOQUEIOS_USUARIO = ((5, 60), (8, 300), (10, 900), (15, 3600))
@@ -130,7 +113,6 @@ GESTFLOW_MODULOS = [
     {"codigo": "painel_os", "nome": "Painel de OS", "grupo": "Serviços", "descricao": "Painel operacional das ordens de serviço."},
     {"codigo": "estoque", "nome": "Estoque", "grupo": "Gestão", "descricao": "Movimentações, ajustes, compras e saldos de produtos."},
     {"codigo": "financeiro", "nome": "Financeiro", "grupo": "Gestão", "descricao": "Contas a pagar, contas a receber e fluxo de caixa."},
-    {"codigo": "fiscal", "nome": "Fiscal", "grupo": "Gestão", "descricao": "NF-e, NFC-e e NFS-e vinculadas a vendas e ordens de serviço."},
     {"codigo": "emprestimos", "nome": "Empréstimos", "grupo": "Gestão", "descricao": "Contratos de empréstimos recebidos e concedidos, parcelas, saldos e renegociações."},
     {"codigo": "agendamentos", "nome": "Agendamentos", "grupo": "Serviços", "descricao": "Agenda de atendimentos por cliente, profissional, data e horário."},
     {"codigo": "registro_ponto", "nome": "Registro de Ponto", "grupo": "Equipe", "descricao": "Entrada, intervalo, retorno, saída e espelho de ponto dos funcionários."},
@@ -221,7 +203,6 @@ GESTFLOW_PERMISSOES_PADRAO_PERFIL: dict[str, dict[str, set[str]]] = {
         "gerador_orcamentos": set(_ACOES_OPERACAO),
         "contratos": set(_ACOES_OPERACAO),
         "vendas": set(_ACOES_OPERACAO),
-        "fiscal": set(_ACOES_OPERACAO),
         "pdv": set(_ACOES_OPERACAO),
         "agendamentos": set(_ACOES_OPERACAO),
         "produtos": set(_ACOES_LEITURA),
@@ -234,7 +215,6 @@ GESTFLOW_PERMISSOES_PADRAO_PERFIL: dict[str, dict[str, set[str]]] = {
     "financeiro": {
         "dashboard": {"visualizar"},
         "financeiro": set(_ACOES_TOTAIS),
-        "fiscal": set(_ACOES_TOTAIS),
         "emprestimos": set(_ACOES_TOTAIS),
         "clientes": set(_ACOES_LEITURA),
         "fornecedores": set(_ACOES_LEITURA),
@@ -255,7 +235,6 @@ GESTFLOW_PERMISSOES_PADRAO_PERFIL: dict[str, dict[str, set[str]]] = {
         "vendas": set(_ACOES_LEITURA),
         "ordens_servico": set(_ACOES_LEITURA),
         "financeiro": set(_ACOES_LEITURA),
-        "fiscal": set(_ACOES_LEITURA),
     },
     "tecnico": {
         "dashboard": {"visualizar"},
@@ -272,7 +251,6 @@ GESTFLOW_PERMISSOES_PADRAO_PERFIL: dict[str, dict[str, set[str]]] = {
         "agendamentos": set(_ACOES_LEITURA),
         "gestao_atividades": set(_ACOES_OPERACAO),
         "indflow": set(_ACOES_LEITURA),
-        "fiscal": set(_ACOES_LEITURA),
     },
     "consulta": {
         modulo["codigo"]: set(_ACOES_LEITURA)
@@ -1695,12 +1673,12 @@ GESTFLOW_SEGMENTOS = [
 GESTFLOW_SEGMENTOS_POR_CODIGO = {segmento["codigo"]: segmento for segmento in GESTFLOW_SEGMENTOS}
 
 GESTFLOW_PERFIS_MODULOS = {
-    "comercio": {"clientes", "fornecedores", "produtos", "vendas", "vitrine", "pdv", "devolucoes", "estoque", "financeiro", "fiscal"},
-    "servicos": {"clientes", "servicos", "orcamentos", "contratos", "vendas", "vitrine", "financeiro", "fiscal", "agendamentos"},
-    "assistencia": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "contratos", "vendas", "vitrine", "ordens_servico", "estoque", "financeiro", "fiscal", "agendamentos", "registro_ponto", "gestao_atividades"},
-    "industrial": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "contratos", "vendas", "ordens_servico", "painel_os", "estoque", "financeiro", "fiscal", "registro_ponto", "gestao_atividades", "indflow"},
-    "distribuicao": {"clientes", "fornecedores", "produtos", "vendas", "vitrine", "devolucoes", "estoque", "financeiro", "fiscal"},
-    "locacao": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "contratos", "vendas", "ordens_servico", "estoque", "financeiro", "fiscal"},
+    "comercio": {"clientes", "fornecedores", "produtos", "vendas", "vitrine", "pdv", "devolucoes", "estoque", "financeiro"},
+    "servicos": {"clientes", "servicos", "orcamentos", "contratos", "vendas", "vitrine", "financeiro", "agendamentos"},
+    "assistencia": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "contratos", "vendas", "vitrine", "ordens_servico", "estoque", "financeiro", "agendamentos", "registro_ponto", "gestao_atividades"},
+    "industrial": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "contratos", "vendas", "ordens_servico", "painel_os", "estoque", "financeiro", "registro_ponto", "gestao_atividades", "indflow"},
+    "distribuicao": {"clientes", "fornecedores", "produtos", "vendas", "vitrine", "devolucoes", "estoque", "financeiro"},
+    "locacao": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "contratos", "vendas", "ordens_servico", "estoque", "financeiro"},
     "completo": set(GESTFLOW_MODULOS_CODIGOS),
 }
 
@@ -1851,7 +1829,6 @@ def sugerir_modulos_por_anamnese(dados: dict[str, Any]) -> dict[str, bool]:
     if "indflow" in ativos:
         ativos.add("produtos")
 
-    ativos.add("fiscal")
     ativos.update(GESTFLOW_MODULOS_NUCLEO)
     return {codigo: codigo in ativos for codigo in GESTFLOW_MODULOS_CODIGOS}
 
@@ -1949,7 +1926,6 @@ def modulo_por_rota(path: str) -> str:
         ("/servicos", "servicos"),
         ("/estoque", "estoque"),
         ("/financeiro", "financeiro"),
-        ("/fiscal", "fiscal"),
         ("/emprestimos", "emprestimos"),
         ("/agendamentos", "agendamentos"),
         ("/registro-ponto", "registro_ponto"),
@@ -2934,13 +2910,6 @@ def autenticar_usuario(email: str, senha: str) -> dict[str, Any] | None:
 
     if usuario is None:
         return None
-
-    if normalizar_perfil_usuario(usuario.get("perfil")) != "super_admin":
-        try:
-            sincronizar_status_assinatura_empresa_db(int(usuario.get("empresa_id") or 0))
-            usuario = buscar_usuario_por_email(email_normalizado) or usuario
-        except (TypeError, ValueError, sqlite3.Error):
-            pass
 
     if str(usuario.get("status") or "").strip().lower() != "ativo":
         return None
@@ -4238,7 +4207,6 @@ def exigir_login_rotas_internas() -> Response | None:
         "health",
         "whatsapp_webhook",
         "twilio_webhook",
-        "mercado_pago_webhook_saas",
         "acompanhamento_os_publico",
         "os_cliente_publico",
         "os_campo_publico",
@@ -4260,12 +4228,6 @@ def exigir_login_rotas_internas() -> Response | None:
 
     if not session.get("usuario_id"):
         return redirect(url_for("login"))
-
-    if normalizar_perfil_usuario(session.get("usuario_perfil")) != "super_admin":
-        try:
-            sincronizar_status_assinatura_empresa_db(int(session.get("empresa_id") or 0))
-        except (TypeError, ValueError, sqlite3.Error):
-            pass
 
     sessao_valida, mensagem_sessao = revalidar_sessao_usuario()
     if not sessao_valida:
@@ -5239,93 +5201,6 @@ def iniciar_banco() -> None:
 
         conn.execute(
             """
-            CREATE TABLE IF NOT EXISTS fiscal_configuracoes (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                empresa_id INTEGER NOT NULL UNIQUE,
-                ambiente TEXT NOT NULL DEFAULT 'homologacao',
-                provedor TEXT NOT NULL DEFAULT 'nao_configurado',
-                razao_social TEXT,
-                cnpj TEXT,
-                inscricao_estadual TEXT,
-                inscricao_municipal TEXT,
-                crt TEXT,
-                cnae TEXT,
-                serie_nfe TEXT NOT NULL DEFAULT '1',
-                serie_nfce TEXT NOT NULL DEFAULT '1',
-                serie_nfse TEXT NOT NULL DEFAULT '1',
-                proximo_numero_nfe INTEGER NOT NULL DEFAULT 1,
-                proximo_numero_nfce INTEGER NOT NULL DEFAULT 1,
-                proximo_numero_nfse INTEGER NOT NULL DEFAULT 1,
-                certificado_tipo TEXT NOT NULL DEFAULT 'A1',
-                certificado_status TEXT NOT NULL DEFAULT 'nao_configurado',
-                certificado_titular TEXT,
-                certificado_cnpj TEXT,
-                certificado_validade TEXT,
-                atualizado_em TEXT,
-                criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (empresa_id) REFERENCES empresas (id)
-            )
-            """
-        )
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS fiscal_documentos (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                empresa_id INTEGER NOT NULL,
-                tipo_documento TEXT NOT NULL,
-                origem_tipo TEXT NOT NULL,
-                origem_id INTEGER NOT NULL,
-                origem_numero TEXT,
-                cliente_nome TEXT,
-                numero INTEGER,
-                serie TEXT,
-                status TEXT NOT NULL DEFAULT 'rascunho',
-                valor_total TEXT,
-                chave_acesso TEXT,
-                protocolo TEXT,
-                mensagem_status TEXT,
-                xml_path TEXT,
-                pdf_path TEXT,
-                autorizado_em TEXT,
-                cancelado_em TEXT,
-                atualizado_em TEXT,
-                criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (empresa_id) REFERENCES empresas (id)
-            )
-            """
-        )
-        conn.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_fiscal_documentos_empresa_status
-            ON fiscal_documentos (empresa_id, status, criado_em)
-            """
-        )
-        conn.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_fiscal_documentos_origem
-            ON fiscal_documentos (empresa_id, origem_tipo, origem_id)
-            """
-        )
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS fiscal_eventos (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                empresa_id INTEGER NOT NULL,
-                documento_id INTEGER NOT NULL,
-                tipo TEXT NOT NULL,
-                status_anterior TEXT,
-                status_novo TEXT,
-                mensagem TEXT,
-                responsavel TEXT,
-                criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (empresa_id) REFERENCES empresas (id),
-                FOREIGN KEY (documento_id) REFERENCES fiscal_documentos (id)
-            )
-            """
-        )
-
-        conn.execute(
-            """
             CREATE TABLE IF NOT EXISTS caixa_aberturas (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 empresa_id INTEGER,
@@ -5394,59 +5269,6 @@ def iniciar_banco() -> None:
                 status TEXT NOT NULL DEFAULT 'ativo',
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-            """
-        )
-
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS saas_assinaturas (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                empresa_id INTEGER NOT NULL UNIQUE,
-                plano TEXT NOT NULL DEFAULT 'Start',
-                valor_mensal TEXT NOT NULL DEFAULT '29.90',
-                status TEXT NOT NULL DEFAULT 'sem_cobranca',
-                data_vencimento TEXT,
-                tolerancia_dias INTEGER NOT NULL DEFAULT 5,
-                cobranca_ativa INTEGER NOT NULL DEFAULT 0,
-                bloqueio_manual INTEGER NOT NULL DEFAULT 0,
-                liberacao_manual_ate TEXT,
-                ultimo_pagamento_em TEXT,
-                atualizado_em TEXT,
-                criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (empresa_id) REFERENCES empresas (id)
-            )
-            """
-        )
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS saas_pagamentos (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                empresa_id INTEGER NOT NULL,
-                assinatura_id INTEGER NOT NULL,
-                competencia TEXT,
-                valor TEXT NOT NULL,
-                metodo TEXT NOT NULL DEFAULT 'pix',
-                status TEXT NOT NULL DEFAULT 'pendente',
-                mp_order_id TEXT UNIQUE,
-                mp_payment_id TEXT,
-                external_reference TEXT NOT NULL UNIQUE,
-                qr_code TEXT,
-                qr_code_base64 TEXT,
-                ticket_url TEXT,
-                status_mp TEXT,
-                detalhe_mp TEXT,
-                pago_em TEXT,
-                atualizado_em TEXT,
-                criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (empresa_id) REFERENCES empresas (id),
-                FOREIGN KEY (assinatura_id) REFERENCES saas_assinaturas (id)
-            )
-            """
-        )
-        conn.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_saas_pagamentos_empresa_status
-            ON saas_pagamentos (empresa_id, status, criado_em)
             """
         )
 
@@ -6963,9 +6785,6 @@ def iniciar_banco() -> None:
             "estoque_movimentacoes",
             "financeiro_titulos",
             "financeiro_titulo_historico",
-            "fiscal_configuracoes",
-            "fiscal_documentos",
-            "fiscal_eventos",
             "centros_custo",
             "atividades_financeiras",
             "caixa_aberturas",
@@ -8840,8 +8659,10 @@ def salvar_produto_db(produto: dict[str, str]) -> int:
                 cmv_atualizado_em,
                 preco_venda,
                 status,
-                observacoes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                observacoes,
+                descricao_comercial,
+                foto_path
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -8860,6 +8681,8 @@ def salvar_produto_db(produto: dict[str, str]) -> int:
                 produto["preco_venda"],
                 produto["status"],
                 produto["observacoes"],
+                produto.get("descricao_comercial", ""),
+                produto.get("foto_path", ""),
             ),
         )
         produto_id = int(cursor.lastrowid)
@@ -12978,7 +12801,7 @@ ADMIN_EMPRESAS_ORDENACAO = {
 def montar_contexto_admin_empresas_paginado() -> dict[str, Any]:
     return montar_contexto_lista_memoria(
         listar_empresas_admin(),
-        ["nome_fantasia", "razao_social", "documento", "email", "telefone", "plano", "status", "trial_fim", "criado_em", "assinatura_status", "assinatura_vencimento", "ultimo_pagamento_status"],
+        ["nome_fantasia", "razao_social", "documento", "email", "telefone", "plano", "status", "trial_fim", "criado_em"],
         ADMIN_EMPRESAS_ORDENACAO,
         "id",
     )
@@ -14701,7 +14524,12 @@ def validar_venda_para_salvar(venda: dict[str, str], itens: list[dict[str, str]]
     return ""
 
 
-def validar_ordem_servico_para_salvar(ordem_servico: dict[str, str], itens: list[dict[str, str]]) -> str:
+def validar_ordem_servico_para_salvar(
+    ordem_servico: dict[str, str],
+    itens: list[dict[str, str]],
+    *,
+    permitir_dados_equipamento: bool = False,
+) -> str:
     if not ordem_servico["cliente"]:
         return "Selecione um cliente para salvar a OS."
 
@@ -14736,7 +14564,14 @@ def validar_ordem_servico_para_salvar(ordem_servico: dict[str, str], itens: list
         or ordem_servico["servico_executado"]
     )
 
-    if not tem_item and not tem_relato:
+    tem_dados_equipamento = permitir_dados_equipamento and any(
+        str(ordem_servico.get(campo) or "").strip()
+        for campo in ("equipamento", "local_servico", "condicoes")
+    )
+
+    if not tem_item and not tem_relato and not tem_dados_equipamento:
+        if permitir_dados_equipamento:
+            return "Informe ao menos um item, equipamento, local, situação encontrada, relato, serviço previsto ou executado."
         return "Informe ao menos um item, relato do cliente, diagnóstico ou serviço executado."
 
     return ""
@@ -20999,414 +20834,6 @@ def montar_dashboard() -> dict[str, Any]:
 
 
 
-FISCAL_TIPOS_DOCUMENTO = {"nfe": "NF-e", "nfce": "NFC-e", "nfse": "NFS-e"}
-FISCAL_SECOES = {
-    "": {
-        "titulo": "Painel Fiscal",
-        "subtitulo": "Acompanhe emissões, pendências e a configuração fiscal da empresa.",
-        "tipo": "",
-        "grupo": "painel",
-    },
-    "produtos": {
-        "titulo": "Notas de produtos",
-        "subtitulo": "Emissão e acompanhamento de NF-e vinculadas às vendas de produtos.",
-        "tipo": "nfe",
-        "grupo": "documentos",
-    },
-    "servicos": {
-        "titulo": "Notas de serviços",
-        "subtitulo": "Emissão e acompanhamento de NFS-e vinculadas às ordens de serviço e operações de serviços.",
-        "tipo": "nfse",
-        "grupo": "documentos",
-    },
-    "consumidor": {
-        "titulo": "Notas do consumidor",
-        "subtitulo": "Emissão e acompanhamento de NFC-e para vendas ao consumidor final.",
-        "tipo": "nfce",
-        "grupo": "documentos",
-    },
-    "compras": {
-        "titulo": "Notas de compras",
-        "subtitulo": "Central de documentos fiscais recebidos de fornecedores.",
-        "tipo": "",
-        "grupo": "compras",
-    },
-    "importar-xml": {
-        "titulo": "Importar XML",
-        "subtitulo": "Entrada de documentos fiscais recebidos por arquivo XML.",
-        "tipo": "",
-        "grupo": "auxiliar",
-    },
-    "certificado-digital": {
-        "titulo": "Certificado digital",
-        "subtitulo": "Dados do certificado A1 usado nas futuras transmissões fiscais.",
-        "tipo": "",
-        "grupo": "auxiliar",
-    },
-    "naturezas-operacao": {
-        "titulo": "Naturezas de operação",
-        "subtitulo": "Cadastros fiscais para venda, devolução, remessa, bonificação e outras operações.",
-        "tipo": "",
-        "grupo": "auxiliar",
-    },
-    "tributacoes": {
-        "titulo": "Tributações",
-        "subtitulo": "Regras de ICMS, PIS, COFINS, IPI e enquadramentos fiscais.",
-        "tipo": "",
-        "grupo": "auxiliar",
-    },
-    "atividades-servicos": {
-        "titulo": "Atividades de serviços",
-        "subtitulo": "Códigos de serviço, CNAE, ISS e parâmetros usados na NFS-e.",
-        "tipo": "",
-        "grupo": "auxiliar",
-    },
-    "modelos-email": {
-        "titulo": "Modelos de e-mail",
-        "subtitulo": "Mensagens padrão para envio de documentos fiscais aos clientes.",
-        "tipo": "",
-        "grupo": "auxiliar",
-    },
-    "integracoes": {
-        "titulo": "Integrações fiscais",
-        "subtitulo": "Configuração do provedor fiscal e do ambiente de comunicação.",
-        "tipo": "",
-        "grupo": "auxiliar",
-    },
-    "configuracoes": {
-        "titulo": "Configurações",
-        "subtitulo": "Dados fiscais da empresa, séries e parâmetros gerais de emissão.",
-        "tipo": "",
-        "grupo": "auxiliar",
-    },
-}
-FISCAL_STATUS = {
-    "rascunho": "Rascunho",
-    "processando": "Processando",
-    "autorizada": "Autorizada",
-    "rejeitada": "Rejeitada",
-    "cancelada": "Cancelada",
-}
-
-
-def buscar_configuracao_fiscal() -> dict[str, Any]:
-    empresa = buscar_empresa_configuracoes() if "buscar_empresa_configuracoes" in globals() else {}
-    empresa_id = empresa_logada_id()
-    with conectar_db() as conn:
-        row = conn.execute(
-            """
-            SELECT *
-            FROM fiscal_configuracoes
-            WHERE empresa_id = ?
-            LIMIT 1
-            """,
-            (empresa_id,),
-        ).fetchone()
-
-    if row is not None:
-        return dict(row)
-
-    return {
-        "empresa_id": empresa_id,
-        "ambiente": "homologacao",
-        "provedor": "nao_configurado",
-        "razao_social": str(empresa.get("razao_social") or empresa.get("nome_fantasia") or ""),
-        "cnpj": str(empresa.get("documento") or ""),
-        "inscricao_estadual": "",
-        "inscricao_municipal": "",
-        "crt": "",
-        "cnae": "",
-        "serie_nfe": "1",
-        "serie_nfce": "1",
-        "serie_nfse": "1",
-        "proximo_numero_nfe": 1,
-        "proximo_numero_nfce": 1,
-        "proximo_numero_nfse": 1,
-        "certificado_tipo": "A1",
-        "certificado_status": "nao_configurado",
-        "certificado_titular": "",
-        "certificado_cnpj": "",
-        "certificado_validade": "",
-    }
-
-
-def salvar_configuracao_fiscal(dados: dict[str, Any]) -> None:
-    empresa_id = empresa_logada_id()
-    agora = agora_empresa().isoformat(timespec="seconds")
-    with conectar_db() as conn:
-        conn.execute(
-            """
-            INSERT INTO fiscal_configuracoes (
-                empresa_id, ambiente, provedor, razao_social, cnpj,
-                inscricao_estadual, inscricao_municipal, crt, cnae,
-                serie_nfe, serie_nfce, serie_nfse,
-                certificado_tipo, certificado_status, certificado_titular,
-                certificado_cnpj, certificado_validade, atualizado_em, criado_em
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(empresa_id) DO UPDATE SET
-                ambiente = excluded.ambiente,
-                provedor = excluded.provedor,
-                razao_social = excluded.razao_social,
-                cnpj = excluded.cnpj,
-                inscricao_estadual = excluded.inscricao_estadual,
-                inscricao_municipal = excluded.inscricao_municipal,
-                crt = excluded.crt,
-                cnae = excluded.cnae,
-                serie_nfe = excluded.serie_nfe,
-                serie_nfce = excluded.serie_nfce,
-                serie_nfse = excluded.serie_nfse,
-                certificado_tipo = excluded.certificado_tipo,
-                certificado_status = excluded.certificado_status,
-                certificado_titular = excluded.certificado_titular,
-                certificado_cnpj = excluded.certificado_cnpj,
-                certificado_validade = excluded.certificado_validade,
-                atualizado_em = excluded.atualizado_em
-            """,
-            (
-                empresa_id,
-                str(dados.get("ambiente") or "homologacao"),
-                str(dados.get("provedor") or "nao_configurado"),
-                str(dados.get("razao_social") or "").strip(),
-                str(dados.get("cnpj") or "").strip(),
-                str(dados.get("inscricao_estadual") or "").strip(),
-                str(dados.get("inscricao_municipal") or "").strip(),
-                str(dados.get("crt") or "").strip(),
-                str(dados.get("cnae") or "").strip(),
-                str(dados.get("serie_nfe") or "1").strip() or "1",
-                str(dados.get("serie_nfce") or "1").strip() or "1",
-                str(dados.get("serie_nfse") or "1").strip() or "1",
-                "A1",
-                str(dados.get("certificado_status") or "nao_configurado"),
-                str(dados.get("certificado_titular") or "").strip(),
-                str(dados.get("certificado_cnpj") or "").strip(),
-                str(dados.get("certificado_validade") or "").strip(),
-                agora,
-                agora,
-            ),
-        )
-        conn.commit()
-
-
-def listar_origens_fiscais(limite: int = 60) -> dict[str, list[dict[str, Any]]]:
-    empresa_id = empresa_logada_id()
-    limite = max(10, min(int(limite or 60), 200))
-    with conectar_db() as conn:
-        vendas_rows = conn.execute(
-            """
-            SELECT id, numero, cliente, valor_total, status, data
-            FROM vendas
-            WHERE empresa_id = ?
-            ORDER BY id DESC
-            LIMIT ?
-            """,
-            (empresa_id, limite),
-        ).fetchall()
-        os_rows = conn.execute(
-            """
-            SELECT id, numero, cliente, valor_total, status, data_abertura
-            FROM ordens_servico
-            WHERE empresa_id = ?
-            ORDER BY id DESC
-            LIMIT ?
-            """,
-            (empresa_id, limite),
-        ).fetchall()
-    return {
-        "vendas": [dict(row) for row in vendas_rows],
-        "ordens_servico": [dict(row) for row in os_rows],
-    }
-
-
-def _buscar_origem_fiscal(origem_tipo: str, origem_id: int) -> dict[str, Any] | None:
-    empresa_id = empresa_logada_id()
-    origem_tipo = str(origem_tipo or "").strip().lower()
-    tabela = "vendas" if origem_tipo == "venda" else "ordens_servico" if origem_tipo == "ordem_servico" else ""
-    if not tabela or int(origem_id or 0) <= 0:
-        return None
-    data_coluna = "data" if tabela == "vendas" else "data_abertura"
-    with conectar_db() as conn:
-        row = conn.execute(
-            f"""
-            SELECT id, numero, cliente, valor_total, status, {data_coluna} AS data_documento
-            FROM {tabela}
-            WHERE empresa_id = ? AND id = ?
-            LIMIT 1
-            """,
-            (empresa_id, int(origem_id)),
-        ).fetchone()
-    return dict(row) if row is not None else None
-
-
-def criar_rascunho_fiscal(tipo_documento: str, origem_tipo: str, origem_id: int) -> tuple[int | None, str]:
-    tipo_documento = str(tipo_documento or "").strip().lower()
-    origem_tipo = str(origem_tipo or "").strip().lower()
-    if tipo_documento not in FISCAL_TIPOS_DOCUMENTO:
-        return None, "Tipo de documento fiscal inválido."
-    if origem_tipo not in {"venda", "ordem_servico"}:
-        return None, "Origem fiscal inválida."
-    if tipo_documento in {"nfe", "nfce"} and origem_tipo != "venda":
-        return None, "NF-e e NFC-e devem partir de uma Venda nesta etapa."
-
-    origem = _buscar_origem_fiscal(origem_tipo, int(origem_id or 0))
-    if origem is None:
-        return None, "Venda ou Ordem de Serviço não encontrada."
-
-    modulo_origem = "vendas" if origem_tipo == "venda" else "ordens_servico"
-    if not status_final_operacional(modulo_origem, origem.get("status")):
-        return None, "A operação de origem precisa estar finalizada antes de gerar o documento fiscal."
-
-    empresa_id = empresa_logada_id()
-    config_fiscal = buscar_configuracao_fiscal()
-    serie = str(config_fiscal.get(f"serie_{tipo_documento}") or "1")
-    agora = agora_empresa().isoformat(timespec="seconds")
-    with conectar_db() as conn:
-        existente = conn.execute(
-            """
-            SELECT id
-            FROM fiscal_documentos
-            WHERE empresa_id = ?
-              AND tipo_documento = ?
-              AND origem_tipo = ?
-              AND origem_id = ?
-              AND status <> 'cancelada'
-            ORDER BY id DESC
-            LIMIT 1
-            """,
-            (empresa_id, tipo_documento, origem_tipo, int(origem_id)),
-        ).fetchone()
-        if existente is not None:
-            return None, "Já existe um documento fiscal ativo para esta origem."
-
-        cursor = conn.execute(
-            """
-            INSERT INTO fiscal_documentos (
-                empresa_id, tipo_documento, origem_tipo, origem_id, origem_numero,
-                cliente_nome, serie, status, valor_total, mensagem_status,
-                atualizado_em, criado_em
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'rascunho', ?, ?, ?, ?)
-            """,
-            (
-                empresa_id,
-                tipo_documento,
-                origem_tipo,
-                int(origem_id),
-                str(origem.get("numero") or origem.get("id") or ""),
-                str(origem.get("cliente") or "").strip(),
-                serie,
-                str(origem.get("valor_total") or "0,00"),
-                "Rascunho criado. A transmissão será liberada após a integração com o provedor fiscal.",
-                agora,
-                agora,
-            ),
-        )
-        documento_id = int(cursor.lastrowid)
-        conn.execute(
-            """
-            INSERT INTO fiscal_eventos (
-                empresa_id, documento_id, tipo, status_anterior, status_novo,
-                mensagem, responsavel, criado_em
-            ) VALUES (?, ?, 'criacao', '', 'rascunho', ?, ?, ?)
-            """,
-            (
-                empresa_id,
-                documento_id,
-                "Rascunho fiscal criado a partir da operação de origem.",
-                str((usuario_logado() or {}).get("nome") or "Usuário"),
-                agora,
-            ),
-        )
-        conn.commit()
-    return documento_id, "Rascunho fiscal criado."
-
-
-def listar_documentos_fiscais(tipo: str = "", limite: int = 100) -> list[dict[str, Any]]:
-    empresa_id = empresa_logada_id()
-    tipo = str(tipo or "").strip().lower()
-    limite = max(10, min(int(limite or 100), 300))
-    parametros: list[Any] = [empresa_id]
-    filtro = ""
-    if tipo in FISCAL_TIPOS_DOCUMENTO:
-        filtro = " AND tipo_documento = ?"
-        parametros.append(tipo)
-    parametros.append(limite)
-    with conectar_db() as conn:
-        rows = conn.execute(
-            f"""
-            SELECT *
-            FROM fiscal_documentos
-            WHERE empresa_id = ?{filtro}
-            ORDER BY id DESC
-            LIMIT ?
-            """,
-            tuple(parametros),
-        ).fetchall()
-    documentos = [dict(row) for row in rows]
-    for documento in documentos:
-        documento["tipo_nome"] = FISCAL_TIPOS_DOCUMENTO.get(str(documento.get("tipo_documento") or ""), "Documento")
-        documento["status_nome"] = FISCAL_STATUS.get(str(documento.get("status") or ""), str(documento.get("status") or "").title())
-        documento["origem_nome"] = "Venda" if documento.get("origem_tipo") == "venda" else "Ordem de Serviço"
-    return documentos
-
-
-def montar_painel_fiscal() -> dict[str, Any]:
-    empresa_id = empresa_logada_id()
-    with conectar_db() as conn:
-        row = conn.execute(
-            """
-            SELECT
-                COUNT(*) AS total,
-                SUM(CASE WHEN status = 'rascunho' THEN 1 ELSE 0 END) AS rascunhos,
-                SUM(CASE WHEN status = 'processando' THEN 1 ELSE 0 END) AS processando,
-                SUM(CASE WHEN status = 'autorizada' THEN 1 ELSE 0 END) AS autorizadas,
-                SUM(CASE WHEN status = 'rejeitada' THEN 1 ELSE 0 END) AS rejeitadas,
-                SUM(CASE WHEN status = 'cancelada' THEN 1 ELSE 0 END) AS canceladas
-            FROM fiscal_documentos
-            WHERE empresa_id = ?
-            """,
-            (empresa_id,),
-        ).fetchone()
-    dados = dict(row) if row is not None else {}
-    return {chave: int(dados.get(chave) or 0) for chave in ("total", "rascunhos", "processando", "autorizadas", "rejeitadas", "canceladas")}
-
-
-def cancelar_rascunho_fiscal(documento_id: int) -> bool:
-    empresa_id = empresa_logada_id()
-    agora = agora_empresa().isoformat(timespec="seconds")
-    with conectar_db() as conn:
-        atual = conn.execute(
-            "SELECT id, status FROM fiscal_documentos WHERE empresa_id = ? AND id = ? LIMIT 1",
-            (empresa_id, int(documento_id)),
-        ).fetchone()
-        if atual is None or str(atual["status"] or "") not in {"rascunho", "rejeitada"}:
-            return False
-        conn.execute(
-            """
-            UPDATE fiscal_documentos
-            SET status = 'cancelada', cancelado_em = ?, atualizado_em = ?, mensagem_status = ?
-            WHERE empresa_id = ? AND id = ?
-            """,
-            (agora, agora, "Documento cancelado antes da transmissão fiscal.", empresa_id, int(documento_id)),
-        )
-        conn.execute(
-            """
-            INSERT INTO fiscal_eventos (
-                empresa_id, documento_id, tipo, status_anterior, status_novo,
-                mensagem, responsavel, criado_em
-            ) VALUES (?, ?, 'cancelamento', ?, 'cancelada', ?, ?, ?)
-            """,
-            (
-                empresa_id,
-                int(documento_id),
-                str(atual["status"] or ""),
-                "Documento fiscal cancelado antes da transmissão.",
-                str((usuario_logado() or {}).get("nome") or "Usuário"),
-                agora,
-            ),
-        )
-        conn.commit()
-    return True
-
-
 def buscar_empresa_configuracoes() -> dict[str, Any]:
     with conectar_db() as conn:
         row = conn.execute(
@@ -25110,7 +24537,6 @@ def modulo_por_rota_admin(rota: str) -> str | None:
         "/ordens-servico": "ordens_servico",
         "/estoque": "estoque",
         "/financeiro": "financeiro",
-        "/fiscal": "fiscal",
         "/configuracoes": "configuracoes",
         "/admin": "admin",
     }
@@ -25150,506 +24576,7 @@ def registrar_acesso_modulo_usuario() -> None:
     )
 
 
-def valor_plano_saas(plano: Any) -> Decimal:
-    nome = str(plano or "Start").strip() or "Start"
-    return GESTFLOW_SAAS_PLANOS.get(nome, GESTFLOW_SAAS_PLANOS["Start"])
-
-
-def _decimal_saas(valor: Any, padrao: Decimal | None = None) -> Decimal:
-    texto = str(valor or "").strip().replace("R$", "").replace(" ", "")
-    if "," in texto and "." in texto:
-        texto = texto.replace(".", "").replace(",", ".")
-    else:
-        texto = texto.replace(",", ".")
-    try:
-        numero = Decimal(texto).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    except (InvalidOperation, TypeError, ValueError):
-        numero = padrao if padrao is not None else Decimal("0.00")
-    return numero.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-
-def _data_saas(valor: Any) -> date | None:
-    texto = str(valor or "").strip()
-    if not texto:
-        return None
-    try:
-        return date.fromisoformat(texto[:10])
-    except ValueError:
-        return None
-
-
-def _adicionar_um_mes_saas(data_base: date) -> date:
-    ano = data_base.year + (1 if data_base.month == 12 else 0)
-    mes = 1 if data_base.month == 12 else data_base.month + 1
-    dias_mes = [31, 29 if ano % 4 == 0 and (ano % 100 != 0 or ano % 400 == 0) else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    return date(ano, mes, min(data_base.day, dias_mes[mes - 1]))
-
-
-def _empresa_super_admin_db(empresa_id: int, conn: sqlite3.Connection | None = None) -> bool:
-    if empresa_id <= 0:
-        return False
-    gerenciar = conn is None
-    conexao = conn or conectar_db()
-    try:
-        row = conexao.execute(
-            """
-            SELECT 1
-            FROM usuarios
-            WHERE empresa_id = ? AND LOWER(TRIM(COALESCE(perfil, ''))) = 'super_admin'
-            LIMIT 1
-            """,
-            (empresa_id,),
-        ).fetchone()
-        return row is not None
-    finally:
-        if gerenciar:
-            conexao.close()
-
-
-def garantir_assinatura_empresa_saas_db(empresa_id: int) -> dict[str, Any]:
-    with conectar_db() as conn:
-        row = conn.execute(
-            "SELECT * FROM saas_assinaturas WHERE empresa_id = ? LIMIT 1",
-            (empresa_id,),
-        ).fetchone()
-        if row is not None:
-            return dict(row)
-
-        empresa = conn.execute(
-            "SELECT plano, status, trial_fim FROM empresas WHERE id = ? LIMIT 1",
-            (empresa_id,),
-        ).fetchone()
-        if empresa is None:
-            raise ValueError("Empresa não encontrada.")
-
-        plano = str(empresa["plano"] or "Start").strip() or "Start"
-        valor = valor_plano_saas(plano)
-        status_empresa = str(empresa["status"] or "ativo").strip().lower()
-        status_assinatura = "trial" if status_empresa == "trial" else "sem_cobranca"
-        vencimento = str(empresa["trial_fim"] or "").strip() if status_assinatura == "trial" else ""
-        agora = datetime.now(ZoneInfo(TIMEZONE_PADRAO_GESTFLOW)).isoformat(timespec="seconds")
-        cursor = conn.execute(
-            """
-            INSERT INTO saas_assinaturas (
-                empresa_id, plano, valor_mensal, status, data_vencimento,
-                tolerancia_dias, cobranca_ativa, atualizado_em
-            ) VALUES (?, ?, ?, ?, ?, ?, 0, ?)
-            """,
-            (empresa_id, plano, f"{valor:.2f}", status_assinatura, vencimento, GESTFLOW_SAAS_TOLERANCIA_DIAS, agora),
-        )
-        conn.commit()
-        assinatura_id = int(cursor.lastrowid)
-        row = conn.execute("SELECT * FROM saas_assinaturas WHERE id = ?", (assinatura_id,)).fetchone()
-        return dict(row)
-
-
-def buscar_assinatura_empresa_saas_db(empresa_id: int) -> dict[str, Any] | None:
-    with conectar_db() as conn:
-        row = conn.execute(
-            "SELECT * FROM saas_assinaturas WHERE empresa_id = ? LIMIT 1",
-            (empresa_id,),
-        ).fetchone()
-    return dict(row) if row is not None else None
-
-
-def sincronizar_status_assinatura_empresa_db(empresa_id: int) -> dict[str, Any] | None:
-    try:
-        empresa_id = int(empresa_id)
-    except (TypeError, ValueError):
-        return None
-    if empresa_id <= 0:
-        return None
-
-    hoje = datetime.now(ZoneInfo(TIMEZONE_PADRAO_GESTFLOW)).date()
-    agora = datetime.now(ZoneInfo(TIMEZONE_PADRAO_GESTFLOW)).isoformat(timespec="seconds")
-
-    with conectar_db() as conn:
-        if _empresa_super_admin_db(empresa_id, conn):
-            return None
-
-        row = conn.execute(
-            "SELECT * FROM saas_assinaturas WHERE empresa_id = ? LIMIT 1",
-            (empresa_id,),
-        ).fetchone()
-        if row is None:
-            return None
-
-        assinatura = dict(row)
-        if int(assinatura.get("cobranca_ativa") or 0) != 1:
-            return assinatura
-
-        status = str(assinatura.get("status") or "").strip().lower()
-        if int(assinatura.get("bloqueio_manual") or 0) == 1:
-            conn.execute("UPDATE empresas SET status = 'bloqueado' WHERE id = ?", (empresa_id,))
-            if status != "bloqueado":
-                conn.execute(
-                    "UPDATE saas_assinaturas SET status = 'bloqueado', atualizado_em = ? WHERE id = ?",
-                    (agora, int(assinatura["id"])),
-                )
-            conn.commit()
-            assinatura["status"] = "bloqueado"
-            return assinatura
-
-        if status == "cancelado":
-            conn.execute("UPDATE empresas SET status = 'cancelado' WHERE id = ?", (empresa_id,))
-            conn.commit()
-            assinatura["status"] = "cancelado"
-            return assinatura
-
-        liberacao_manual = _data_saas(assinatura.get("liberacao_manual_ate"))
-        if liberacao_manual and liberacao_manual >= hoje:
-            if status != "ativo":
-                conn.execute(
-                    "UPDATE saas_assinaturas SET status = 'ativo', atualizado_em = ? WHERE id = ?",
-                    (agora, int(assinatura["id"])),
-                )
-            conn.execute("UPDATE empresas SET status = 'ativo' WHERE id = ?", (empresa_id,))
-            conn.commit()
-            assinatura["status"] = "ativo"
-            return assinatura
-
-        vencimento = _data_saas(assinatura.get("data_vencimento"))
-        if vencimento is None:
-            return assinatura
-
-        tolerancia = max(int(assinatura.get("tolerancia_dias") or GESTFLOW_SAAS_TOLERANCIA_DIAS), 0)
-        limite = vencimento + timedelta(days=tolerancia)
-        novo_status = "ativo"
-        novo_status_empresa = "ativo"
-        if hoje > limite:
-            novo_status = "bloqueado"
-            novo_status_empresa = "bloqueado"
-        elif hoje > vencimento:
-            novo_status = "inadimplente"
-
-        if novo_status != status:
-            conn.execute(
-                "UPDATE saas_assinaturas SET status = ?, atualizado_em = ? WHERE id = ?",
-                (novo_status, agora, int(assinatura["id"])),
-            )
-        conn.execute("UPDATE empresas SET status = ? WHERE id = ?", (novo_status_empresa, empresa_id))
-        conn.commit()
-        assinatura["status"] = novo_status
-        return assinatura
-
-
-def _status_pagamento_saas(info: dict[str, Any]) -> tuple[str, str, str]:
-    status_mp = str(info.get("payment_status") or info.get("order_status") or "created").strip().lower()
-    detalhe = str(info.get("payment_status_detail") or info.get("order_status_detail") or "").strip()
-    if status_mp == "processed":
-        return "pago", status_mp, detalhe
-    if status_mp in GESTFLOW_SAAS_STATUS_PENDENTES_MP:
-        return "pendente", status_mp, detalhe
-    mapa = {
-        "canceled": "cancelado",
-        "expired": "expirado",
-        "failed": "falhou",
-        "refunded": "estornado",
-        "charged_back": "contestado",
-    }
-    return mapa.get(status_mp, "pendente"), status_mp, detalhe
-
-
-def aplicar_retorno_pagamento_saas_db(pagamento_id: int, info: dict[str, Any]) -> dict[str, Any] | None:
-    agora_dt = datetime.now(ZoneInfo(TIMEZONE_PADRAO_GESTFLOW))
-    agora = agora_dt.isoformat(timespec="seconds")
-    novo_status, status_mp, detalhe = _status_pagamento_saas(info)
-
-    with conectar_db() as conn:
-        row = conn.execute("SELECT * FROM saas_pagamentos WHERE id = ? LIMIT 1", (pagamento_id,)).fetchone()
-        if row is None:
-            return None
-        pagamento = dict(row)
-        ja_pago = str(pagamento.get("status") or "").strip().lower() == "pago"
-        status_final = "pago" if ja_pago else novo_status
-        pago_em = str(pagamento.get("pago_em") or "").strip()
-        if status_final == "pago" and not pago_em:
-            pago_em = agora
-
-        conn.execute(
-            """
-            UPDATE saas_pagamentos
-            SET status = ?, mp_order_id = COALESCE(NULLIF(?, ''), mp_order_id),
-                mp_payment_id = COALESCE(NULLIF(?, ''), mp_payment_id),
-                qr_code = COALESCE(NULLIF(?, ''), qr_code),
-                qr_code_base64 = COALESCE(NULLIF(?, ''), qr_code_base64),
-                ticket_url = COALESCE(NULLIF(?, ''), ticket_url),
-                status_mp = ?, detalhe_mp = ?, pago_em = ?, atualizado_em = ?
-            WHERE id = ?
-            """,
-            (
-                status_final,
-                str(info.get("order_id") or ""),
-                str(info.get("payment_id") or ""),
-                str(info.get("qr_code") or ""),
-                str(info.get("qr_code_base64") or ""),
-                str(info.get("ticket_url") or ""),
-                status_mp,
-                detalhe,
-                pago_em,
-                agora,
-                pagamento_id,
-            ),
-        )
-
-        if status_final == "pago" and not ja_pago:
-            assinatura = conn.execute(
-                "SELECT * FROM saas_assinaturas WHERE id = ? LIMIT 1",
-                (int(pagamento["assinatura_id"]),),
-            ).fetchone()
-            if assinatura is not None:
-                assinatura_dict = dict(assinatura)
-                vencimento_atual = _data_saas(assinatura_dict.get("data_vencimento"))
-                base_vencimento = max(vencimento_atual or agora_dt.date(), agora_dt.date())
-                proximo_vencimento = _adicionar_um_mes_saas(base_vencimento)
-                conn.execute(
-                    """
-                    UPDATE saas_assinaturas
-                    SET status = 'ativo', cobranca_ativa = 1, bloqueio_manual = 0, data_vencimento = ?,
-                        liberacao_manual_ate = NULL, ultimo_pagamento_em = ?, atualizado_em = ?
-                    WHERE id = ?
-                    """,
-                    (proximo_vencimento.isoformat(), agora, agora, int(assinatura_dict["id"])),
-                )
-                conn.execute(
-                    "UPDATE empresas SET status = 'ativo', plano = ? WHERE id = ?",
-                    (str(assinatura_dict.get("plano") or "Start"), int(pagamento["empresa_id"])),
-                )
-
-        conn.commit()
-        atualizado = conn.execute("SELECT * FROM saas_pagamentos WHERE id = ?", (pagamento_id,)).fetchone()
-        return dict(atualizado) if atualizado is not None else None
-
-
-def criar_cobranca_pix_saas_db(empresa_id: int, valor_informado: Any = None) -> dict[str, Any]:
-    empresa = buscar_empresa_admin_por_id(empresa_id)
-    if empresa is None:
-        raise ValueError("Empresa não encontrada.")
-    if _empresa_super_admin_db(empresa_id):
-        raise ValueError("A empresa do Super Admin não recebe cobrança SaaS.")
-
-    assinatura = garantir_assinatura_empresa_saas_db(empresa_id)
-    plano = str(assinatura.get("plano") or empresa.get("plano") or "Start").strip() or "Start"
-    valor_padrao = _decimal_saas(assinatura.get("valor_mensal"), valor_plano_saas(plano))
-    valor = _decimal_saas(valor_informado, valor_padrao)
-    if valor <= 0:
-        raise ValueError("Informe um valor de mensalidade maior que zero.")
-
-    email = str(empresa.get("email") or "").strip()
-    if not email:
-        raise ValueError("A empresa precisa ter um e-mail antes de gerar a cobrança PIX.")
-
-    agora_dt = datetime.now(ZoneInfo(TIMEZONE_PADRAO_GESTFLOW))
-    agora = agora_dt.isoformat(timespec="seconds")
-    competencia = agora_dt.strftime("%Y-%m")
-
-    with conectar_db() as conn:
-        cursor = conn.execute(
-            """
-            INSERT INTO saas_pagamentos (
-                empresa_id, assinatura_id, competencia, valor, metodo, status,
-                external_reference, atualizado_em
-            ) VALUES (?, ?, ?, ?, 'pix', 'pendente', ?, ?)
-            """,
-            (empresa_id, int(assinatura["id"]), competencia, f"{valor:.2f}", f"gestflow_saas_tmp_{secrets.token_hex(8)}", agora),
-        )
-        pagamento_id = int(cursor.lastrowid)
-        referencia = f"gestflow_saas_{pagamento_id}"
-        conn.execute(
-            "UPDATE saas_pagamentos SET external_reference = ? WHERE id = ?",
-            (referencia, pagamento_id),
-        )
-        conn.commit()
-
-    try:
-        info = criar_order_pix(
-            valor=valor,
-            email=email,
-            referencia_externa=referencia,
-            nome_pagador=str(empresa.get("nome_fantasia") or empresa.get("razao_social") or "Cliente GestFlow"),
-            modo_teste=modo_teste_mercado_pago(),
-            expiracao="PT30M",
-        )
-    except Exception:
-        with conectar_db() as conn:
-            conn.execute(
-                "UPDATE saas_pagamentos SET status = 'falhou', atualizado_em = ? WHERE id = ?",
-                (agora, pagamento_id),
-            )
-            conn.commit()
-        raise
-
-    order_id = str(info.get("order_id") or "").strip()
-    if not order_id:
-        raise MercadoPagoErro("Mercado Pago não retornou o ID da cobrança.")
-
-    with conectar_db() as conn:
-        conn.execute(
-            """
-            UPDATE saas_assinaturas
-            SET plano = ?, valor_mensal = ?, status = 'aguardando_pagamento',
-                cobranca_ativa = 1,
-                data_vencimento = CASE WHEN TRIM(COALESCE(data_vencimento, '')) = '' THEN ? ELSE data_vencimento END,
-                atualizado_em = ?
-            WHERE id = ?
-            """,
-            (plano, f"{valor:.2f}", agora_dt.date().isoformat(), agora, int(assinatura["id"])),
-        )
-        conn.commit()
-
-    atualizado = aplicar_retorno_pagamento_saas_db(pagamento_id, info)
-    if atualizado is None:
-        raise RuntimeError("Cobrança criada, mas não foi possível atualizar o registro local.")
-    return atualizado
-
-
-def consultar_pagamento_saas_db(pagamento_id: int) -> dict[str, Any] | None:
-    with conectar_db() as conn:
-        row = conn.execute("SELECT * FROM saas_pagamentos WHERE id = ? LIMIT 1", (pagamento_id,)).fetchone()
-    if row is None:
-        return None
-    pagamento = dict(row)
-    order_id = str(pagamento.get("mp_order_id") or "").strip()
-    if not order_id:
-        return pagamento
-    info = consultar_order(order_id)
-    return aplicar_retorno_pagamento_saas_db(pagamento_id, info)
-
-
-def buscar_pagamento_saas_db(pagamento_id: int) -> dict[str, Any] | None:
-    with conectar_db() as conn:
-        row = conn.execute(
-            """
-            SELECT p.*, e.nome_fantasia AS empresa_nome, a.plano AS assinatura_plano,
-                   a.data_vencimento AS assinatura_vencimento
-            FROM saas_pagamentos p
-            JOIN empresas e ON e.id = p.empresa_id
-            JOIN saas_assinaturas a ON a.id = p.assinatura_id
-            WHERE p.id = ?
-            LIMIT 1
-            """,
-            (pagamento_id,),
-        ).fetchone()
-    if row is None:
-        return None
-    pagamento = dict(row)
-    pagamento["valor_texto"] = _formatar_moeda_brl(float(_decimal_saas(pagamento.get("valor"))))
-    return pagamento
-
-
-def salvar_assinatura_empresa_admin_db(empresa_id: int, dados: dict[str, Any]) -> dict[str, Any]:
-    assinatura = garantir_assinatura_empresa_saas_db(empresa_id)
-    plano = str(dados.get("plano") or assinatura.get("plano") or "Start").strip() or "Start"
-    if plano not in GESTFLOW_SAAS_PLANOS:
-        plano = "Start"
-    valor = _decimal_saas(dados.get("valor_mensal"), valor_plano_saas(plano))
-    if valor <= 0:
-        valor = valor_plano_saas(plano)
-    try:
-        tolerancia = max(min(int(dados.get("tolerancia_dias") or GESTFLOW_SAAS_TOLERANCIA_DIAS), 30), 0)
-    except (TypeError, ValueError):
-        tolerancia = GESTFLOW_SAAS_TOLERANCIA_DIAS
-    vencimento = str(dados.get("data_vencimento") or assinatura.get("data_vencimento") or "").strip()
-    if vencimento and _data_saas(vencimento) is None:
-        raise ValueError("Data de vencimento inválida.")
-    agora = datetime.now(ZoneInfo(TIMEZONE_PADRAO_GESTFLOW)).isoformat(timespec="seconds")
-
-    with conectar_db() as conn:
-        conn.execute(
-            """
-            UPDATE saas_assinaturas
-            SET plano = ?, valor_mensal = ?, data_vencimento = ?, tolerancia_dias = ?, atualizado_em = ?
-            WHERE id = ?
-            """,
-            (plano, f"{valor:.2f}", vencimento, tolerancia, agora, int(assinatura["id"])),
-        )
-        conn.execute("UPDATE empresas SET plano = ? WHERE id = ?", (plano, empresa_id))
-        conn.commit()
-    return buscar_assinatura_empresa_saas_db(empresa_id) or assinatura
-
-
-def acao_assinatura_empresa_admin_db(empresa_id: int, acao: str) -> None:
-    assinatura = garantir_assinatura_empresa_saas_db(empresa_id)
-    if _empresa_super_admin_db(empresa_id):
-        raise ValueError("A empresa do Super Admin não pode ser bloqueada pela assinatura SaaS.")
-
-    agora_dt = datetime.now(ZoneInfo(TIMEZONE_PADRAO_GESTFLOW))
-    agora = agora_dt.isoformat(timespec="seconds")
-    acao = str(acao or "").strip().lower()
-
-    with conectar_db() as conn:
-        if acao in {"liberar_7", "liberar_30"}:
-            dias = 7 if acao == "liberar_7" else 30
-            ate = (agora_dt.date() + timedelta(days=dias)).isoformat()
-            conn.execute(
-                """
-                UPDATE saas_assinaturas
-                SET status = 'ativo', cobranca_ativa = 1, bloqueio_manual = 0, liberacao_manual_ate = ?, atualizado_em = ?
-                WHERE id = ?
-                """,
-                (ate, agora, int(assinatura["id"])),
-            )
-            conn.execute("UPDATE empresas SET status = 'ativo' WHERE id = ?", (empresa_id,))
-        elif acao == "bloquear":
-            conn.execute(
-                "UPDATE saas_assinaturas SET status = 'bloqueado', cobranca_ativa = 1, bloqueio_manual = 1, liberacao_manual_ate = NULL, atualizado_em = ? WHERE id = ?",
-                (agora, int(assinatura["id"])),
-            )
-            conn.execute("UPDATE empresas SET status = 'bloqueado' WHERE id = ?", (empresa_id,))
-        elif acao == "reativar":
-            vencimento = _adicionar_um_mes_saas(agora_dt.date()).isoformat()
-            conn.execute(
-                """
-                UPDATE saas_assinaturas
-                SET status = 'ativo', cobranca_ativa = 1, bloqueio_manual = 0, data_vencimento = ?,
-                    liberacao_manual_ate = NULL, atualizado_em = ?
-                WHERE id = ?
-                """,
-                (vencimento, agora, int(assinatura["id"])),
-            )
-            conn.execute("UPDATE empresas SET status = 'ativo' WHERE id = ?", (empresa_id,))
-        else:
-            raise ValueError("Ação de assinatura inválida.")
-        conn.commit()
-
-
-def sincronizar_assinaturas_saas_todas_db() -> None:
-    with conectar_db() as conn:
-        rows = conn.execute(
-            "SELECT empresa_id FROM saas_assinaturas WHERE cobranca_ativa = 1"
-        ).fetchall()
-    for row in rows:
-        try:
-            sincronizar_status_assinatura_empresa_db(int(row["empresa_id"]))
-        except (TypeError, ValueError, sqlite3.Error):
-            continue
-
-
-def _resumo_financeiro_saas_admin(conn: sqlite3.Connection) -> dict[str, Any]:
-    competencia = datetime.now(ZoneInfo(TIMEZONE_PADRAO_GESTFLOW)).strftime("%Y-%m")
-    row = conn.execute(
-        """
-        SELECT
-            (SELECT COUNT(*) FROM saas_assinaturas WHERE cobranca_ativa = 1 AND status = 'ativo') AS assinaturas_ativas,
-            (SELECT COUNT(*) FROM saas_assinaturas WHERE cobranca_ativa = 1 AND status = 'inadimplente') AS assinaturas_inadimplentes,
-            (SELECT COUNT(*) FROM saas_assinaturas WHERE cobranca_ativa = 1 AND status = 'bloqueado') AS assinaturas_bloqueadas,
-            (SELECT COALESCE(SUM(CAST(valor_mensal AS REAL)), 0) FROM saas_assinaturas WHERE cobranca_ativa = 1 AND status <> 'cancelado') AS receita_prevista,
-            (SELECT COALESCE(SUM(CAST(valor AS REAL)), 0) FROM saas_pagamentos WHERE status = 'pago' AND substr(COALESCE(pago_em, ''), 1, 7) = ?) AS recebido_mes,
-            (SELECT COALESCE(SUM(CAST(valor AS REAL)), 0) FROM saas_pagamentos WHERE status = 'pendente') AS pagamentos_pendentes
-        """,
-        (competencia,),
-    ).fetchone()
-    resumo = dict(row or {})
-    resumo["receita_prevista_texto"] = _formatar_moeda_brl(float(resumo.get("receita_prevista") or 0))
-    resumo["recebido_mes_texto"] = _formatar_moeda_brl(float(resumo.get("recebido_mes") or 0))
-    resumo["pagamentos_pendentes_texto"] = _formatar_moeda_brl(float(resumo.get("pagamentos_pendentes") or 0))
-    resumo["mercado_pago_configurado"] = integracao_mercado_pago_configurada()
-    resumo["mercado_pago_modo_teste"] = modo_teste_mercado_pago()
-    return resumo
-
-
 def montar_dashboard_admin() -> dict[str, Any]:
-    sincronizar_assinaturas_saas_todas_db()
     agora = agora_empresa()
     limite_7_dias = (agora - timedelta(days=7)).isoformat(timespec="seconds")
 
@@ -25730,8 +24657,6 @@ def montar_dashboard_admin() -> dict[str, Any]:
         ).fetchall()
 
     resumo = dict(resumo_row or {})
-    with conectar_db() as conn_saas:
-        resumo.update(_resumo_financeiro_saas_admin(conn_saas))
     usuarios = []
 
     for row in usuarios_rows:
@@ -25916,7 +24841,6 @@ def chamar_assistente_ia(pergunta: str) -> tuple[str, str]:
 
 
 def listar_empresas_admin() -> list[dict[str, Any]]:
-    sincronizar_assinaturas_saas_todas_db()
     with conectar_db() as conn:
         rows = conn.execute(
             """
@@ -25935,23 +24859,11 @@ def listar_empresas_admin() -> list[dict[str, Any]]:
                 empresas.indicado_por_empresa_id,
                 empresas.indicador_codigo,
                 empresas.criado_em,
-                saas_assinaturas.id AS assinatura_id,
-                saas_assinaturas.status AS assinatura_status,
-                saas_assinaturas.valor_mensal AS assinatura_valor_mensal,
-                saas_assinaturas.data_vencimento AS assinatura_vencimento,
-                saas_assinaturas.tolerancia_dias AS assinatura_tolerancia_dias,
-                saas_assinaturas.cobranca_ativa AS assinatura_cobranca_ativa,
-                saas_assinaturas.liberacao_manual_ate AS assinatura_liberacao_manual_ate,
-                saas_assinaturas.ultimo_pagamento_em AS assinatura_ultimo_pagamento_em,
-                (SELECT p.status FROM saas_pagamentos p WHERE p.empresa_id = empresas.id ORDER BY p.id DESC LIMIT 1) AS ultimo_pagamento_status,
-                (SELECT p.valor FROM saas_pagamentos p WHERE p.empresa_id = empresas.id ORDER BY p.id DESC LIMIT 1) AS ultimo_pagamento_valor,
-                (SELECT p.pago_em FROM saas_pagamentos p WHERE p.empresa_id = empresas.id AND p.status = 'pago' ORDER BY p.id DESC LIMIT 1) AS ultimo_pagamento_em,
                 COUNT(DISTINCT usuarios.id) AS total_usuarios,
                 COUNT(DISTINCT lojas.id) AS total_lojas
             FROM empresas
             LEFT JOIN usuarios ON usuarios.empresa_id = empresas.id
             LEFT JOIN lojas ON lojas.empresa_id = empresas.id
-            LEFT JOIN saas_assinaturas ON saas_assinaturas.empresa_id = empresas.id
             GROUP BY empresas.id
             ORDER BY empresas.id DESC
             """
@@ -25974,19 +24886,6 @@ def listar_empresas_admin() -> list[dict[str, Any]]:
             empresa["trial_dias_texto"] = "1 dia"
         else:
             empresa["trial_dias_texto"] = f"{dias_restantes} dias"
-
-        valor_assinatura = _decimal_saas(
-            empresa.get("assinatura_valor_mensal"),
-            valor_plano_saas(empresa.get("plano")),
-        )
-        empresa["assinatura_valor_texto"] = _formatar_moeda_brl(float(valor_assinatura))
-        empresa["ultimo_pagamento_valor_texto"] = (
-            _formatar_moeda_brl(float(_decimal_saas(empresa.get("ultimo_pagamento_valor"))))
-            if empresa.get("ultimo_pagamento_valor") not in (None, "")
-            else "-"
-        )
-        empresa["assinatura_status"] = str(empresa.get("assinatura_status") or "sem_cobranca")
-        empresa["assinatura_tolerancia_dias"] = int(empresa.get("assinatura_tolerancia_dias") or GESTFLOW_SAAS_TOLERANCIA_DIAS)
 
         empresas.append(empresa)
 
@@ -26282,8 +25181,6 @@ def excluir_empresa_cliente_admin_db(empresa_id: int) -> bool:
 
     with conectar_db() as conn:
         tabelas_por_empresa = [
-            "saas_pagamentos",
-            "saas_assinaturas",
             "notificacoes",
             "configuracoes_modulos",
             "contrato_historico",
@@ -27394,10 +26291,6 @@ def admin_empresas() -> str | Response:
             }
 
     contexto_admin_empresas = montar_contexto_admin_empresas_paginado()
-    cobranca_id = request.args.get("cobranca_id", type=int)
-    cobranca = buscar_pagamento_saas_db(cobranca_id) if cobranca_id else None
-    erro = erro or str(request.args.get("erro") or "").strip()
-    sucesso = sucesso or str(request.args.get("sucesso") or "").strip()
 
     return render_template(
         "admin_empresas.html",
@@ -27410,129 +26303,7 @@ def admin_empresas() -> str | Response:
         erro=erro,
         sucesso=sucesso,
         formulario=formulario,
-        cobranca=cobranca,
-        mercado_pago_configurado=integracao_mercado_pago_configurada(),
-        mercado_pago_modo_teste=modo_teste_mercado_pago(),
     )
-
-
-@app.post("/admin/empresas/<int:empresa_id>/assinatura")
-def admin_assinatura_empresa(empresa_id: int) -> Response:
-    if not usuario_logado_eh_admin_sistema():
-        return redirect(url_for("dashboard"))
-
-    try:
-        acao = str(request.form.get("acao") or "salvar").strip().lower()
-        if acao == "salvar":
-            salvar_assinatura_empresa_admin_db(
-                empresa_id,
-                {
-                    "plano": request.form.get("plano"),
-                    "valor_mensal": request.form.get("valor_mensal"),
-                    "data_vencimento": request.form.get("data_vencimento"),
-                    "tolerancia_dias": request.form.get("tolerancia_dias"),
-                },
-            )
-            mensagem = "Assinatura atualizada com sucesso."
-        else:
-            acao_assinatura_empresa_admin_db(empresa_id, acao)
-            mensagens = {
-                "liberar_7": "Empresa liberada manualmente por 7 dias.",
-                "liberar_30": "Empresa liberada manualmente por 30 dias.",
-                "bloquear": "Empresa bloqueada manualmente.",
-                "reativar": "Empresa reativada com novo vencimento em 30 dias.",
-            }
-            mensagem = mensagens.get(acao, "Assinatura atualizada.")
-        return redirect(url_for("admin_empresas", sucesso=mensagem))
-    except (ValueError, sqlite3.Error) as exc:
-        return redirect(url_for("admin_empresas", erro=str(exc)))
-
-
-@app.post("/admin/empresas/<int:empresa_id>/cobranca-pix")
-def admin_gerar_cobranca_pix_empresa(empresa_id: int) -> Response:
-    if not usuario_logado_eh_admin_sistema():
-        return redirect(url_for("dashboard"))
-
-    try:
-        cobranca = criar_cobranca_pix_saas_db(empresa_id, request.form.get("valor_mensal"))
-        return redirect(
-            url_for(
-                "admin_empresas",
-                cobranca_id=int(cobranca["id"]),
-                sucesso="Cobrança PIX criada. Aguarde o webhook ou consulte o status manualmente.",
-            )
-        )
-    except (MercadoPagoErro, ValueError, sqlite3.Error, RuntimeError) as exc:
-        return redirect(url_for("admin_empresas", erro=str(exc)))
-
-
-@app.post("/admin/pagamentos/<int:pagamento_id>/consultar")
-def admin_consultar_pagamento_saas(pagamento_id: int) -> Response:
-    if not usuario_logado_eh_admin_sistema():
-        return redirect(url_for("dashboard"))
-
-    try:
-        pagamento = consultar_pagamento_saas_db(pagamento_id)
-        if pagamento is None:
-            raise ValueError("Pagamento não encontrado.")
-        return redirect(
-            url_for(
-                "admin_empresas",
-                cobranca_id=pagamento_id,
-                sucesso=f"Status atualizado: {pagamento.get('status') or 'pendente'}.",
-            )
-        )
-    except (MercadoPagoErro, ValueError, sqlite3.Error) as exc:
-        return redirect(url_for("admin_empresas", cobranca_id=pagamento_id, erro=str(exc)))
-
-
-@app.post("/mercado-pago/webhook")
-def mercado_pago_webhook_saas() -> tuple[str, int]:
-    segredo = obter_webhook_secret()
-    if not segredo:
-        app.logger.error("MERCADO_PAGO_WEBHOOK_SECRET não configurado; webhook SaaS recusado.")
-        return "", 503
-
-    data_id_assinatura = request.args.get("data.id")
-    if not validar_assinatura_webhook(
-        request.headers.get("x-signature"),
-        request.headers.get("x-request-id"),
-        data_id_assinatura,
-        segredo,
-    ):
-        app.logger.warning("Webhook Mercado Pago SaaS rejeitado por assinatura inválida.")
-        return "", 401
-
-    payload = request.get_json(silent=True) or {}
-    if payload.get("type") != "order" and request.args.get("type") != "order":
-        return "", 200
-
-    order_id = str(data_id_assinatura or (payload.get("data") or {}).get("id") or "").strip()
-    if not order_id:
-        return "", 200
-
-    try:
-        info = consultar_order(order_id)
-    except MercadoPagoErro as exc:
-        app.logger.warning("Webhook SaaS válido, mas order %s não pôde ser consultada: %s", order_id, exc)
-        return "", 200
-
-    with conectar_db() as conn:
-        row = conn.execute(
-            "SELECT id FROM saas_pagamentos WHERE mp_order_id = ? LIMIT 1",
-            (order_id,),
-        ).fetchone()
-        if row is None:
-            referencia = str(info.get("external_reference") or "")
-            prefixo = "gestflow_saas_"
-            pagamento_id = int(referencia[len(prefixo):]) if referencia.startswith(prefixo) and referencia[len(prefixo):].isdigit() else 0
-        else:
-            pagamento_id = int(row["id"])
-
-    if pagamento_id:
-        aplicar_retorno_pagamento_saas_db(pagamento_id, info)
-
-    return "", 200
 
 
 @app.post("/admin/empresas/<int:empresa_id>/status")
@@ -37434,6 +36205,10 @@ def validar_servico_para_salvar(servico: dict[str, str]) -> str:
 @app.get("/produtos")
 def produtos() -> str:
     contexto = montar_contexto_cadastro_paginado("produtos")
+    for produto in contexto["registros"]:
+        produto["preco_venda_formatado"] = _formatar_moeda_brl(
+            _converter_valor_brl(produto.get("preco_venda"))
+        )
     return render_template(
         "produtos.html",
         produtos=contexto["registros"],
@@ -37460,21 +36235,8 @@ def salvar_produto() -> Response:
         "status": (request.form.get("produto_status") or "ativo").strip() or "ativo",
         "observacoes": (request.form.get("produto_observacoes") or "").strip(),
         "descricao_comercial": (request.form.get("produto_descricao_comercial") or "").strip(),
-        "foto_path": str(produto_atual.get("foto_path") or "").strip(),
+        "foto_path": "",
     }
-
-    foto_anterior = str(produto_atual.get("foto_path") or "").strip()
-    remover_foto = (request.form.get("produto_remover_foto") or "").strip() == "1"
-    arquivo_foto = request.files.get("produto_foto")
-
-    if remover_foto:
-        produto["foto_path"] = ""
-
-    if arquivo_foto is not None and (arquivo_foto.filename or "").strip():
-        try:
-            produto["foto_path"] = salvar_upload_foto_produto(arquivo_foto, produto_id)
-        except ValueError as erro_foto:
-            return redirect(url_for("editar_produto", produto_id=produto_id, erro=str(erro_foto)))
 
     produto = normalizar_produto_para_salvar(produto)
     erro_validacao = validar_produto_para_salvar(produto)
@@ -37482,7 +36244,18 @@ def salvar_produto() -> Response:
     if erro_validacao:
         return redirect(url_for("produtos", erro=erro_validacao))
 
-    salvar_produto_db(produto)
+    arquivo_foto = request.files.get("produto_foto")
+    if arquivo_foto is not None and (arquivo_foto.filename or "").strip():
+        nome_foto = secure_filename(arquivo_foto.filename or "")
+        if not nome_foto or not _extensao_foto_produto_permitida(nome_foto):
+            return redirect(url_for("produtos", erro="Formato de foto inválido. Use PNG, JPG, JPEG ou WEBP."))
+
+    produto_id = salvar_produto_db(produto)
+
+    if arquivo_foto is not None and (arquivo_foto.filename or "").strip():
+        produto["foto_path"] = salvar_upload_foto_produto(arquivo_foto, produto_id)
+        atualizar_produto_db(produto_id, produto)
+
     registrar_atividade_usuario("criacao", "produtos", f"Criou produto {produto['nome']}", request.path)
 
     return redirect(url_for("produtos"))
@@ -37720,6 +36493,7 @@ def atualizar_produto(produto_id: int) -> Response:
     if produto_atual is None:
         return redirect(url_for("produtos"))
 
+    foto_anterior = str(produto_atual.get("foto_path") or "").strip()
     produto = {
         "nome": (request.form.get("produto_nome") or "").strip(),
         "codigo": (request.form.get("produto_codigo") or "").strip(),
@@ -37731,6 +36505,8 @@ def atualizar_produto(produto_id: int) -> Response:
         "preco_venda": (request.form.get("produto_preco_venda") or "").strip(),
         "status": (request.form.get("produto_status") or "ativo").strip() or "ativo",
         "observacoes": (request.form.get("produto_observacoes") or "").strip(),
+        "descricao_comercial": (request.form.get("produto_descricao_comercial") or "").strip(),
+        "foto_path": foto_anterior,
     }
 
     produto = normalizar_produto_para_salvar(produto)
@@ -37738,6 +36514,18 @@ def atualizar_produto(produto_id: int) -> Response:
 
     if erro_validacao:
         return redirect(url_for("editar_produto", produto_id=produto_id, erro=erro_validacao))
+
+    remover_foto = (request.form.get("produto_remover_foto") or "").strip() == "1"
+    arquivo_foto = request.files.get("produto_foto")
+
+    if remover_foto:
+        produto["foto_path"] = ""
+
+    if arquivo_foto is not None and (arquivo_foto.filename or "").strip():
+        try:
+            produto["foto_path"] = salvar_upload_foto_produto(arquivo_foto, produto_id)
+        except ValueError as erro_foto:
+            return redirect(url_for("editar_produto", produto_id=produto_id, erro=str(erro_foto)))
 
     atualizar_produto_db(produto_id, produto)
 
@@ -38181,132 +36969,6 @@ def excluir_servico(servico_id: int) -> Response:
         )
         return redirect(url_for("servicos", sucesso=mensagem))
     return redirect(url_for("servicos", erro=mensagem))
-
-
-@app.get("/fiscal")
-@app.get("/fiscal/<secao>")
-def fiscal(secao: str = "") -> str:
-    secao = str(secao or "").strip().lower()
-    if secao not in FISCAL_SECOES:
-        return redirect(url_for("fiscal"))
-
-    secao_info = FISCAL_SECOES[secao]
-    tipo = str(secao_info.get("tipo") or "")
-    return render_template(
-        "fiscal.html",
-        painel=montar_painel_fiscal(),
-        documentos=listar_documentos_fiscais(tipo=tipo) if secao_info.get("grupo") in {"painel", "documentos"} else [],
-        configuracao=buscar_configuracao_fiscal(),
-        origens=listar_origens_fiscais(),
-        secao_fiscal=secao,
-        secao_info=secao_info,
-        tipo_filtro=tipo,
-        tipos_documento=FISCAL_TIPOS_DOCUMENTO,
-        status_documento=FISCAL_STATUS,
-        secoes_fiscal=FISCAL_SECOES,
-    )
-
-
-@app.post("/fiscal/configuracoes")
-def salvar_fiscal_configuracoes() -> Response:
-    if not usuario_logado_eh_administrador_empresa():
-        return Response("Acesso negado às configurações fiscais da empresa.", status=403)
-
-    atual = buscar_configuracao_fiscal()
-
-    def valor_formulario(nome: str, chave_atual: str, padrao: str = "") -> str:
-        if nome in request.form:
-            return str(request.form.get(nome) or "").strip()
-        return str(atual.get(chave_atual) or padrao).strip()
-
-    certificado_titular = valor_formulario("fiscal_certificado_titular", "certificado_titular")
-    certificado_cnpj = valor_formulario("fiscal_certificado_cnpj", "certificado_cnpj")
-    certificado_validade = valor_formulario("fiscal_certificado_validade", "certificado_validade")
-    if any((certificado_titular, certificado_cnpj, certificado_validade)):
-        certificado_status = str(atual.get("certificado_status") or "aguardando_integracao")
-        if certificado_status == "nao_configurado":
-            certificado_status = "aguardando_integracao"
-    else:
-        certificado_status = "nao_configurado"
-
-    ambiente = valor_formulario("fiscal_ambiente", "ambiente", "homologacao").lower() or "homologacao"
-    if ambiente not in {"homologacao", "producao"}:
-        ambiente = "homologacao"
-
-    dados = {
-        "ambiente": ambiente,
-        "provedor": valor_formulario("fiscal_provedor", "provedor", "nao_configurado") or "nao_configurado",
-        "razao_social": valor_formulario("fiscal_razao_social", "razao_social"),
-        "cnpj": valor_formulario("fiscal_cnpj", "cnpj"),
-        "inscricao_estadual": valor_formulario("fiscal_inscricao_estadual", "inscricao_estadual"),
-        "inscricao_municipal": valor_formulario("fiscal_inscricao_municipal", "inscricao_municipal"),
-        "crt": valor_formulario("fiscal_crt", "crt"),
-        "cnae": valor_formulario("fiscal_cnae", "cnae"),
-        "serie_nfe": valor_formulario("fiscal_serie_nfe", "serie_nfe", "1") or "1",
-        "serie_nfce": valor_formulario("fiscal_serie_nfce", "serie_nfce", "1") or "1",
-        "serie_nfse": valor_formulario("fiscal_serie_nfse", "serie_nfse", "1") or "1",
-        "certificado_status": certificado_status,
-        "certificado_titular": certificado_titular,
-        "certificado_cnpj": certificado_cnpj,
-        "certificado_validade": certificado_validade,
-    }
-    salvar_configuracao_fiscal(dados)
-    registrar_atividade_usuario(
-        "edicao",
-        "fiscal",
-        "Atualizou a configuração fiscal da empresa",
-        request.path,
-    )
-    retorno = str(request.form.get("fiscal_retorno") or "configuracoes").strip().lower()
-    if retorno not in FISCAL_SECOES:
-        retorno = "configuracoes"
-    return redirect(url_for("fiscal", secao=retorno, sucesso="Configuração fiscal salva."))
-
-
-@app.post("/fiscal/rascunhos")
-def criar_fiscal_rascunho() -> Response:
-    tipo_documento = str(request.form.get("fiscal_tipo_documento") or "").strip().lower()
-    origem_tipo = str(request.form.get("fiscal_origem_tipo") or "").strip().lower()
-    try:
-        origem_id = int(request.form.get("fiscal_origem_id") or 0)
-    except (TypeError, ValueError):
-        origem_id = 0
-
-    documento_id, mensagem = criar_rascunho_fiscal(tipo_documento, origem_tipo, origem_id)
-    if documento_id is None:
-        secao_retorno = {"nfe": "produtos", "nfce": "consumidor", "nfse": "servicos"}.get(tipo_documento, "")
-        return redirect(url_for("fiscal", secao=secao_retorno, erro=mensagem))
-
-    registrar_atividade_usuario(
-        "criacao",
-        "fiscal",
-        f"Criou rascunho fiscal {documento_id}",
-        request.path,
-    )
-    secao_retorno = {"nfe": "produtos", "nfce": "consumidor", "nfse": "servicos"}.get(tipo_documento, "")
-    return redirect(url_for("fiscal", secao=secao_retorno, sucesso=mensagem))
-
-
-@app.post("/fiscal/documentos/<int:documento_id>/cancelar")
-def cancelar_fiscal_documento(documento_id: int) -> Response:
-    retorno = str(request.form.get("fiscal_retorno") or "").strip().lower()
-    if retorno not in FISCAL_SECOES:
-        retorno = ""
-    if not cancelar_rascunho_fiscal(documento_id):
-        return redirect(
-            url_for(
-                "fiscal",
-                secao=retorno,
-                erro="Somente rascunhos ou documentos rejeitados podem ser cancelados nesta etapa.",
-            )
-        )
-    registrar_atividade_usuario(
-        "cancelamento",
-        "fiscal",
-        f"Cancelou documento fiscal {documento_id}",
-        request.path,
-    )
-    return redirect(url_for("fiscal", secao=retorno, sucesso="Documento fiscal cancelado."))
 
 
 @app.get("/financeiro")
@@ -40262,7 +38924,9 @@ def atualizar_ordem_servico(ordem_servico_id: int) -> Response:
         ordem_servico["cliente"] = cliente_atual
 
     itens = montar_ordem_servico_itens_formulario()
-    erro_validacao = validar_ordem_servico_para_salvar(ordem_servico, itens)
+    erro_validacao = validar_ordem_servico_para_salvar(
+        ordem_servico, itens, permitir_dados_equipamento=True
+    )
 
     if erro_validacao:
         return redirect(url_for("editar_ordem_servico", ordem_servico_id=ordem_servico_id, erro=erro_validacao))

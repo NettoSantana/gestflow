@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\ordem_servico_editar.html
-Último recode: 2026-08-28 16:13 (America/Bahia)
-Motivo: Simplificar visualmente o andamento do diário da OS com percentuais pré-definidos e conclusão em opções simples, mantendo um único botão Salvar alterações.
+Último recode: 2026-10-13 20:59:28 (America/Bahia)
+Motivo: Validar todos os itens e locais na edição da mesma OS, aceitando os dados operacionais preenchidos.
 #}
 
 <!DOCTYPE html>
@@ -3009,16 +3009,17 @@ Motivo: Simplificar visualmente o andamento do diário da OS com percentuais pr�
                     }
 
                     if (configuracao.exigirItemOuRelato && !gestflowExisteItemValido(formulario, false)) {
-                        const relato = formulario.querySelector('[name="os_relato_cliente"]');
-                        const diagnostico = formulario.querySelector('[name="os_diagnostico"]');
-                        const executado = formulario.querySelector('[name="os_servico_executado"]');
-                        const temRelato = [relato, diagnostico, executado].some(function(campo) {
-                            return campo && String(campo.value || "").trim();
+                        const camposAtendimento = formulario.querySelectorAll(
+                            '[name="os_equipamento"], [name="os_local_servico"], [name="os_condicoes"], ' +
+                            '[name="os_relato_cliente"], [name="os_diagnostico"], [name="os_servico_executado"]'
+                        );
+                        const temRelato = Array.from(camposAtendimento).some(function(campo) {
+                            return String(campo.value || "").trim();
                         });
 
                         if (!temRelato) {
                             evento.preventDefault();
-                            gestflowExibirErroFormulario(formulario, "Informe ao menos um item, relato do cliente, diagnóstico ou serviço executado.");
+                            gestflowExibirErroFormulario(formulario, "Informe ao menos um item, equipamento, local, situação encontrada, relato, serviço previsto ou executado.");
                             return;
                         }
                     }
