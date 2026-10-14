@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\ordem_servico_editar.html
-Último recode: 2026-10-13 20:59:28 (America/Bahia)
-Motivo: Validar todos os itens e locais na edição da mesma OS, aceitando os dados operacionais preenchidos.
+Último recode: 2026-10-13 21:30:15 (America/Bahia)
+Motivo: Abrir Editar dados com o formulário completo da mesma OS, preservando validação e abas operacionais.
 #}
 
 <!DOCTYPE html>
@@ -1091,7 +1091,7 @@ Motivo: Validar todos os itens e locais na edição da mesma OS, aceitando os da
             top: 0;
             z-index: 35;
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(5, minmax(0, 1fr));
             margin: 0 0 16px;
             padding: 7px;
             border: 1px solid #dbe5f1;
@@ -1123,10 +1123,6 @@ Motivo: Validar todos os itens e locais na edição da mesma OS, aceitando os da
         }
 
         [data-os-tab-panel][hidden] {
-            display: none !important;
-        }
-
-        .os-admin-retained {
             display: none !important;
         }
 
@@ -1615,6 +1611,7 @@ Motivo: Validar todos os itens e locais na edição da mesma OS, aceitando os da
             font-size: 12px;
         }
 
+        .os-tab-active-edicao #form-editar-os .os-execution-actions,
         .os-tab-active-historico #form-editar-os .os-execution-actions,
         .os-tab-active-resumo #form-editar-os .os-execution-actions,
         .os-tab-active-evidencias #form-editar-os .os-execution-actions {
@@ -1749,8 +1746,9 @@ Motivo: Validar todos os itens e locais na edição da mesma OS, aceitando os da
             </section>
 
             <nav class="os-tabs" aria-label="Áreas da ordem de serviço">
+                <button type="button" class="os-tab-button is-active" data-os-tab="edicao">Editar dados</button>
                 <button type="button" class="os-tab-button" data-os-tab="resumo">Resumo</button>
-                <button type="button" class="os-tab-button is-active" data-os-tab="execucao">Execução</button>
+                <button type="button" class="os-tab-button" data-os-tab="execucao">Execução</button>
                 <button type="button" class="os-tab-button" data-os-tab="evidencias">Evidências</button>
                 <button type="button" class="os-tab-button" data-os-tab="historico">Histórico</button>
             </nav>
@@ -1763,7 +1761,7 @@ Motivo: Validar todos os itens e locais na edição da mesma OS, aceitando os da
                 <button type="button" class="os-execution-button start" data-os-status-action="andamento">Iniciar serviço</button>
                 <button type="button" class="os-execution-button pause" data-os-status-action="pausado">Pausar serviço</button>
             </div>
-            <section class="panel page-section os-form-section os-panel-orcamento" data-os-tab-panel="resumo">
+            <section class="panel page-section os-form-section os-panel-orcamento" data-os-tab-panel="edicao resumo">
                 <div class="panel-header page-header os-section-title">
                     <div>
                         <h3>Dados principais</h3>
@@ -1817,7 +1815,7 @@ Motivo: Validar todos os itens e locais na edição da mesma OS, aceitando os da
                 </div>
             </section>
 
-            <section class="panel page-section os-form-section os-panel-orcamento" data-os-tab-panel="resumo">
+            <section class="panel page-section os-form-section os-panel-orcamento" data-os-tab-panel="edicao resumo">
                 <div class="panel-header page-header os-section-title"><div><h3>Responsáveis</h3><p class="page-subtitle">Responsável comercial e técnico da execução.</p></div></div>
                 <div class="os-section-body"><div class="os-grid-2"><div class="form-group">
                         <label for="os_responsavel">Vendedor / Responsável</label>
@@ -1840,7 +1838,7 @@ Motivo: Validar todos os itens e locais na edição da mesma OS, aceitando os da
                     </div></div></div>
             </section>
 
-            <section class="panel page-section os-form-section os-panel-orcamento" data-os-tab-panel="execucao evidencias" data-os-execucao-equipamentos>
+            <section class="panel page-section os-form-section os-panel-orcamento" data-os-tab-panel="edicao execucao evidencias" data-os-execucao-equipamentos>
                 <div class="panel-header page-header os-section-title">
                     <div>
                         <h3 data-os-equipamentos-title>Serviço em campo</h3>
@@ -1961,17 +1959,26 @@ Motivo: Validar todos os itens e locais na edição da mesma OS, aceitando os da
                     <div class="os-actions-line"><button type="button" class="btn-primary-green" onclick="adicionarEquipamento()">+ Adicionar item / local</button></div>
                 </div>
             </section>
-            <section class="panel page-section os-form-section os-panel-orcamento os-admin-retained" aria-hidden="true"><div class="panel-header page-header os-section-title"><div><h3>Produtos</h3><p class="page-subtitle">Adicione produtos à OS. Use o botão para inserir novas linhas.</p></div></div><div class="os-section-body"><div class="table-shell"><table class="client-table"><thead><tr><th>Produto</th><th>Detalhes</th><th>Quant.</th><th>Valor</th><th>Desconto</th><th>Subtotal</th><th>Ação</th></tr></thead><tbody id="produto-tbody"></tbody></table></div><div class="os-actions-line"><button type="button" class="btn-primary-green" onclick="adicionarItem('produto')">+ Adicionar produto</button></div></div></section>
-            <section class="panel page-section os-form-section os-panel-orcamento os-admin-retained" aria-hidden="true"><div class="panel-header page-header os-section-title"><div><h3>Serviços</h3><p class="page-subtitle">Adicione serviços à OS. Use o botão para inserir novas linhas.</p></div></div><div class="os-section-body"><div class="table-shell"><table class="client-table"><thead><tr><th>Serviço</th><th>Detalhes</th><th>Quant.</th><th>Valor</th><th>Desconto</th><th>Subtotal</th><th>Ação</th></tr></thead><tbody id="servico-tbody"></tbody></table></div><div class="os-actions-line"><button type="button" class="btn-primary-green" onclick="adicionarItem('servico')">+ Adicionar serviço</button></div></div></section>
+            <section class="panel page-section os-form-section os-panel-orcamento" data-os-tab-panel="edicao"><div class="panel-header page-header os-section-title"><div><h3>Produtos</h3><p class="page-subtitle">Adicione produtos à OS. Use o botão para inserir novas linhas.</p></div></div><div class="os-section-body"><div class="table-shell"><table class="client-table"><thead><tr><th>Produto</th><th>Detalhes</th><th>Quant.</th><th>Valor</th><th>Desconto</th><th>Subtotal</th><th>Ação</th></tr></thead><tbody id="produto-tbody"></tbody></table></div><div class="os-actions-line"><button type="button" class="btn-primary-green" onclick="adicionarItem('produto')">+ Adicionar produto</button></div></div></section>
+            <section class="panel page-section os-form-section os-panel-orcamento" data-os-tab-panel="edicao"><div class="panel-header page-header os-section-title"><div><h3>Serviços</h3><p class="page-subtitle">Adicione serviços à OS. Use o botão para inserir novas linhas.</p></div></div><div class="os-section-body"><div class="table-shell"><table class="client-table"><thead><tr><th>Serviço</th><th>Detalhes</th><th>Quant.</th><th>Valor</th><th>Desconto</th><th>Subtotal</th><th>Ação</th></tr></thead><tbody id="servico-tbody"></tbody></table></div><div class="os-actions-line"><button type="button" class="btn-primary-green" onclick="adicionarItem('servico')">+ Adicionar serviço</button></div></div></section>
 
-            <section class="panel page-section os-form-section os-panel-orcamento os-admin-retained" aria-hidden="true">
+            <section class="panel page-section os-form-section os-panel-orcamento" data-os-tab-panel="edicao">
                 <div class="panel-header page-header os-section-title"><div><h3>Endereço de entrega</h3><p class="page-subtitle">Opcional para retirada ou entrega de equipamento.</p></div></div>
                 <div class="os-section-body"><label class="os-muted-check"><input type="checkbox" name="os_informar_endereco_entrega" value="sim" {% if os.informar_endereco_entrega == 'sim' %}checked{% endif %}> Informar endereço de entrega</label><div class="os-grid-4" style="margin-top: 14px;"><div class="form-group os-span-2"><label for="os_endereco_entrega">Endereço</label><input id="os_endereco_entrega" name="os_endereco_entrega" type="text" value="{{ os.endereco_entrega or '' }}" class="form-control"></div><div class="form-group"><label for="os_bairro_entrega">Bairro</label><input id="os_bairro_entrega" name="os_bairro_entrega" type="text" value="{{ os.bairro_entrega or '' }}" class="form-control"></div><div class="form-group"><label for="os_cidade_entrega">Cidade</label><input id="os_cidade_entrega" name="os_cidade_entrega" type="text" value="{{ os.cidade_entrega or '' }}" class="form-control"></div></div></div>
             </section>
 
-            <section class="panel page-section os-form-section os-panel-orcamento os-admin-retained" aria-hidden="true">
+            <section class="panel page-section os-form-section os-panel-orcamento" data-os-tab-panel="edicao">
                 <div class="panel-header page-header os-section-title"><div><h3>Total</h3><p class="page-subtitle">Atualize os totais da OS.</p></div></div>
                 <div class="os-section-body"><label class="os-muted-check"><input type="checkbox" name="os_exibir_valor_impressao" value="sim" {% if os.exibir_valor_impressao == 'sim' %}checked{% endif %}> Exibir valor total na impressão</label><div class="os-grid-6" style="margin-top: 14px;"><div class="form-group"><label for="os_total_servicos">Mão de obra</label><input id="os_total_servicos" name="os_total_servicos" type="text" value="{{ os.total_servicos or '0,00' }}" class="form-control" readonly></div><div class="form-group"><label for="os_total_produtos">Peças</label><input id="os_total_produtos" name="os_total_produtos" type="text" value="{{ os.total_produtos or '0,00' }}" class="form-control" readonly></div><div class="form-group"><label for="os_frete">Frete</label><input id="os_frete" name="os_frete" type="text" value="{{ os.frete or '0,00' }}" class="form-control"></div><div class="form-group"><label for="os_outros">Outros</label><input id="os_outros" name="os_outros" type="text" value="{{ os.outros or '0,00' }}" class="form-control"></div><div class="form-group"><label for="os_desconto_valor">Desconto</label><input id="os_desconto_valor" name="os_desconto_valor" type="text" value="{{ os.desconto_valor or '0,00' }}" class="form-control"></div><div class="form-group"><label for="os_valor_total">Valor total</label><input id="os_valor_total" name="os_valor_total" type="text" value="{{ os.valor_total or '0,00' }}" class="form-control" readonly></div><div class="form-group os-span-2"><label for="os_forma_pagamento">Forma de pagamento</label><input id="os_forma_pagamento" name="os_forma_pagamento" type="text" value="{{ os.forma_pagamento or '' }}" class="form-control"></div><div class="form-group"><label for="os_tipo">Tipo</label><select id="os_tipo" name="os_tipo" class="form-control"><option value="misto" {% if os.tipo == 'misto' %}selected{% endif %}>Misto</option><option value="produto" {% if os.tipo == 'produto' %}selected{% endif %}>Produto</option><option value="servico" {% if os.tipo == 'servico' %}selected{% endif %}>Serviço</option></select></div></div></div>
+            </section>
+
+            <section class="panel page-section os-form-section os-panel-orcamento" data-os-tab-panel="edicao">
+                <div class="panel-header page-header os-section-title"><div><h3>Serviço executado e observações</h3><p class="page-subtitle">Dados gerais desta ordem de serviço.</p></div></div>
+                <div class="os-section-body os-grid-2">
+                    <div class="form-group os-span-2"><label for="os_servico_executado">Serviço executado</label><textarea id="os_servico_executado" name="os_servico_executado" class="form-control os-textarea">{{ os.servico_executado or '' }}</textarea></div>
+                    <div class="form-group"><label for="os_observacoes">Observações</label><textarea id="os_observacoes" name="os_observacoes" class="form-control os-textarea">{{ os.observacoes or '' }}</textarea></div>
+                    <div class="form-group"><label for="os_observacoes_internas">Observações internas</label><textarea id="os_observacoes_internas" name="os_observacoes_internas" class="form-control os-textarea">{{ os.observacoes_internas or '' }}</textarea></div>
+                </div>
             </section>
 
             <section id="registro-do-dia" class="panel page-section os-form-section os-panel-orcamento os-execution-record" data-os-tab-panel="execucao">
@@ -1983,9 +1990,6 @@ Motivo: Validar todos os itens e locais na edição da mesma OS, aceitando os da
                 </div>
 
                 <div class="os-section-body">
-                    <textarea name="os_servico_executado" hidden>{{ os.servico_executado or '' }}</textarea>
-                    <textarea name="os_observacoes_internas" hidden>{{ os.observacoes_internas or '' }}</textarea>
-                    <textarea name="os_observacoes" hidden>{{ os.observacoes or '' }}</textarea>
 
                     <div class="os-day-intro">
                         <div class="os-day-step">
@@ -2125,12 +2129,12 @@ Motivo: Validar todos os itens e locais na edição da mesma OS, aceitando os da
                         </div>
                     </div>
 
-                    <div class="form-actions os-single-save-actions">
-                        <a href="/ordens-servico/{{ os.id }}" class="btn-light">Cancelar</a>
-                        <button type="submit" class="btn-primary-green">Salvar alterações</button>
-                    </div>
                 </div>
             </section>
+            <div class="form-actions os-single-save-actions" data-os-tab-panel="edicao resumo execucao evidencias">
+                <a href="/ordens-servico/{{ os.id }}" class="btn-light">Cancelar</a>
+                <button type="submit" class="btn-primary-green">Salvar alterações</button>
+            </div>
         </form>
 
         <section id="acompanhamentos-diarios" class="panel page-section os-form-section os-panel-orcamento os-history-simple" data-os-tab-panel="historico">
@@ -4175,11 +4179,12 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function ativarAba(nome) {
-        const aba = ["resumo", "execucao", "evidencias", "historico"].includes(nome)
+        const aba = ["edicao", "resumo", "execucao", "evidencias", "historico"].includes(nome)
             ? nome
-            : "execucao";
+            : "edicao";
 
         document.body.classList.remove(
+            "os-tab-active-edicao",
             "os-tab-active-resumo",
             "os-tab-active-execucao",
             "os-tab-active-evidencias",
@@ -4205,9 +4210,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
         const tituloEquipamentos = document.querySelector("[data-os-equipamentos-title]");
         if (tituloEquipamentos) {
-            tituloEquipamentos.textContent = aba === "evidencias"
-                ? "Evidências"
-                : "Serviço em campo";
+            tituloEquipamentos.textContent = aba === "edicao"
+                ? "Itens / locais da OS"
+                : aba === "evidencias" ? "Evidências" : "Serviço em campo";
         }
 
         try {
@@ -4218,15 +4223,11 @@ document.addEventListener("DOMContentLoaded", function() {
     window.gestflowAtivarAbaOS = ativarAba;
 
     document.addEventListener("DOMContentLoaded", function() {
-        let abaInicial = "execucao";
-        try {
-            const salva = sessionStorage.getItem("gestflow_os_aba_" + String({{ os.id|tojson }}));
-            if (salva) abaInicial = salva;
-        } catch (erro) {}
+        const abaInicial = window.location.hash === "#registro-do-dia" ? "execucao" : "edicao";
 
         document.querySelectorAll("[data-os-tab]").forEach(function(botao) {
             botao.addEventListener("click", function() {
-                ativarAba(botao.dataset.osTab || "execucao");
+                ativarAba(botao.dataset.osTab || "edicao");
             });
         });
 
