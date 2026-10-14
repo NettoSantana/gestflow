@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-09-17 12:30 (America/Bahia)
-# Motivo: Adicionar preferências por empresa para controlar quantidade e valores exibidos no Orçamento Premium no MAIN.
+# Último recode: 2026-10-13 20:59:28 (America/Bahia)
+# Motivo: Permitir salvar dados de equipamento e local na edição da mesma OS, preservando número, vínculo e validação da criação.
 
 from __future__ import annotations
 
@@ -14524,7 +14524,12 @@ def validar_venda_para_salvar(venda: dict[str, str], itens: list[dict[str, str]]
     return ""
 
 
-def validar_ordem_servico_para_salvar(ordem_servico: dict[str, str], itens: list[dict[str, str]]) -> str:
+def validar_ordem_servico_para_salvar(
+    ordem_servico: dict[str, str],
+    itens: list[dict[str, str]],
+    *,
+    permitir_dados_equipamento: bool = False,
+) -> str:
     if not ordem_servico["cliente"]:
         return "Selecione um cliente para salvar a OS."
 
@@ -14559,7 +14564,14 @@ def validar_ordem_servico_para_salvar(ordem_servico: dict[str, str], itens: list
         or ordem_servico["servico_executado"]
     )
 
-    if not tem_item and not tem_relato:
+    tem_dados_equipamento = permitir_dados_equipamento and any(
+        str(ordem_servico.get(campo) or "").strip()
+        for campo in ("equipamento", "local_servico", "condicoes")
+    )
+
+    if not tem_item and not tem_relato and not tem_dados_equipamento:
+        if permitir_dados_equipamento:
+            return "Informe ao menos um item, equipamento, local, situação encontrada, relato, serviço previsto ou executado."
         return "Informe ao menos um item, relato do cliente, diagnóstico ou serviço executado."
 
     return ""
@@ -38912,7 +38924,9 @@ def atualizar_ordem_servico(ordem_servico_id: int) -> Response:
         ordem_servico["cliente"] = cliente_atual
 
     itens = montar_ordem_servico_itens_formulario()
-    erro_validacao = validar_ordem_servico_para_salvar(ordem_servico, itens)
+    erro_validacao = validar_ordem_servico_para_salvar(
+        ordem_servico, itens, permitir_dados_equipamento=True
+    )
 
     if erro_validacao:
         return redirect(url_for("editar_ordem_servico", ordem_servico_id=ordem_servico_id, erro=erro_validacao))
