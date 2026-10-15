@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\server.py
-# Último recode: 2026-08-21 06:43 (America/Bahia)
-# Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+# Último recode: 2026-10-15 15:14 (America/Bahia)
+# Motivo: Instalar bloqueios de telas e ações do IndFlow conforme permissões do GestFlow.
 
 import os
 import logging
@@ -530,3 +530,5 @@ app.register_blueprint(indicadores_bp, url_prefix="/indicadores")
 app.register_blueprint(operacao_bp, url_prefix="/operacao")
 app.register_blueprint(teste_bp, url_prefix="/teste")
 ###ddd
+from modules.access_control import instalar_controle_acesso
+instalar_controle_acesso(app)

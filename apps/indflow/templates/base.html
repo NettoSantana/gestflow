@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\templates\base.html
-Último recode: 2026-09-02 21:45 (America/Bahia)
-Motivo: Remover o acesso à página Dados de teste do menu e do cabeçalho do IndFlow.
+Último recode: 2026-10-15 15:14 (America/Bahia)
+Motivo: Ocultar as telas do IndFlow não autorizadas no cadastro do usuário.
 #}
 
 <!DOCTYPE html>
@@ -147,7 +147,7 @@ Motivo: Remover o acesso à página Dados de teste do menu e do cabeçalho do In
     <div class="sidebar-desktop-hover-zone" id="sidebarDesktopHoverZone" aria-hidden="true"></div>
     <aside class="industrial-sidebar" id="industrialSidebar">
       <div class="industrial-brand">
-        <a href="{% if _is_operator %}/operacao/{% else %}/{% endif %}" class="industrial-brand-link" aria-label="IndFlow - Painel Industrial">
+        <a href="{% if _is_operator %}/operacao/{% else %}{{ indflow_destino() or '/' }}{% endif %}" class="industrial-brand-link" aria-label="IndFlow - Painel Industrial">
           <img src="/static/img/logo.png" alt="IndFlow" class="industrial-brand-logo">
           <div class="industrial-brand-text">
             <strong>IndFlow</strong>
@@ -162,64 +162,91 @@ Motivo: Remover o acesso à página Dados de teste do menu e do cabeçalho do In
         {% if _is_operator %}
         <div class="industrial-nav-section">
           <span class="industrial-nav-label">Operador</span>
+          {% if indflow_permitido('operacao') %}
           <a class="industrial-nav-item active" href="/operacao/">
             <span class="industrial-nav-icon">▣</span>
             <span>Tela Operacional</span>
           </a>
+          {% endif %}
         </div>
         {% else %}
         <div class="industrial-nav-section">
           <span class="industrial-nav-label">Operação</span>
 
+          {% if indflow_permitido('dashboard') %}
           <a class="industrial-nav-item {% if _path == '/' %}active{% endif %}" href="/">
             <span class="industrial-nav-icon">⌂</span>
             <span>Painel Industrial</span>
           </a>
+          {% endif %}
 
+          {% if indflow_permitido('operacao') %}
           <a class="industrial-nav-item {% if _path.startswith('/operacao') %}active{% endif %}" href="/operacao/">
             <span class="industrial-nav-icon">▣</span>
             <span>Tela Operacional</span>
           </a>
+          {% endif %}
 
+          {% if indflow_permitido('historico') %}
           <a class="industrial-nav-item {% if _path.startswith('/producao/historico') or _path.startswith('/maquina/') and _path.endswith('/historico') %}active{% endif %}" href="/producao/historico">
             <span class="industrial-nav-icon">◷</span>
             <span>Histórico</span>
           </a>
+          {% endif %}
 
+          {% if indflow_permitido('paradas') %}
           <a class="industrial-nav-item {% if _path.startswith('/paradas') %}active{% endif %}" href="/paradas/">
             <span class="industrial-nav-icon">Ⅱ</span>
             <span>Paradas</span>
           </a>
+          {% endif %}
 
+          {% if indflow_permitido('indicadores') %}
           <a class="industrial-nav-item {% if _path.startswith('/indicadores') %}active{% endif %}" href="/indicadores/">
             <span class="industrial-nav-icon">▤</span>
             <span>Indicadores</span>
           </a>
+          {% endif %}
 
+          {% if indflow_permitido('utilidades') %}
           <a class="industrial-nav-item {% if _path.startswith('/utilidades') %}active{% endif %}" href="/utilidades/">
             <span class="industrial-nav-icon">⌁</span>
             <span>Utilidades</span>
           </a>
+          {% endif %}
         </div>
 
+        <div class="industrial-nav-section">
+          {% for codigo, titulo, caminho in [('manutencao','Manutenção','/manutencao/'), ('ativos','Ativos','/ativos/')] %}
+          {% if indflow_permitido(codigo) %}
+          <a class="industrial-nav-item" href="{{ caminho }}"><span class="industrial-nav-icon"></span><span>{{ titulo }}</span></a>
+          {% endif %}
+          {% endfor %}
+        </div>
         {% if _is_technical %}
         <div class="industrial-nav-section industrial-nav-section-technical">
           <span class="industrial-nav-label">Técnico</span>
 
+          {% if indflow_permitido('operadores') %}
           <a class="industrial-nav-item {% if _path.startswith('/operacao/operadores') %}active{% endif %}" href="/operacao/operadores">
             <span class="industrial-nav-icon">♙</span>
             <span>Operadores</span>
           </a>
+          {% endif %}
 
+          {% if indflow_permitido('devices') %}
           <a class="industrial-nav-item {% if _path.startswith('/devices') %}active{% endif %}" href="/devices/">
             <span class="industrial-nav-icon">⌘</span>
             <span>Devices</span>
           </a>
+          {% endif %}
 
+          {% if indflow_permitido('configuracoes') %}
           <a class="industrial-nav-item {% if _path.startswith('/admin') %}active{% endif %}" href="/admin/">
             <span class="industrial-nav-icon">⚙</span>
             <span>Administração</span>
           </a>
+          {% endif %}
 
         </div>
         {% endif %}
@@ -235,7 +262,7 @@ Motivo: Remover o acesso à página Dados de teste do menu e do cabeçalho do In
         {% endif %}
         <a class="industrial-nav-item industrial-back-gestflow" href="/admin/logout">
           <span class="industrial-nav-icon">←</span>
-          <span>Voltar ao GestFlow</span>
+          <span>{% if (session.get('indflow_acesso') or {}).get('somente_indflow') %}Sair{% else %}Voltar ao GestFlow{% endif %}</span>
         </a>
         <div class="industrial-version">GestFlow · IndFlow</div>
       </div>

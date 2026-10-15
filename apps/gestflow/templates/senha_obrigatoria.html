@@ -1,0 +1,27 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\senha_obrigatoria.html
+Último recode: 2026-10-15 15:14 (America/Bahia)
+Motivo: Exigir uma nova senha após 72 horas da emissão da senha provisória.
+#}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atualizar senha — GestFlow</title>
+<style>
+body{margin:0;background:#f1f5f9;color:#0f172a;font-family:Arial,sans-serif;display:grid;min-height:100vh;place-items:center}main{box-sizing:border-box;width:min(92%,460px);background:white;padding:30px;border-radius:16px}label{display:block;margin-top:20px}input{box-sizing:border-box;width:100%;padding:12px;margin-top:8px;border:1px solid #94a3b8;border-radius:8px}button{padding:13px;background:#1d4ed8;color:white;border:0;border-radius:8px;width:100%;margin-top:24px;cursor:pointer}.erro{color:#991b1b}p{line-height:1.5}a{display:block;margin-top:20px;color:#1d4ed8}
+</style>
+</head>
+<body><main>
+<h1>Cadastre uma nova senha</h1>
+<p>Após 72 horas, é necessário substituir a senha provisória para continuar.</p>
+<p>Use uma senha diferente da provisória. A política de senha configurada para sua empresa será validada ao salvar.</p>
+<p>Para uma senha forte, use pelo menos 8 caracteres, com maiúscula, minúscula, número e caractere especial. Se a política for muito forte, use pelo menos 12 caracteres.</p>
+{% if erro %}<p class="erro" role="alert">{{ erro }}</p>{% endif %}
+<form method="post">
+<input type="hidden" name="csrf" value="{{ access_csrf }}">
+<label for="nova_senha">Nova senha</label><input id="nova_senha" name="nova_senha" type="password" autocomplete="new-password" required maxlength="256">
+<label for="confirmar_senha">Confirmar nova senha</label><input id="confirmar_senha" name="confirmar_senha" type="password" autocomplete="new-password" required maxlength="256">
+<button type="submit">Salvar nova senha e continuar</button>
+</form><a href="{{ url_for('sair') }}">Sair</a>
+</main></body></html>

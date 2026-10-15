@@ -1,0 +1,14 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\partials\indflow_permissoes.html
+Último recode: 2026-10-15 15:14 (America/Bahia)
+Motivo: Exibir subitens do IndFlow na mesma tabela de permissões do usuário.
+#}
+{% for codigo, nome, caminho in indflow_telas %}
+<tr class="indflow-subitem" style="background:#f8fafc">
+<td style="padding-left:24px"><strong>{{ nome }}</strong><small>IndFlow</small></td>
+{% for acao in acoes_permissao %}
+{% set chave = codigo ~ ':' ~ acao.codigo %}
+<td><input class="permission-checkbox indflow-checkbox" type="checkbox" name="indflow_permissoes" value="{{ chave }}" aria-label="{{ nome }}: {{ acao.nome }}" {% if chave in indflow_selecionadas %}checked{% endif %}></td>
+{% endfor %}
+</tr>
+{% endfor %}

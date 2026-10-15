@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\usuario_editar.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-10-15 15:14 (America/Bahia)
+Motivo: Adicionar acesso exclusivo e subitens do IndFlow.
 #}
 
 <!DOCTYPE html>
@@ -137,6 +137,13 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
                         </select>
                     </div>
                     <div class="form-group">
+                        <label for="acesso_sistema">Acesso ao sistema</label>
+                        <select id="acesso_sistema" name="acesso_sistema" class="form-control">
+                            <option value="gestflow" {% if acesso_sistema_atual != 'indflow' %}selected{% endif %}>GestFlow e módulos autorizados</option>
+                            <option value="indflow" {% if acesso_sistema_atual == 'indflow' %}selected{% endif %}>Somente IndFlow</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label for="perfil">Perfil</label>
                         <select id="perfil" name="perfil" class="form-control" required>
                             {% for codigo, perfil in perfis_usuario.items() %}
@@ -216,6 +223,9 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
                                         </td>
                                     {% endfor %}
                                 </tr>
+                                {% if modulo.codigo == 'indflow' %}
+                                    {% include "partials/indflow_permissoes.html" %}
+                                {% endif %}
                             {% endfor %}
                         </tbody>
                     </table>
@@ -244,6 +254,32 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
 
             perfil.addEventListener('change', atualizarPerfil);
             atualizarPerfil();
+
+            const acesso = document.getElementById('acesso_sistema');
+            function limitarAcesso() {
+                if (acesso.value !== 'indflow') return;
+                if (perfil.value === 'administrador' || perfil.value === 'super_admin') {
+                    perfil.value = 'consulta';
+                    atualizarPerfil();
+                }
+                document.querySelectorAll('input[name="permissoes"]').forEach(function (c) {
+                    c.checked = c.value === 'indflow:visualizar';
+                });
+            }
+            acesso.addEventListener('change', limitarAcesso);
+            perfil.addEventListener('change', limitarAcesso);
+            limitarAcesso();
+            document.querySelectorAll('.indflow-checkbox').forEach(function (c) {
+                c.addEventListener('change', function () {
+                    if (c.checked) {
+                        const pai = document.querySelector('input[name="permissoes"][value="indflow:visualizar"]');
+                        if (pai) pai.checked = true;
+                        const tela = c.value.split(':')[0];
+                        const visualizar = document.querySelector('input[name="indflow_permissoes"][value="' + tela + ':visualizar"]');
+                        if (visualizar) visualizar.checked = true;
+                    }
+                });
+            });
         })();
     </script>
 </body>

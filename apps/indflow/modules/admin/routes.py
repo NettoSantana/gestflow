@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\admin\routes.py
-# Último recode: 2026-09-01 19:08 (America/Bahia)
-# Motivo: Permitir sessão exclusiva do operador por QR/PIN sem reabrir login próprio do IndFlow, mantendo usuários administrativos somente via SSO GestFlow.
+# Último recode: 2026-10-15 15:14 (America/Bahia)
+# Motivo: Receber permissões do GestFlow no SSO e impedir promoção automática do primeiro usuário restrito.
 
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for
 from datetime import datetime
@@ -166,7 +166,10 @@ def _decode_gestflow_sso_token(token: str) -> dict:
     if empresa_id <= 0 or usuario_id <= 0 or len(jti) < 16 or len(jti) > 128:
         raise ValueError("identidade invalida")
 
-    return {"empresa_id": empresa_id, "usuario_id": usuario_id, "jti": jti}
+    acesso = payload.get("acesso")
+    if not isinstance(acesso, dict) or not isinstance(acesso.get("telas"), dict) or not acesso.get("permitido"):
+        raise ValueError("permissoes de acesso ausentes")
+    return {"empresa_id": empresa_id, "usuario_id": usuario_id, "jti": jti, "acesso": acesso}
 
 
 def _get_gestflow_sso_link(gestflow_empresa_id: int, gestflow_usuario_id: int):
@@ -441,7 +444,11 @@ def sso_gestflow():
     sess_role = (link.get("role") or "viewer").strip().lower()
     if (link.get("email") or "").strip().lower() == "admin@admin":
         sess_role = "superadmin"
-    session["role"] = sess_role
+    from modules.access_control import role_acesso
+    import time
+    session["indflow_acesso"] = payload["acesso"]
+    session["indflow_acesso_verificado"] = time.time()
+    session["role"] = role_acesso(payload["acesso"])
     session["gestflow_sso"] = True
     session["gestflow_empresa_id"] = int(payload["empresa_id"])
     session["gestflow_usuario_id"] = int(payload["usuario_id"])
@@ -472,8 +479,9 @@ def login():
 
 @admin_bp.route("/logout")
 def logout():
+    somente_indflow = (session.get("indflow_acesso") or {}).get("somente_indflow")
     session.clear()
-    response = redirect(_gestflow_base_url())
+    response = redirect(_gestflow_base_url() + ("/sair" if somente_indflow else ""))
     response.headers["Cache-Control"] = "no-store"
     response.headers["Referrer-Policy"] = "no-referrer"
     return response
