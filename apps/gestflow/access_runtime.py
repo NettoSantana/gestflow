@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\access_runtime.py
-# Último recode: 2026-10-15 15:14 (America/Bahia)
-# Motivo: Controlar acesso exclusivo ao IndFlow, telas autorizadas e senha provisória de 72 horas.
+# Último recode: 2026-10-15 16:18 (America/Bahia)
+# Motivo: Transmitir o nome fantasia da empresa cadastrada ao cabeçalho do IndFlow.
 
 import json
 import secrets
@@ -76,7 +76,7 @@ def instalar_controle_acesso(rt):
         if not u:
             return None
         with rt.conectar_db() as conn:
-            empresa = conn.execute('SELECT status FROM empresas WHERE id=?', (u['empresa_id'],)).fetchone()
+            empresa = conn.execute('SELECT status, nome_fantasia FROM empresas WHERE id=?', (u['empresa_id'],)).fetchone()
         if u.get('status') != 'ativo' or not empresa or empresa['status'] not in {'ativo', 'trial'}:
             return None
         with app.test_request_context():
@@ -87,6 +87,7 @@ def instalar_controle_acesso(rt):
             permitido = rt.modulo_empresa_ativo('indflow') and rt.usuario_tem_permissao('indflow', 'visualizar', u)
         return {
             'permitido': bool(permitido), 'telas': permissoes_indflow(u),
+            'empresa_nome': str(empresa['nome_fantasia'] or '').strip(),
             'senha_ate': prazo_timestamp(u.get('senha_provisoria_ate')),
             'sessao_versao': int(u.get('sessao_versao') or 1),
             'somente_indflow': u.get('acesso_sistema') == 'indflow',

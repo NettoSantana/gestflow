@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\templates\base.html
-Último recode: 2026-10-15 15:14 (America/Bahia)
-Motivo: Ocultar as telas do IndFlow não autorizadas no cadastro do usuário.
+Último recode: 2026-10-15 16:18 (America/Bahia)
+Motivo: Mostrar o nome fantasia do cliente no cabeçalho do IndFlow.
 #}
 
 <!DOCTYPE html>
@@ -293,7 +293,7 @@ Motivo: Ocultar as telas do IndFlow não autorizadas no cadastro do usuário.
         <div class="industrial-topbar-user">
           <span class="industrial-live-dot" aria-hidden="true"></span>
           <div>
-            <strong>{% if _is_operator %}{{ session.get('operator_name') or 'Operador' }}{% else %}EMPRESA {{ session.get('gestflow_empresa_id') or 'GESTFLOW' }}{% endif %}</strong>
+            <strong>{% if _is_operator %}{{ session.get('operator_name') or 'Operador' }}{% else %}{{ (session.get('indflow_acesso') or {}).get('empresa_nome') or 'Empresa' }}{% endif %}</strong>
             <span>{% if _is_operator %}OPERADOR{% else %}{{ _role|upper }}{% endif %}</span>
           </div>
         </div>
