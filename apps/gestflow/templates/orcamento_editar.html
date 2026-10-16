@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\orcamento_editar.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-10-16 14:32 (America/Bahia)
+Motivo: Preservar títulos, listas e parágrafos do escopo do orçamento.
 #}
 
 <!DOCTYPE html>
@@ -374,6 +374,7 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
         .budget-value-changed.show { display:block; }
 </style>
 
+<link rel="stylesheet" href="{{ url_for('static', filename='css/budget_rich_editor.css') }}?v=20261016">
 </head>
 <body>
     {% include "partials/sidebar.html" %}
@@ -621,8 +622,8 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
                     <div class="form-group"><label for="orcamento_forma_pagamento">Forma de pagamento</label><input id="orcamento_forma_pagamento" name="orcamento_forma_pagamento" type="text" value="{{ orcamento.forma_pagamento or '' }}" class="form-control"></div>
                     <div class="form-group budget-long-field">
                         <label for="orcamento_observacoes">Escopo e observações para o cliente</label>
-                        <textarea id="orcamento_observacoes" name="orcamento_observacoes" rows="8" class="form-control budget-long-text">{{ orcamento.observacoes or '' }}</textarea>
-                        <small class="budget-field-hint">Use uma linha em branco entre os parágrafos. Nas seções de serviços e materiais, inicie cada item com “-”.</small>
+                        <textarea id="orcamento_observacoes" data-budget-rich name="orcamento_observacoes" rows="8" class="form-control budget-long-text">{{ orcamento.observacoes or '' }}</textarea>
+                        <small class="budget-field-hint">Use a barra de ferramentas para títulos, negrito e listas. A estrutura será preservada ao salvar e imprimir.</small>
                     </div>
                     <div class="form-group budget-long-field">
                         <label for="orcamento_observacoes_internas">Observações internas</label>
@@ -1425,7 +1426,7 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
 
                 if (formulario) {
                     formulario.addEventListener("keydown", function(evento) {
-                        if (evento.key !== "Enter" || evento.isComposing || evento.target instanceof HTMLTextAreaElement) {
+                        if (evento.key !== "Enter" || evento.isComposing || (evento.target instanceof HTMLTextAreaElement || evento.target.isContentEditable)) {
                             return;
                         }
 
@@ -1600,5 +1601,6 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
             });
         </script>
 
+<script src="{{ url_for('static', filename='js/budget_rich_editor.js') }}?v=20261016"></script>
 </body>
 </html>

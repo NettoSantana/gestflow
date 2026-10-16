@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_imprimir_a4.html
-Último recode: 2026-08-16 10:00 (America/Bahia)
-Motivo: Padronizar títulos, alinhamento, parágrafos e listas do bloco Escopo e Observações na impressão A4 do orçamento.
+Último recode: 2026-10-16 14:32 (America/Bahia)
+Motivo: Preservar títulos, listas e parágrafos do escopo do orçamento.
 -->
 
 <!DOCTYPE html>
@@ -350,6 +350,7 @@ Motivo: Padronizar títulos, alinhamento, parágrafos e listas do bloco Escopo e
             }
         }
     </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/budget_rich_editor.css') }}?v=20261016">
 </head>
 <body>
     {% set _cfg = gestflow_configuracoes_runtime.get('valores', {}) %}
@@ -557,7 +558,9 @@ Motivo: Padronizar títulos, alinhamento, parágrafos e listas do bloco Escopo e
         </div>
 
         <div class="section-title">ESCOPO E OBSERVAÇÕES</div>
-        {% if escopo_formatado.secoes or escopo_formatado.texto_livre or escopo_formatado.observacoes_adicionais %}
+        {% if escopo_formatado.html %}
+            <div class="budget-scope-rich">{{ escopo_formatado.html }}</div>
+        {% elif escopo_formatado.secoes or escopo_formatado.texto_livre or escopo_formatado.observacoes_adicionais %}
             <div class="scope-content">
                 {% if escopo_formatado.texto_livre %}
                     <div class="scope-free-text">

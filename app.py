@@ -1,8 +1,10 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-09-05 20:37 (America/Bahia)
-# Motivo: Proteger o login contra força bruta com limite combinado por usuário+IP e bloqueio progressivo no ambiente DEV.
+# Último recode: 2026-10-16 14:32 (America/Bahia)
+# Motivo: Preservar formatação do escopo ao salvar, revisar e imprimir orçamentos.
 
 from __future__ import annotations
+
+from budget_scope import normalizar_escopo, formatar_escopo, escopo_texto_simples
 
 import csv
 import hashlib
@@ -12396,21 +12398,7 @@ def _extrair_bloco_markdown_repetido_escopo(texto: str) -> str:
 
 
 def normalizar_escopo_orcamento(valor: Any) -> str:
-    texto = normalizar_texto_multilinha(valor)
-    texto = re.sub(r"^\s*ESCOPO\s*:\s*", "", texto, count=1, flags=re.IGNORECASE).strip()
-    texto = _extrair_bloco_markdown_repetido_escopo(texto)
-
-    linhas: list[str] = []
-    for linha in texto.split("\n"):
-        linha_limpa = re.sub(r"^\s*#{1,6}\s*", "", linha)
-        linha_limpa = re.sub(r"\s+#{1,6}\s*$", "", linha_limpa)
-        linha_limpa = re.sub(r"\*\*(.+?)\*\*", r"\1", linha_limpa)
-        linha_limpa = re.sub(r"__(.+?)__", r"\1", linha_limpa)
-        linha_limpa = re.sub(r"`([^`]+)`", r"\1", linha_limpa)
-        linha_limpa = re.sub(r"^\s*[*+]\s+", "- ", linha_limpa)
-        linhas.append(linha_limpa)
-
-    return normalizar_texto_multilinha("\n".join(linhas))
+    return normalizar_escopo(valor)
 
 ORCAMENTO_ESCOPO_INICIOS_SERVICOS = (
     "INTERLIGACAO, AJUSTES, TESTES E VALIDACAO FINAL",
@@ -12544,59 +12532,7 @@ def formatar_escopo_orcamento(
     observacoes: Any,
     dados_gerador: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    dados = dados_gerador or {}
-    escopo_salvo = normalizar_escopo_orcamento(dados.get("escopo"))
-    observacoes_salvas = normalizar_escopo_orcamento(dados.get("observacoes_cliente"))
-
-    texto_origem = escopo_salvo or normalizar_escopo_orcamento(observacoes)
-
-    resultado: dict[str, Any] = {
-        "secoes": [],
-        "texto_livre": [],
-        "observacoes_adicionais": _extrair_paragrafos_escopo(observacoes_salvas),
-    }
-
-    if not texto_origem:
-        return resultado
-
-    cabecalhos = list(ORCAMENTO_ESCOPO_CABECALHO_REGEX.finditer(texto_origem))
-
-    if not cabecalhos:
-        resultado["texto_livre"] = _extrair_paragrafos_escopo(texto_origem)
-        return resultado
-
-    texto_antes = texto_origem[:cabecalhos[0].start()].strip()
-    if texto_antes:
-        resultado["texto_livre"] = _extrair_paragrafos_escopo(texto_antes)
-
-    secoes: list[dict[str, Any]] = []
-
-    for indice, cabecalho in enumerate(cabecalhos):
-        numero = str(cabecalho.group("numero"))
-        titulo_secao = _titulo_secao_escopo(numero, cabecalho.group("titulo"))
-        inicio_corpo = cabecalho.end()
-        fim_corpo = cabecalhos[indice + 1].start() if indice + 1 < len(cabecalhos) else len(texto_origem)
-        corpo = texto_origem[inicio_corpo:fim_corpo].strip(" \n:-")
-
-        chave_titulo = _chave_titulo_escopo(titulo_secao)
-        itens = (
-            _extrair_itens_escopo(corpo, numero)
-            if numero == "4" or "MATERIAIS" in chave_titulo or "ENTREGAVEIS" in chave_titulo
-            else []
-        )
-        paragrafos = [] if itens else _extrair_paragrafos_escopo(corpo)
-
-        secoes.append(
-            {
-                "numero": numero,
-                "titulo": titulo_secao,
-                "paragrafos": paragrafos,
-                "itens": itens,
-            }
-        )
-
-    resultado["secoes"] = secoes
-    return resultado
+    return formatar_escopo(observacoes, dados_gerador)
 
 
 def listar_orcamento_apresentacao_itens(orcamento_id: int) -> list[dict[str, Any]]:
@@ -13141,7 +13077,7 @@ def salvar_orcamento_gerador_dados_db(orcamento_id: int, dados: dict[str, Any]) 
         "forma_pagamento": str(dados.get("forma_pagamento") or ""),
         "resumo_servico": str(dados.get("resumo_servico") or ""),
         "escopo": normalizar_escopo_orcamento(dados.get("escopo")),
-        "observacoes_cliente": str(dados.get("observacoes_cliente") or ""),
+        "observacoes_cliente": normalizar_escopo_orcamento(dados.get("observacoes_cliente")),
         "modo_apresentacao": normalizar_modo_apresentacao(dados.get("modo_apresentacao"), "agrupado"),
         "descricao_comercial": str(dados.get("descricao_comercial") or ""),
         "atividades_json": json.dumps(list(dados.get("atividades") or []), ensure_ascii=False),
@@ -13510,7 +13446,7 @@ def montar_orcamento_formulario(numero_padrao: str = "") -> dict[str, str]:
         "desconto_percentual": (request.form.get("orcamento_desconto_percentual") or "0,00").strip(),
         "valor_total": (request.form.get("orcamento_valor_total") or "0,00").strip(),
         "forma_pagamento": (request.form.get("orcamento_forma_pagamento") or "").strip(),
-        "observacoes": normalizar_texto_multilinha(request.form.get("orcamento_observacoes")),
+        "observacoes": normalizar_escopo_orcamento(request.form.get("orcamento_observacoes")),
         "observacoes_internas": normalizar_texto_multilinha(request.form.get("orcamento_observacoes_internas")),
         "origem": "manual",
         "modo_apresentacao": normalizar_modo_apresentacao(request.form.get("orcamento_modo_apresentacao"), "agrupado"),
@@ -14524,7 +14460,7 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
         "forma_pagamento": str(request.form.get("gerador_forma_pagamento") or "").strip(),
         "resumo_servico": normalizar_texto_multilinha(request.form.get("gerador_resumo_servico")),
         "escopo": normalizar_escopo_orcamento(request.form.get("gerador_escopo")),
-        "observacoes_cliente": normalizar_texto_multilinha(request.form.get("gerador_observacoes_cliente")),
+        "observacoes_cliente": normalizar_escopo_orcamento(request.form.get("gerador_observacoes_cliente")),
         "modo_apresentacao": normalizar_modo_apresentacao(request.form.get("gerador_modo_apresentacao"), "agrupado"),
         "descricao_comercial": str(request.form.get("gerador_descricao_comercial") or "").strip(),
         "atividades": atividades,
@@ -14929,7 +14865,7 @@ def montar_orcamento_por_gerador(
             )
 
     escopo = normalizar_escopo_orcamento(dados.get("escopo"))
-    observacoes_cliente = str(dados.get("observacoes_cliente") or "").replace("\\n", "\n").strip()
+    observacoes_cliente = normalizar_escopo_orcamento(dados.get("observacoes_cliente"))
     observacoes = observacoes_cliente
     if escopo:
         observacoes = f"Escopo: {escopo}"
@@ -15299,7 +15235,7 @@ def gerar_venda_por_orcamento_db(orcamento_id: int) -> tuple[int | None, bool]:
     numero_orcamento = str(orcamento.get("numero") or orcamento_id).strip()
     data_venda = hoje_empresa().isoformat()
     forma_pagamento = str(orcamento.get("forma_pagamento") or "").strip()
-    observacoes_orcamento = str(orcamento.get("observacoes") or "").strip()
+    observacoes_orcamento = escopo_texto_simples(orcamento.get("observacoes")).strip()
     observacoes_internas = str(orcamento.get("observacoes_internas") or "").strip()
 
     observacoes_venda = f"Venda gerada a partir do Orçamento {numero_orcamento}."
@@ -19529,7 +19465,7 @@ def gerar_ordem_servico_por_orcamento_db(orcamento_id: int) -> int | None:
 
     itens_orcamento = listar_orcamento_itens(orcamento_id)
     numero_orcamento = str(orcamento.get("numero") or orcamento_id).strip()
-    observacoes_orcamento = str(orcamento.get("observacoes") or "").strip()
+    observacoes_orcamento = escopo_texto_simples(orcamento.get("observacoes")).strip()
     observacoes_internas_orcamento = str(orcamento.get("observacoes_internas") or "").strip()
 
     observacoes_os = f"OS gerada a partir do Orçamento {numero_orcamento}."

@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_gerador.html
-Último recode: 2026-08-25 10:37 (America/Bahia)
-Motivo: Transformar a seleção de material em um único campo pesquisável com lista suspensa, removendo o campo duplicado e preservando os cálculos existentes.
+Último recode: 2026-10-16 14:32 (America/Bahia)
+Motivo: Preservar títulos, listas e parágrafos do escopo do orçamento.
 -->
 
 <!DOCTYPE html>
@@ -1320,6 +1320,7 @@ Motivo: Transformar a seleção de material em um único campo pesquisável com 
 
 </style>
 
+<link rel="stylesheet" href="{{ url_for('static', filename='css/budget_rich_editor.css') }}?v=20261016">
 </head>
 <body class="gerador-body">
     {% include "partials/sidebar.html" %}
@@ -1482,7 +1483,7 @@ Motivo: Transformar a seleção de material em um único campo pesquisável com 
                                 <label for="gerador_escopo">Escopo do serviço</label>
                                 <button type="button" class="btn-dark btn-compact" onclick="gerarEscopoAutomatico()">Gerar escopo</button>
                             </div>
-                            <textarea id="gerador_escopo" name="gerador_escopo" class="form-control textarea-control escopo-tecnico-control" placeholder="Descreva o que será executado. Essa informação pode aparecer no orçamento do cliente.">{{ gerador_inicial.escopo|default('') }}</textarea>
+                            <textarea id="gerador_escopo" data-budget-rich name="gerador_escopo" class="form-control textarea-control escopo-tecnico-control" placeholder="Descreva o que será executado. Essa informação pode aparecer no orçamento do cliente.">{{ gerador_inicial.escopo|default('') }}</textarea>
                         </div>
                     </section>
 
@@ -1593,7 +1594,7 @@ Motivo: Transformar a seleção de material em um único campo pesquisável com 
 
                         <div class="form-group">
                             <label for="gerador_observacoes_cliente">Observações adicionais para o cliente</label>
-                            <textarea id="gerador_observacoes_cliente" name="gerador_observacoes_cliente" rows="7" class="form-control textarea-control gerador-observacoes" placeholder="Ex: Valores sujeitos à aprovação técnica em campo. Use parágrafos separados para melhorar a impressão.">{{ gerador_inicial.observacoes_cliente|default('') }}</textarea>
+                            <textarea id="gerador_observacoes_cliente" data-budget-rich name="gerador_observacoes_cliente" rows="7" class="form-control textarea-control gerador-observacoes" placeholder="Ex: Valores sujeitos à aprovação técnica em campo. Use parágrafos separados para melhorar a impressão.">{{ gerador_inicial.observacoes_cliente|default('') }}</textarea>
                             <small class="field-hint">As observações serão exibidas depois do escopo, mantendo parágrafos e quebras de linha.</small>
                         </div>
                     </section>
@@ -2842,7 +2843,8 @@ function gerarEscopoAutomatico() {
     const campo = document.getElementById('gerador_escopo');
     if (campo) {
         campo.value = texto;
-        campo.focus();
+        campo.dispatchEvent(new Event('input', { bubbles: true }));
+        (campo.scopeEditor || campo).focus();
     }
 }
 
@@ -3343,7 +3345,7 @@ window.addEventListener('DOMContentLoaded', function() {
     const formulario = document.getElementById('gerador-form');
     if (formulario) {
         formulario.addEventListener('keydown', function(evento) {
-            if (evento.key !== 'Enter' || evento.isComposing || evento.target instanceof HTMLTextAreaElement) return;
+            if (evento.key !== 'Enter' || evento.isComposing || (evento.target instanceof HTMLTextAreaElement || evento.target.isContentEditable)) return;
             evento.preventDefault();
         });
     }
@@ -3373,5 +3375,6 @@ window.addEventListener('DOMContentLoaded', function() {
     recalcularGerador();
 });
 </script>
+<script src="{{ url_for('static', filename='js/budget_rich_editor.js') }}?v=20261016"></script>
 </body>
 </html>

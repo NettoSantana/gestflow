@@ -1,0 +1,29 @@
+/* Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\static\css\budget_rich_editor.css
+Último recode: 2026-10-16 14:32 (America/Bahia)
+Motivo: Padronizar o editor e preservar a estrutura do escopo na tela e na impressão. */
+.budget-rich-shell{border:1px solid #cbd5e1;border-radius:10px;overflow:hidden;background:#fff;width:100%;min-width:0}
+.budget-rich-toolbar{display:flex;flex-wrap:wrap;gap:5px;padding:8px;background:#f8fafc;border-bottom:1px solid #cbd5e1}
+.budget-rich-toolbar button,.budget-rich-toolbar select{padding:7px 10px;min-height:34px;border:1px solid #cbd5e1;border-radius:5px;background:#fff;color:#172b45;font:inherit;font-size:12px;cursor:pointer}
+.budget-rich-toolbar button:hover{background:#e8eff8}
+.budget-rich-toolbar button:focus-visible,.budget-rich-toolbar select:focus-visible{outline:2px solid #2563eb;outline-offset:1px}
+.budget-rich-area{padding:14px;min-height:240px;line-height:1.6;overflow-wrap:anywhere;outline:none;font-family:Arial,sans-serif;font-size:14px;color:#172b45;font-weight:400}
+.budget-rich-area:focus{box-shadow:inset 0 0 0 2px #2563eb}
+.budget-rich-area:empty:before{content:attr(data-placeholder);color:#64748b;pointer-events:none}
+.budget-scope-rich{font-family:Arial,sans-serif;font-size:inherit;line-height:1.55;color:inherit;overflow-wrap:anywhere;white-space:normal;font-weight:400;min-width:0}
+.budget-rich-area p,.budget-scope-rich p{margin:0 0 .6em;white-space:pre-wrap}
+.budget-rich-area div,.budget-scope-rich div{white-space:pre-wrap}
+.budget-rich-area h1,.budget-scope-rich h1{font-size:1.4em}
+.budget-rich-area h2,.budget-scope-rich h2{font-size:1.2em}
+.budget-rich-area h3,.budget-scope-rich h3{font-size:1.08em}
+.budget-rich-area h1,.budget-rich-area h2,.budget-rich-area h3,.budget-scope-rich h1,.budget-scope-rich h2,.budget-scope-rich h3{margin:1em 0 .45em;font-weight:700;line-height:1.3}
+.budget-rich-area ul,.budget-rich-area ol,.budget-scope-rich ul,.budget-scope-rich ol{display:block;margin:.4em 0 .8em;padding-left:1.7em;list-style-position:outside}
+.budget-rich-area ul,.budget-scope-rich ul{list-style-type:disc}
+.budget-rich-area ol,.budget-scope-rich ol{list-style-type:decimal}
+.budget-rich-area li,.budget-scope-rich li{display:list-item;margin:.25em 0;white-space:pre-wrap}
+.budget-rich-area blockquote,.budget-scope-rich blockquote{margin:.5em 0;padding-left:1em;border-left:3px solid #cbd5e1}
+@media print{
+ .budget-scope-rich{display:block;overflow:visible}
+ .budget-scope-rich h1,.budget-scope-rich h2,.budget-scope-rich h3{break-after:avoid;page-break-after:avoid}
+ .budget-scope-rich p,.budget-scope-rich li{orphans:2;widows:2}
+ .budget-scope-rich ul,.budget-scope-rich ol,.budget-scope-rich div{break-inside:auto;page-break-inside:auto}
+}

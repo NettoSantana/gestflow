@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\orcamento_imprimir_a4.html
-Último recode: 2026-09-17 12:30 (America/Bahia)
-Motivo: Corrigir no MAIN a exibição de Serviços Inclusos no Orçamento Premium, removendo quebras de linha literais e preservando os campos configuráveis.
+Último recode: 2026-10-16 14:32 (America/Bahia)
+Motivo: Preservar títulos, listas e parágrafos do escopo do orçamento.
 #}
 
 <!DOCTYPE html>
@@ -495,6 +495,7 @@ Motivo: Corrigir no MAIN a exibição de Serviços Inclusos no Orçamento Premiu
             }
         }
     </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/budget_rich_editor.css') }}?v=20261016">
 </head>
 <body class="orc-template-{{ gestflow_configuracoes_runtime.get('valores', {}).get('orcamentos', {}).get('template_orcamento', 'formal') }}">
     {% set _cfg = gestflow_configuracoes_runtime.get('valores', {}) %}
@@ -834,7 +835,9 @@ Motivo: Corrigir no MAIN a exibição de Serviços Inclusos no Orçamento Premiu
         </div>
 
         <div class="section-title">ESCOPO E OBSERVAÇÕES</div>
-        {% if escopo_formatado.secoes or escopo_formatado.texto_livre or escopo_formatado.observacoes_adicionais %}
+        {% if escopo_formatado.html %}
+            <div class="budget-scope-rich">{{ escopo_formatado.html }}</div>
+        {% elif escopo_formatado.secoes or escopo_formatado.texto_livre or escopo_formatado.observacoes_adicionais %}
             <div class="scope-content">
                 {% if escopo_formatado.texto_livre %}
                     <div class="scope-free-text">

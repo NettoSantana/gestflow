@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_detalhe.html
-Último recode: 2026-07-30 19:29 (America/Bahia)
-Motivo: Ocultar acessos de edição no detalhe de orçamentos em situação final.
+Último recode: 2026-10-16 14:32 (America/Bahia)
+Motivo: Preservar títulos, listas e parágrafos do escopo do orçamento.
 -->
 
 <!DOCTYPE html>
@@ -416,6 +416,7 @@ Motivo: Ocultar acessos de edição no detalhe de orçamentos em situação fina
         .scope-extra-title { margin:4px 0 0; padding-top:14px; border-top:1px solid #e2e8f0; color:#0f172a; font-size:13px; font-weight:900; text-transform:uppercase; }
 </style>
 
+<link rel="stylesheet" href="{{ url_for('static', filename='css/budget_rich_editor.css') }}?v=20261016">
 </head>
 <body>
     {% include "partials/sidebar.html" %}
@@ -512,7 +513,7 @@ Motivo: Ocultar acessos de edição no detalhe de orçamentos em situação fina
                 <div><span>Desconto</span><strong>{{ orcamento.desconto_valor or '0,00' }}</strong></div>
                 <div><span>Valor total</span><strong>R$ {{ orcamento.valor_total or '0,00' }}</strong></div>
                 <div><span>Descrição comercial</span><strong>{{ orcamento.descricao_comercial or '-' }}</strong></div>
-                <div><span>Descrição editada</span><strong>{{ orcamento.descricao_comercial or orcamento.observacoes or (itens[0].detalhes if itens else '-') }}</strong></div>
+                <div><span>Descrição editada</span><strong>{{ orcamento.descricao_comercial or (orcamento.observacoes|striptags) or (itens[0].detalhes if itens else '-') }}</strong></div>
                 <div><span>Cadastro</span><strong>{{ orcamento.criado_em or '-' }}</strong></div>
             </div>
         </section>
@@ -523,6 +524,9 @@ Motivo: Ocultar acessos de edição no detalhe de orçamentos em situação fina
                 {% if not orcamento_status_final %}<a href="/orcamentos/{{ orcamento.id }}/editar#aba-escopo" class="btn-light">Editar escopo</a>{% endif %}
             </div>
             <div class="scope-view">
+                {% if escopo_formatado.html %}
+                <div class="budget-scope-rich">{{ escopo_formatado.html }}</div>
+                {% else %}
                 {% for paragrafo in escopo_formatado.texto_livre|default([]) %}
                     <div class="scope-free-text"><p>{{ paragrafo }}</p></div>
                 {% endfor %}
@@ -548,6 +552,7 @@ Motivo: Ocultar acessos de edição no detalhe de orçamentos em situação fina
 
                 {% if not escopo_formatado.secoes and not escopo_formatado.texto_livre and not escopo_formatado.observacoes_adicionais %}
                     <div class="empty-table-box">Nenhum escopo ou observação informado.</div>
+                {% endif %}
                 {% endif %}
             </div>
         </section>

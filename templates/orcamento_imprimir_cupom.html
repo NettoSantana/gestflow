@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_imprimir_cupom.html
-Último recode: 2026-07-23 00:18 (America/Bahia)
-Motivo: Aplicar cabeçalho, rodapé e opções de documento configuradas por empresa.
+Último recode: 2026-10-16 14:32 (America/Bahia)
+Motivo: Preservar títulos, listas e parágrafos do escopo do orçamento.
 -->
 
 <!DOCTYPE html>
@@ -189,6 +189,7 @@ Motivo: Aplicar cabeçalho, rodapé e opções de documento configuradas por emp
             }
         }
     </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/budget_rich_editor.css') }}?v=20261016">
 </head>
 <body>
     {% set _cfg = gestflow_configuracoes_runtime.get('valores', {}) %}
@@ -309,7 +310,9 @@ Motivo: Aplicar cabeçalho, rodapé e opções de documento configuradas por emp
         <div class="linha"></div>
 
         <div class="titulo">Escopo e observações</div>
-        {% if escopo_formatado.secoes or escopo_formatado.texto_livre or escopo_formatado.observacoes_adicionais %}
+        {% if escopo_formatado.html %}
+            <div class="budget-scope-rich">{{ escopo_formatado.html }}</div>
+        {% elif escopo_formatado.secoes or escopo_formatado.texto_livre or escopo_formatado.observacoes_adicionais %}
             <div class="scope-cupom">
                 {% for paragrafo in escopo_formatado.texto_livre %}<p>{{ paragrafo }}</p>{% endfor %}
 
