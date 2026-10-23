@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\templates\base.html
-Último recode: 2026-10-15 16:18 (America/Bahia)
-Motivo: Mostrar o nome fantasia do cliente no cabeçalho do IndFlow.
+Último recode: 2026-10-23 13:35 (America/Bahia)
+Motivo: Exibir Controle de Acesso na navegação e no cabeçalho conforme permissões.
 #}
 
 <!DOCTYPE html>
@@ -223,6 +223,15 @@ Motivo: Mostrar o nome fantasia do cliente no cabeçalho do IndFlow.
           {% endif %}
           {% endfor %}
         </div>
+        {% if indflow_permitido('controle_acesso') %}
+        <div class="industrial-nav-section">
+          <span class="industrial-nav-label">Segurança operacional</span>
+          <a class="industrial-nav-item {% if _path.startswith('/acesso') %}active{% endif %}" href="/acesso/">
+            <span class="industrial-nav-icon">▣</span>
+            <span>Controle de Acesso</span>
+          </a>
+        </div>
+        {% endif %}
         {% if _is_technical %}
         <div class="industrial-nav-section industrial-nav-section-technical">
           <span class="industrial-nav-label">Técnico</span>
@@ -282,6 +291,7 @@ Motivo: Mostrar o nome fantasia do cliente no cabeçalho do IndFlow.
             {% elif _path.startswith('/producao') %}Detalhe Operacional
             {% elif _path.startswith('/paradas/catalogo') %}Motivos de Parada
             {% elif _path.startswith('/paradas') %}Paradas
+            {% elif _path.startswith('/acesso') %}Controle de Acesso
             {% elif _path.startswith('/indicadores/maquina') %}Indicadores da Máquina
             {% elif _path.startswith('/indicadores') %}Indicadores Gerais
             {% elif _path.startswith('/utilidades') %}Utilidades

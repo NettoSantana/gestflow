@@ -1,0 +1,97 @@
+{# Caminho: apps/indflow/modules/acesso/templates/acesso_home.html
+   Último recode: 2026-10-23 13:35 (America/Bahia)
+   Motivo: Gestão de operadores e cadastro de crachás por confirmação real de leitor ESP32. #}
+{% extends 'base.html' %}
+{% block title %}Controle de Acesso — IndFlow{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='acesso.css') }}">
+{% endblock %}
+{% block content %}
+<section class="access-page" id="accessModule" data-csrf="{{ csrf }}" data-write="{{ 'true' if can_write else 'false' }}">
+  <div class="access-heading">
+    <div><div class="page-eyebrow">IndFlow / Gestão industrial</div><h1>Controle de Acesso</h1>
+      <p>Funcionários, permissões por máquina e confirmação de crachás pelo leitor instalado.</p></div>
+    <span class="access-label">Leitura Wiegand 26 · ESP32</span>
+  </div>
+  <div class="access-stats">
+    <div class="access-stat"><span>Funcionários</span><strong>{{ people|length }}</strong></div>
+    <div class="access-stat"><span>Com crachá</span><strong>{{ people|selectattr('cracha_uid')|list|length }}</strong></div>
+    <div class="access-stat"><span>Leitores</span><strong>{{ readers|length }}</strong></div>
+    <div class="access-stat"><span>Eventos recentes</span><strong>{{ events|length }}</strong></div>
+  </div>
+  <div id="accessFeedback" class="access-feedback" role="status" aria-live="polite" hidden></div>
+  {% if can_write %}
+  <div class="access-dual">
+    <section class="access-panel">
+      <div class="access-panel-heading"><div><h2>1. Funcionários</h2><p>Cadastre a pessoa antes de vincular o crachá.</p></div></div>
+      <form id="accessPersonForm" class="access-form">
+        <label>Nome completo <input name="nome" required minlength="2" maxlength="120" placeholder="Nome do funcionário" autocomplete="name"></label>
+        <div class="access-fields"><label>Matrícula <input name="matricula" maxlength="40" placeholder="Opcional"></label>
+          <label>Setor <input name="setor" maxlength="80" placeholder="Opcional"></label></div>
+        <button class="access-button primary" type="submit">Cadastrar funcionário</button>
+      </form>
+    </section>
+    <section class="access-panel">
+      <div class="access-panel-heading"><div><h2>2. Leitores ESP32</h2><p>Vincule um leitor à máquina para capturar os crachás.</p></div></div>
+      {% if machines %}
+      <form id="accessReaderForm" class="access-form">
+        <label>Identificação do ESP32 <input name="codigo" required maxlength="48" placeholder="ESP32_CRACHA_01" pattern="[A-Za-z0-9_-]{4,48}"></label>
+        <label>Máquina <select name="machine_id" required><option value="">Selecione...</option>
+        {% for machine in machines %}<option value="{{ machine }}">{{ machine|upper }}</option>{% endfor %}</select></label>
+        <button class="access-button secondary" type="submit">Cadastrar leitor</button>
+      </form>
+      {% else %}<div class="access-note">Cadastre uma máquina em <a href="/devices/">Dispositivos</a> antes de adicionar seu leitor.</div>{% endif %}
+      <div id="accessTokenBox" class="access-token" hidden><strong>Chave do ESP32 — exibida apenas uma vez</strong>
+        <textarea id="accessDeviceToken" readonly rows="3" spellcheck="false"></textarea>
+        <button id="accessCopyToken" type="button" class="access-button secondary">Copiar chave</button>
+        <p>Guarde no firmware/dispositivo em local protegido. Não publique a chave no GitHub.</p>
+      </div>
+    </section>
+  </div>
+  {% endif %}
+  <section class="access-panel">
+    <div class="access-panel-heading"><div><h2>Funcionários e crachás</h2><p>O sucesso só aparece depois que o dispositivo confirmar a gravação local.</p></div></div>
+    {% if not readers %}<div class="access-note">Nenhum leitor configurado. Cadastre o leitor da máquina para liberar a vinculação.</div>{% endif %}
+    <div class="access-scroll"><table class="access-table"><thead><tr><th>Funcionário</th><th>Matrícula / setor</th><th>Crachá</th><th>Permissões por leitor</th><th>Ações</th></tr></thead><tbody>
+    {% for person in people %}
+    <tr><td><strong>{{ person.nome }}</strong><small>{{ 'Ativo' if person.status == 'ativo' else 'Inativo' }}</small></td>
+      <td>{{ person.matricula or '—' }}<small>{{ person.setor or '—' }}</small></td>
+      <td><span class="access-mono">{{ person.cracha_uid or 'Aguardando vínculo' }}</span></td>
+      <td>{% for reader in readers %}{% for grant in grants %}{% if grant.funcionario_id == person.id and grant.leitor_id == reader.id %}
+        <span class="access-chip {{ 'green' if grant.situacao == 'ativa' else 'muted' }}">{{ reader.machine_id|upper }} · {{ grant.situacao }}</span>
+        {% endif %}{% endfor %}{% endfor %}</td>
+      <td>{% if can_write and person.status == 'ativo' %}
+          {% if not person.cracha_uid %}<button type="button" class="access-button tiny primary" data-action="capture" data-person="{{ person.id }}" data-name="{{ person.nome }}">Vincular crachá</button>
+          {% else %}<button type="button" class="access-button tiny secondary" data-action="permission" data-person="{{ person.id }}" data-name="{{ person.nome }}">Permissões</button>{% endif %}
+        {% else %}—{% endif %}</td></tr>
+    {% else %}<tr><td colspan="5" class="access-empty">Nenhum funcionário cadastrado.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+  <section class="access-panel">
+    <div class="access-panel-heading"><div><h2>Leitores cadastrados</h2><p>Conexão confirmada somente quando o ESP32 consulta a API.</p></div></div>
+    <div class="access-scroll"><table class="access-table"><thead><tr><th>Identificador</th><th>Máquina</th><th>Situação</th><th>Última comunicação (UTC)</th></tr></thead><tbody>
+      {% for reader in readers %}<tr><td class="access-mono">{{ reader.codigo }}</td><td>{{ reader.machine_id|upper }}</td><td>{{ reader.status }}</td><td>{{ reader.last_seen or 'Aguardando primeira comunicação' }}</td></tr>
+      {% else %}<tr><td colspan="4" class="access-empty">Nenhum leitor vinculado.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+  <section class="access-panel">
+    <div class="access-panel-heading"><div><h2>Histórico de eventos</h2><p>Logs recebidos pela nova API; o Google Sheets permanece independente nesta fase.</p></div></div>
+    <div class="access-scroll"><table class="access-table"><thead><tr><th>Data/hora do evento (Bahia)</th><th>Recebido (UTC)</th><th>Máquina</th><th>Funcionário</th><th>Evento</th><th>Crachá</th><th>Fonte do horário</th></tr></thead><tbody>
+      {% for ev in events %}<tr><td>{{ ev.horario_local }}</td><td>{{ ev.recebido_em }}</td><td>{{ ev.machine_id|upper }}</td><td>{{ ev.funcionario_nome or 'Não identificado' }}</td><td>{{ ev.evento }}</td><td class="access-mono">{{ ev.cracha_uid or '—' }}</td><td>{{ ev.fonte_hora }}</td></tr>
+      {% else %}<tr><td colspan="7" class="access-empty">Aguardando primeiro evento do ESP32.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+  <dialog id="accessDialog" class="access-dialog" aria-labelledby="accessDialogTitle">
+    <div class="access-dialog-head"><h2 id="accessDialogTitle">Vincular crachá</h2><button id="accessDialogClose" type="button" aria-label="Fechar">×</button></div>
+    <p id="accessDialogName"></p>
+    <label>Leitor da máquina <select id="accessSelectedReader"><option value="">Selecione...</option>{% for reader in readers %}{% if reader.status == 'ativo' %}<option value="{{ reader.id }}">{{ reader.machine_id|upper }} — {{ reader.codigo }}</option>{% endif %}{% endfor %}</select></label>
+    <label id="accessPermissionRow" hidden>Operação
+      <select id="accessPermissionAction"><option value="permitir">Autorizar nesta máquina</option><option value="revogar">Revogar nesta máquina</option></select>
+    </label>
+    <div id="accessDialogInfo" class="access-dialog-info">O ESP32 precisa estar conectado à API para atender à solicitação.</div>
+    <div class="access-dialog-actions"><button id="accessDialogStart" type="button" class="access-button primary">Iniciar leitura</button>
+      <button id="accessDialogCancel" type="button" class="access-button secondary">Cancelar</button></div>
+  </dialog>
+</section>
+<script src="{{ url_for('static', filename='acesso.js') }}" defer></script>
+{% endblock %}

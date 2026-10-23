@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\access_runtime.py
-# Último recode: 2026-10-15 16:18 (America/Bahia)
-# Motivo: Transmitir o nome fantasia da empresa cadastrada ao cabeçalho do IndFlow.
+# Último recode: 2026-10-23 13:35 (America/Bahia)
+# Motivo: Disponibilizar subitem Controle de Acesso por Crachás nas permissões IndFlow.
 
 import json
 import secrets
@@ -23,6 +23,7 @@ TELAS = [
     ('operadores', 'Operadores', '/operacao/operadores'),
     ('devices', 'Dispositivos', '/devices/'),
     ('configuracoes', 'Configurações / Administração', '/admin/'),
+    ('controle_acesso', 'Controle de Acesso / Crachás', '/acesso/'),
 ]
 ACOES = {'visualizar', 'criar', 'editar', 'excluir', 'aprovar', 'exportar'}
 

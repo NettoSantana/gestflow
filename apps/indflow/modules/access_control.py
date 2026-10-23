@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\access_control.py
-# Último recode: 2026-10-15 15:14 (America/Bahia)
-# Motivo: Aplicar permissões de telas e ações recebidas do GestFlow, sem interferir na comunicação dos dispositivos.
+# Último recode: 2026-10-23 13:35 (America/Bahia)
+# Motivo: Incluir Controle de Acesso no controle de telas e permissões do GestFlow.
 
 import json
 import os
@@ -15,6 +15,7 @@ DESTINOS = {
     'paradas': '/paradas/', 'indicadores': '/indicadores/', 'utilidades': '/utilidades/',
     'manutencao': '/manutencao/', 'ativos': '/ativos/',
     'operadores': '/operacao/operadores', 'devices': '/devices/', 'configuracoes': '/admin/',
+    'controle_acesso': '/acesso/',
 }
 ACOES = {'visualizar', 'criar', 'editar', 'excluir', 'aprovar', 'exportar'}
 
@@ -32,7 +33,7 @@ def primeiro_destino():
 def role_acesso(info):
     telas = info.get('telas') or {}
     escrever = any(set(a) & {'criar', 'editar', 'excluir', 'aprovar'} for a in telas.values())
-    tecnico = any('visualizar' in telas.get(t, []) for t in ('configuracoes', 'devices', 'operadores'))
+    tecnico = any('visualizar' in telas.get(t, []) for t in ('configuracoes', 'devices', 'operadores', 'controle_acesso'))
     return 'admin' if escrever or tecnico else 'viewer'
 
 
@@ -49,6 +50,8 @@ def telas_rota(caminho):
         return ['historico']
     if caminho.startswith(('/producao/config', '/machine/config')):
         return ['configuracoes']
+    if caminho == '/acesso' or caminho.startswith('/acesso/'):
+        return ['controle_acesso']
     if caminho.startswith('/operacao/operadores'):
         return ['operadores']
     for prefixo, tela in (
@@ -66,6 +69,10 @@ def telas_rota(caminho):
 
 def acao_rota():
     p = request.path.lower()
+    if p.startswith('/acesso/') and request.method not in {'GET','HEAD','OPTIONS'}:
+        if p.endswith('/cancelar') or p.endswith('/situacao') or p.endswith('/permissoes'):
+            return 'editar'
+        return 'criar'
     if request.method in {'GET', 'HEAD', 'OPTIONS'}:
         return 'exportar' if any(s in p for s in ('export', 'imprimir', 'download', '.csv', '.pdf')) else 'visualizar'
     if any(s in p for s in ('excluir', 'remover', 'delete', 'purge', 'hard-reset', 'archive', 'cleanup')):

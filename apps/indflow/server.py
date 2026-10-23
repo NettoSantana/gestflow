@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\server.py
-# Último recode: 2026-10-15 15:14 (America/Bahia)
-# Motivo: Instalar bloqueios de telas e ações do IndFlow conforme permissões do GestFlow.
+# Último recode: 2026-10-23 13:35 (America/Bahia)
+# Motivo: Registrar módulo Controle de Acesso e inicializar suas tabelas isoladas.
 
 import os
 import logging
@@ -22,6 +22,8 @@ from modules.paradas.routes import paradas_bp
 from modules.indicadores.routes import indicadores_bp
 from modules.operacao.routes import operacao_bp
 from modules.teste.routes import teste_bp
+
+from modules.acesso.routes import acesso_bp, init_access_db
 
 # ============================================================
 # NOVO: CLIENTES (TENANT)
@@ -107,7 +109,8 @@ _log_db_context()
 try:
     log.info("startup: init_db() begin")
     init_db()
-    log.info("startup: init_db() ok")
+    init_access_db()
+    log.info("startup: init_db() and init_access_db() ok")
 except Exception:
     log.exception("startup: init_db() failed")
     raise
@@ -529,6 +532,7 @@ app.register_blueprint(paradas_bp, url_prefix="/paradas")
 app.register_blueprint(indicadores_bp, url_prefix="/indicadores")
 app.register_blueprint(operacao_bp, url_prefix="/operacao")
 app.register_blueprint(teste_bp, url_prefix="/teste")
+app.register_blueprint(acesso_bp, url_prefix="/acesso")
 ###ddd
 from modules.access_control import instalar_controle_acesso
 instalar_controle_acesso(app)
