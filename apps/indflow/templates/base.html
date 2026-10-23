@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\templates\base.html
-Último recode: 2026-10-23 13:35 (America/Bahia)
-Motivo: Exibir Controle de Acesso na navegação e no cabeçalho conforme permissões.
+Último recode: 2026-10-23 14:15 (America/Bahia)
+Motivo: Evitar sobreposição do menu expandido sobre o formulário de Controle de Acesso.
 #}
 
 <!DOCTYPE html>
@@ -33,7 +33,9 @@ Motivo: Exibir Controle de Acesso na navegação e no cabeçalho conforme permis
         transition:margin-left .2s ease, width .2s ease;
       }
 
-      body.industrial-sidebar-pinned .industrial-shell .industrial-main {
+      /* Na tela de acesso, expandir menu não encobre os formulários. */
+      body.industrial-sidebar-pinned .industrial-shell .industrial-main,
+      body.industrial-sidebar-hover-open .industrial-shell.industrial-access-shell .industrial-main {
         width:calc(100% - var(--indflow-sidebar-expanded)) !important;
         margin-left:var(--indflow-sidebar-expanded) !important;
       }
@@ -143,7 +145,7 @@ Motivo: Exibir Controle de Acesso na navegação e no cabeçalho conforme permis
   {% set _is_operator = _role == 'operator' and session.get('operator_id') %}
   {% set _is_technical = _role in ['admin', 'superadmin'] %}
 
-  <div class="industrial-shell{% if _path == '/' %} industrial-dashboard-shell{% endif %}">
+  <div class="industrial-shell{% if _path == '/' %} industrial-dashboard-shell{% elif _path.startswith('/acesso') %} industrial-access-shell{% endif %}">
     <div class="sidebar-desktop-hover-zone" id="sidebarDesktopHoverZone" aria-hidden="true"></div>
     <aside class="industrial-sidebar" id="industrialSidebar">
       <div class="industrial-brand">

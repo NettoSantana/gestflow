@@ -1,6 +1,7 @@
 # Caminho: apps/indflow/tests/test_acesso_backend.py
 # Testes de integração isolada do SQLite/fluxo de comandos, sem conexão à internet.
-# Correção 23/10/2026: fechar explicitamente conexões SQLite antes de apagar o banco temporário no Windows.
+# Correção 23/10/2026: fechar conexões SQLite; testar máquinas registradas sem device,
+# isolamento por empresa e exclusão de máquinas arquivadas na API de leitores.
 # Pode rodar em ambientes sem Flask instalado, substituindo apenas os decorators HTTP.
 import importlib.util
 from contextlib import closing
@@ -20,6 +21,7 @@ class FakeBlueprint:
     def __init__(self, *a, **k):pass
     def get(self, *a, **k):return lambda f:f
     def post(self, *a, **k):return lambda f:f
+    def route(self, *a, **k):return lambda f:f
 
 class FakeRequest:
     def __init__(self):self.headers={};self.body={}
@@ -39,6 +41,8 @@ def setup_import():
     flask.Blueprint=FakeBlueprint
     flask.jsonify=lambda **kwargs:kwargs
     flask.render_template=lambda *a,**k:(a,k)
+    flask.redirect=lambda *a,**k: None
+    flask.url_for=lambda *a,**k: '/'
     flask.request=REQ
     flask.session=SESSION
     sys.modules['flask']=flask
@@ -49,9 +53,11 @@ def setup_import():
     sys.modules['modules.admin.routes']=ar
     di=types.ModuleType('modules.db_indflow');di.get_db=get_db
     sys.modules['modules.db_indflow']=di
-    op=types.ModuleType('modules.operacao');op.__path__=[];sys.modules['modules.operacao']=op
-    srv=types.ModuleType('modules.operacao.services');srv.list_operational_machines=lambda cid:['maquina01']
-    sys.modules['modules.operacao.services']=srv
+    dev_pkg=types.ModuleType('modules.devices');dev_pkg.__path__=[];sys.modules['modules.devices']=dev_pkg
+    dev_spec=importlib.util.spec_from_file_location('modules.devices.routes', ROOT/'modules/devices/routes.py')
+    dev_mod=importlib.util.module_from_spec(dev_spec)
+    sys.modules['modules.devices.routes']=dev_mod
+    dev_spec.loader.exec_module(dev_mod)
     spec=importlib.util.spec_from_file_location('acesso_routes',ROOT/'modules/acesso/routes.py')
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
     return module
@@ -71,6 +77,14 @@ class AccessTests(unittest.TestCase):
         with closing(get_db()) as conexao, conexao as db:
             db.execute("CREATE TABLE clientes (id TEXT PRIMARY KEY, status TEXT NOT NULL)")
             db.execute("INSERT INTO clientes VALUES ('empresaA','active'),('empresaB','active')")
+            db.execute("CREATE TABLE devices (device_id TEXT PRIMARY KEY, cliente_id TEXT, machine_id TEXT)")
+            db.execute("""CREATE TABLE indflow_machine_registry (
+                cliente_id TEXT NOT NULL, machine_id TEXT NOT NULL, created_at TEXT NOT NULL,
+                PRIMARY KEY (cliente_id, machine_id))""")
+            db.execute("""CREATE TABLE indflow_machine_archives (
+                cliente_id TEXT NOT NULL, machine_id TEXT NOT NULL, archived_at TEXT NOT NULL,
+                PRIMARY KEY (cliente_id, machine_id))""")
+            db.execute("INSERT INTO indflow_machine_registry VALUES ('empresaA','maquina01','2026-10-23')")
         cls.mod.init_access_db()
 
     @classmethod
@@ -83,6 +97,10 @@ class AccessTests(unittest.TestCase):
         with closing(get_db()) as conexao, conexao as db:
             for t in ('acesso_eventos','acesso_permissoes','acesso_comandos','acesso_leitores','acesso_funcionarios'):
                 db.execute('DELETE FROM '+t)
+            db.execute('DELETE FROM devices')
+            db.execute('DELETE FROM indflow_machine_archives')
+            db.execute('DELETE FROM indflow_machine_registry')
+            db.execute("INSERT INTO indflow_machine_registry VALUES ('empresaA','maquina01','2026-10-23')")
 
     def call(self,fn,body={},status=200,*args):
         REQ.body=body
@@ -100,6 +118,26 @@ class AccessTests(unittest.TestCase):
     def as_device(self,token):
         REQ.headers.pop('X-CSRF-Token',None)
         REQ.headers['Authorization']='Bearer '+token
+
+    def test_registered_machine_without_production_device_and_tenant_isolation(self):
+        # A tela Devices criou a máquina, mas ainda não há device/MAC de produção.
+        with closing(get_db()) as conexao, conexao as db:
+            db.execute("INSERT INTO indflow_machine_registry VALUES ('empresaA','plaina','2026-10-23')")
+            db.execute("INSERT INTO indflow_machine_registry VALUES ('empresaB','serra','2026-10-23')")
+            db.execute("INSERT INTO indflow_machine_registry VALUES ('empresaA','arquivada','2026-10-23')")
+            db.execute("INSERT INTO indflow_machine_archives VALUES ('empresaA','arquivada','2026-10-23')")
+        template, context = self.mod.home()
+        self.assertEqual(template, ('acesso_home.html',))
+        self.assertIn('plaina', context['machines'])
+        self.assertNotIn('serra', context['machines'])
+        self.assertNotIn('arquivada', context['machines'])
+        reader = self.call(self.mod.create_reader, dict(codigo='ESP32_CRACHA_01', machine_id='plaina'))
+        self.assertTrue(reader['ok'])
+        self.call(self.mod.create_reader, dict(codigo='ESP32_CRACHA_02', machine_id='serra'), 400)
+        self.call(self.mod.create_reader, dict(codigo='ESP32_CRACHA_03', machine_id='arquivada'), 400)
+        with closing(get_db()) as conexao, conexao as db:
+            row=db.execute("SELECT machine_id FROM acesso_leitores WHERE cliente_id='empresaA'").fetchone()
+        self.assertEqual(row['machine_id'], 'plaina')
 
     def test_capture_success_only_after_real_device_ack(self):
         pid,rid,token=self.provision()

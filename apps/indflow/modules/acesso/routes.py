@@ -1,7 +1,7 @@
 # Caminho: apps/indflow/modules/acesso/routes.py
-# Último recode: 2026-10-23 13:35 (America/Bahia)
-# Motivo: Módulo multiempresa de controle de acesso por crachá; captura pelo leitor existente,
-#         confirmação de gravação pelo ESP32 e trilha de auditoria; não altera controle de relés.
+# Último recode: 2026-10-23 14:15 (America/Bahia)
+# Motivo: Listar no Controle de Acesso as máquinas registradas em Devices,
+#         inclusive sem dispositivo de produção, respeitando cliente e arquivamento.
 """API preparada para firmware ESP32 futuro: não altera o firmware já instalado.
 
 Fluxo:
@@ -23,7 +23,9 @@ from flask import Blueprint, jsonify, render_template, request, session
 
 from modules.admin.routes import admin_required, login_required
 from modules.db_indflow import get_db
-from modules.operacao.services import list_operational_machines
+# Mesma fonte de máquinas que alimenta a tela Devices e o Painel Industrial.
+# _machine_rows inclui máquinas cadastradas sem dispositivo e exclui arquivadas.
+from modules.devices.routes import _machine_rows
 
 acesso_bp = Blueprint('acesso', __name__, template_folder='templates')
 
@@ -232,7 +234,7 @@ def home():
                     ZoneInfo('America/Bahia')).strftime('%d/%m/%Y %H:%M:%S') if epoch else 'Não confirmado'
             except (ValueError, TypeError, OverflowError, OSError):
                 event['horario_local'] = 'Não confirmado'
-        machines = list_operational_machines(cid)
+        machines = [m['machine_id'] for m in _machine_rows(db, cid)]
         db.commit()
     finally:
         db.close()
@@ -318,7 +320,12 @@ def create_reader():
         mid=str(p.get('machine_id') or '').strip().lower()
         if not re.fullmatch(r'[A-Z0-9_\-]{4,48}',code): raise ValueError('Identificador do leitor inválido.')
         cid=_cliente()
-        allowed={str(m).lower() for m in list_operational_machines(cid)}
+        # Não exigir sensor/ESP de produção: o leitor de crachá é independente.
+        with_db = get_db()
+        try:
+            allowed = {str(m['machine_id']).lower() for m in _machine_rows(with_db, cid)}
+        finally:
+            with_db.close()
         if mid not in allowed: raise ValueError('Escolha uma máquina cadastrada nesta empresa.')
         token=secrets.token_urlsafe(36)
         db=get_db()
