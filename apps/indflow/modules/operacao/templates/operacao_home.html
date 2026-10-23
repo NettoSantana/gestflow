@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\operacao\templates\operacao_home.html
-Último recode: 2026-10-08 10:37:49 (America/Bahia)
-Motivo: Adicionar Encerrar OP no card ativo, confirmar o fechamento e atualizar a fila e a gramatura após o encerramento.
+Último recode: 2026-10-23 11:54:30 (America/Bahia)
+Motivo: Manter a confirmação da parada visível no tablet e rolar somente a lista de motivos.
 #}
 
 {% extends "base.html" %}
@@ -25,6 +25,14 @@ Motivo: Adicionar Encerrar OP no card ativo, confirmar o fechamento e atualizar 
 @media(max-width:700px){.op-header{grid-template-columns:minmax(0,1fr) 140px}.op-order-queue{grid-column:1/-1}.op-active-summary{width:auto}.op-actions{grid-column:1/-1}}
 
 #closeOrderBtn{margin-top:8px;padding:6px 8px;min-height:30px;font-size:11px;color:#b91c1c;border-color:#fecaca}#closeOrderBtn:disabled{opacity:.5;cursor:default}
+#stopOverlay{overflow:hidden;}
+#stopOverlay .op-block-shell{height:100%;min-height:0;}
+#stopOverlay .op-block-head{flex:0 0 auto;}
+#stopOverlay .op-block-body{flex:1 1 0;min-height:0;overflow:hidden;}
+#stopOverlay .op-block-body>:not(.op-reason-nav){flex-shrink:0;}
+#stopOverlay .op-reason-nav{flex:1 1 0;min-height:0;overflow:hidden;}
+#stopOverlay .op-reason-grid{min-height:0;overflow-y:auto;overscroll-behavior:contain;}
+#stopOverlay .op-confirm{padding-bottom:max(8px,env(safe-area-inset-bottom,0px));}
 </style>
 
 <div class="op-shell">
