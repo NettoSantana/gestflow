@@ -1,0 +1,54 @@
+INDFLOW - CONTROLE DE ACESSO POR CRACHA | Firmware ESP32
+Versao: 2026-10-23 | Base: firmware DS3231+NTP+LittleFS de 2005 linhas.
+Caminho de destino Windows:
+C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\CONTROLE CRACHA MAQUINA\FINWARE PROXIMA ALTERAÇÃO
+
+INSTALACAO
+1. Extrair o ZIP mantendo a pasta do sketch (nome da pasta igual ao .ino).
+2. Arduino IDE: Ferramentas > Gerenciar Bibliotecas, instalar ESP32CertBundle
+   Biblioteca: ESP32CertBundle (TANAKA Masayuki); necessario cabeçalho esp32_cert_bundle.h.
+   https://github.com/tanakamasayuki/ESP32CertBundle
+3. Compilar para ESP32 Dev Module; gravar com a potencia da maquina DESLIGADA/desconectada dos relés.
+4. Monitor Serial 115200 baud, opcao New Line.
+5. Digitar: INDFLOW STATUS
+   Resultado inicial esperado: CONFIGURADO=NAO.
+6. Digitar no Monitor Serial: INDFLOW TOKEN <TOKEN_DO_LEITOR>
+   Substitua <TOKEN_DO_LEITOR> pela chave INDIVIDUAL gerada no cadastro do leitor ESP32_CRACHA_01.
+   NAO envie a chave por chat ou por foto. O firmware a grava no NVS e reinicia.
+7. Digitar: INDFLOW STATUS. Esperado apos sincronizar NTP:
+   CONFIGURADO=SIM, WIFI=SIM, HORA_CONFIAVEL=SIM, API=OK, HTTP=200.
+8. No IndFlow, IBPC PREMOLDADOS -> Controle de Acesso -> funcionário -> Vincular crachá.
+   Aguardar INDFLOW_AGUARDANDO_CRACHA e apresentar o crachá à leitora Wiegand.
+   Após INDFLOW_CARTAO_PERSISTIDO e INDFLOW_CONFIRMACAO_API_OK, o painel deve mostrar sucesso.
+9. Testar permissao e revogacao em outro cracha, sempre sem conexao da potencia.
+10. Confirmar que 13 cartoes anteriores permanecem no comando STATUS.
+
+COMANDOS SERIAIS
+- STATUS, RTC STATUS, RTC DIAG, HORA STATUS (comandos antigos mantidos)
+- INDFLOW STATUS: conexao, credencial configurada, hora e fila (nunca imprime segredo)
+- INDFLOW TOKEN <token>: persiste a chave em NVS separado e reinicia
+- INDFLOW LIMPAR TOKEN: apaga apenas chave de API e reinicia, nao os cartões RFID
+
+OBSERVACOES
+- A API usa HTTPS com CA verificada (biblioteca ESP32CertBundle), nao setInsecure.
+- A chave NVS permanece localmente; sem criptografia NVS habilitada no firmware.
+  Em produto final, considerar NVS encryption, controle de acesso fisico e rotacao da chave.
+- Como uma chave apareceu anteriormente na conversa, rotacione-a antes de producao.
+- Sem Wi-Fi o ESP continua com os cartoes locais; cadastro remoto depende do servidor.
+- O firmware preserva NTP, DS3231, LittleFS e o envio ao Google Sheets.
+- Os eventos confirmados sao espelhados para /acesso/iot/eventos em fila separada, com IDs
+  estaveis para deduplicacao. Os provisórios da mesma inicialização são corrigidos pelo NTP.
+  Eventos de boot anterior sem referencia confiavel nao recebem horário inventado.
+- Captura nao libera maquina; nao cria comando remoto para acionar relés.
+- O retorno 200 da API so conta como cadastro apos persistencia RFID verificada.
+- Cartão mestre não pode ser vinculado ao funcionário.
+- Back-end ja instalado na rota /acesso/; nao alterar GestFlow nesta entrega.
+- Nao executar RESET / SIM, pois remove cartoes; nao apagar flash / NVS na IDE.
+- Biblioteca ESP32CertBundle precisa estar instalada; compilacao completa e teste no ESP fisico
+  devem ser realizados no Arduino IDE. Validacoes estaticas e 5 testes de backend passaram.
+- ATENCAO: suporte industrial NR12 deve ter intertravamento/safety independente do ESP32.
+
+ID DO LEITOR NO INDFLOW: ESP32_CRACHA_01
+MAQUINA: PLAINA
+CLIENTE: IBPC PREMOLDADOS
+URL DE API: https://indflow-production.up.railway.app/acesso

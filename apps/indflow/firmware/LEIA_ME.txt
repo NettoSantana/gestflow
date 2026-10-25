@@ -1,0 +1,56 @@
+FIRMWARES INDFLOW — ORGANIZACAO
+
+Este pacote organiza os arquivos fornecidos. Nao atualiza o funcionamento, os destinos de rede, as credenciais, a pinagem ou os tempos. Nenhum ESP32 e gravado por esta instalacao.
+
+CONTAGEM DE PRODUCAO
+contagem_producao/corpo01/corpo01.ino
+- Origem: indflow-esp.zip -> dev/indflow_esp/indflow_esp.ino (729 linhas).
+- Identidade: corpo01. GPIO de pulso: 18. Parada: 3 segundos sem pulso.
+- Envio habilitado para DEV e PROD; destinos preservados do arquivo original.
+
+contagem_producao/maquina005/maquina005.ino
+- Origem: indflow-esp.zip -> prod/indflow_esp/indflow_esp.ino (704 linhas).
+- Identidade: maquina005. GPIO de pulso: 18. Parada: 3 segundos sem pulso.
+- Apesar da antiga pasta prod, o codigo envia ao DEV. Destino preservado.
+
+CONTROLE POR CRACHA
+controle_cracha/indflow_integrado/indflow_integrado.ino
+- Origem: controle_cracha_maquina_indflow_cadastro_api_20261023.ino (2529 linhas).
+- Integra cadastro e permissoes com o IndFlow; preserva Wiegand, DS3231, NTP, LittleFS e cartoes locais.
+- Versao declarada: indflow-rfid-2026.10.23-01.
+- Instrucoes originais: controle_cracha/LEIA_ME_INSTALACAO_ORIGINAL.txt.
+  O caminho antigo do sketch nesse documento foi mantido como referencia historica.
+  Agora abra controle_cracha/indflow_integrado/indflow_integrado.ino.
+
+controle_cracha/versao_anterior/versao_anterior.ino
+- Origem: controle_cracha_maquina_ds3231_checkpoint_ntp.ino (2005 linhas).
+- Base anterior do controle por cracha, preservada para consulta.
+
+USO
+Abra um unico sketch pela pasta correspondente no Arduino IDE. O nome da pasta e igual ao nome do .ino.
+As duas versoes de contagem sao copias identificadas; nao foi confirmado qual corresponde a cada ESP32 em campo. Nao foram eleitas novas versoes oficiais nem atualizados endpoints.
+
+VALIDACAO
+Verificado que todo o conteudo a partir da quarta linha permanece identico aos originais, que as contagens de linhas foram preservadas e que os sketches respeitam o nome da pasta. Nao houve compilacao nem teste fisico, pois a entrega apenas organiza os arquivos.
+
+HISTORICO DOS CABECALHOS ORIGINAIS
+
+contagem_producao/corpo01/corpo01.ino
+// PATH: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\indflow-esp\indflow_esp\indflow_esp.ino
+// LAST_RECODE: 2026-02-21 08:05 America/Bahia
+// MOTIVO: Inserir API_KEY_PROD do MAIN para envio duplo DEV+MAIN funcionar no ambiente de teste.
+
+contagem_producao/maquina005/maquina005.ino
+// PATH: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\indflow-esp\prod\indflow_esp\indflow_esp.ino
+// LAST_RECODE: 2026-03-03 16:55 America/Bahia
+// MOTIVO: DEV-only: manter MAQUINA005 apenas no DEV e adicionar log do body/len da resposta HTTP para diagnostico.
+
+controle_cracha/indflow_integrado/indflow_integrado.ino
+// Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\CONTROLE CRACHA MAQUINA\FINWARE PROXIMA ALTERAÇÃO\controle_cracha_maquina_indflow_cadastro_api_20261023\controle_cracha_maquina_indflow_cadastro_api_20261023.ino
+// Data/hora do ultimo recode: 23/10/2026 (America/Bahia)
+// Motivo: Integrar captura/confirmacao de cracha pelo IndFlow, permissao/remocao remotas, credencial persistida em NVS e espelhamento de eventos sem alterar a logica de seguranca.
+
+controle_cracha/versao_anterior/versao_anterior.ino
+// Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\CONTROLE CRACHA MAQUINA\controle_cracha_maquina\controle_cracha_maquina_ds3231_checkpoint_ntp\controle_cracha_maquina_ds3231_checkpoint_ntp.ino
+// Data/hora do ultimo recode: 23/10/2026 13:03:16 (America/Bahia)
+// Motivo da alteracao: Salvar horario confiavel a cada minuto no LittleFS; recuperar referencia estimada apos falta de energia; armazenar logs sem horario em arquivos provisorios por inicializacao; corrigir somente eventos desta inicializacao quando NTP voltar.
