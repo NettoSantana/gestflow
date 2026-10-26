@@ -1,6 +1,6 @@
 {# Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\acesso\templates\acesso_home.html
-    Último recode: 2026-10-26 10:37:41 (America/Bahia)
-    Motivo: Recuperar e acompanhar solicitações pendentes e permitir cancelamento pelo painel. #}
+    Último recode: 2026-10-26 11:31 (America/Bahia)
+    Motivo: Vincular crachás coletados pelo mestre, sem liberação automática. #}
 {% extends 'base.html' %}
 {% block title %}Controle de Acesso — IndFlow{% endblock %}
 {% block head %}
@@ -48,6 +48,25 @@
       </div>
     </section>
   </div>
+  {% endif %}
+  {% if can_write %}
+  <section class="access-panel" aria-labelledby="collectedTitle">
+    <div class="access-panel-heading"><div><h2 id="collectedTitle">Crachás coletados pelo mestre</h2>
+      <p>Passe o mestre uma vez, leia os crachás e passe o mestre novamente para encerrar. Sem leituras por 60 segundos, o cadastro encerra sozinho.</p></div></div>
+    <p>As coletas aparecem após a sincronização do ESP32. Vincular ao funcionário não libera a máquina; depois use <strong>Permissões</strong>.</p>
+    <button type="button" class="access-button secondary" id="accessRefreshCollected">Atualizar coletas</button>
+    {% for card in collected %}
+    <div class="access-note" data-collected-row style="margin-top:12px">
+      <form class="access-form" data-collected="{{ card.id }}">
+        <strong>Crachá <span class="access-mono">{{ card.cracha_uid }}</span> · {{ card.machine_id|upper }}</strong>
+        <small>Recebido em <time datetime="{{ card.coletado_em }}">{{ card.coletado_em }}</time></small>
+        <label>Funcionário<select name="funcionario_id" required><option value="">Selecione...</option>
+        {% for person in people %}{% if person.status == 'ativo' and not person.cracha_uid %}<option value="{{ person.id }}">{{ person.nome }}{{ ' · ' ~ person.matricula if person.matricula else '' }}</option>{% endif %}{% endfor %}</select></label>
+        <button type="submit" class="access-button primary">Vincular crachá</button>
+      </form>
+    </div>
+    {% else %}<p class="access-empty">Nenhum crachá aguardando vínculo. Novas coletas não alteram permissões já existentes.</p>{% endfor %}
+  </section>
   {% endif %}
   {% if can_write and pending %}
   <section class="access-panel" aria-labelledby="pendingTitle">
@@ -108,5 +127,5 @@
       <button id="accessDialogCancel" type="button" class="access-button secondary">Cancelar</button></div>
   </dialog>
 </section>
-<script src="{{ url_for('static', filename='acesso.js', v='20261026-pendencias') }}" defer></script>
+<script src="{{ url_for('static', filename='acesso.js', v='20261026-coletas') }}" defer></script>
 {% endblock %}

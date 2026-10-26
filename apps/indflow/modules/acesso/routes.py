@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\acesso\routes.py
-# Último recode: 2026-10-26 10:37:41 (America/Bahia)
-# Motivo: Recuperar e acompanhar solicitações pendentes e permitir cancelamento pelo painel.
+# Último recode: 2026-10-26 11:31 (America/Bahia)
+# Motivo: Receber crachás coletados pelo mestre e vincular depois, sem liberar máquinas.
 """API preparada para firmware ESP32 futuro: não altera o firmware já instalado.
 
 Fluxo:
@@ -131,6 +131,14 @@ def init_access_db():
             atualizado_em TEXT NOT NULL,
             UNIQUE(cliente_id, funcionario_id, leitor_id)
         );
+        CREATE TABLE IF NOT EXISTS acesso_crachas_coletados (
+            id TEXT PRIMARY KEY,
+            cliente_id TEXT NOT NULL,
+            leitor_id TEXT NOT NULL,
+            cracha_uid TEXT NOT NULL,
+            coletado_em TEXT NOT NULL,
+            UNIQUE(cliente_id, cracha_uid)
+        );
         CREATE TABLE IF NOT EXISTS acesso_eventos (
             id TEXT PRIMARY KEY,
             cliente_id TEXT NOT NULL,
@@ -239,12 +247,17 @@ def home():
           LEFT JOIN acesso_funcionarios f ON f.id=c.funcionario_id AND f.cliente_id=c.cliente_id
           WHERE c.cliente_id=? AND c.estado IN ('aguardando_leitura','aguardando_confirmacao','pendente_dispositivo')
           ORDER BY c.criado_em""", (cid,))]
+        collected = [dict(r) for r in db.execute("""SELECT c.*,l.machine_id,l.codigo
+          FROM acesso_crachas_coletados c JOIN acesso_leitores l ON l.id=c.leitor_id AND l.cliente_id=c.cliente_id
+          WHERE c.cliente_id=? AND NOT EXISTS (SELECT 1 FROM acesso_funcionarios f
+            WHERE f.cliente_id=c.cliente_id AND f.cracha_uid=c.cracha_uid)
+          ORDER BY c.coletado_em DESC""", (cid,))]
         machines = [m['machine_id'] for m in _machine_rows(db, cid)]
         db.commit()
     finally:
         db.close()
     return render_template('acesso_home.html', people=people, readers=readers,
-                           grants=grants, events=events, machines=machines, pending=pending,
+                           grants=grants, events=events, machines=machines, pending=pending, collected=collected,
                            csrf=_csrf(), can_write=str(session.get('role') or '').lower() in ('admin','superadmin'))
 
 
@@ -534,3 +547,54 @@ def device_event():
         db.commit()
         return jsonify(ok=True,duplicado=cursor.rowcount==0)
     finally:db.close()
+
+
+@acesso_bp.post('/iot/crachas')
+def device_collect_card():
+    """Recebe coleta do mestre, sem criar permissao nem comando de gravacao."""
+    db = get_db()
+    try:
+        reader = _device_auth(db)
+        if not reader: return _error('Credencial do dispositivo inválida.', 401)
+        try:
+            p = _payload()
+            uid = _uid(p.get('cracha_uid'))
+            if int(p.get('bits') or 0) != 26 or int(uid, 16) == 0 or uid == _MASTER_UID:
+                raise ValueError('Crachá mestre, vazio ou leitura inválida.')
+        except (ValueError, TypeError) as exc: return _error(str(exc))
+        db.execute("""INSERT INTO acesso_crachas_coletados(id,cliente_id,leitor_id,cracha_uid,coletado_em)
+          VALUES(?,?,?,?,?) ON CONFLICT(cliente_id,cracha_uid) DO NOTHING""",
+          (str(uuid.uuid4()), reader['cliente_id'], reader['id'], uid, _iso()))
+        db.commit()
+        return jsonify(ok=True, mensagem='Coleta recebida; permissões não foram alteradas.')
+    finally: db.close()
+
+
+@acesso_bp.post('/api/crachas/<coleta_id>/vincular')
+@admin_required
+def associate_collected_card(coleta_id):
+    fail = _require_write()
+    if fail: return fail
+    try:
+        p = _payload()
+        person_id = str(p.get('funcionario_id') or '')
+        cid = _cliente()
+        db = get_db()
+        try:
+            db.execute('BEGIN IMMEDIATE')
+            card = db.execute('SELECT * FROM acesso_crachas_coletados WHERE id=? AND cliente_id=?', (coleta_id,cid)).fetchone()
+            person = db.execute("SELECT * FROM acesso_funcionarios WHERE id=? AND cliente_id=? AND status='ativo'", (person_id,cid)).fetchone()
+            if not card or not person: raise ValueError('Coleta ou funcionário não encontrado nesta empresa.')
+            if person['cracha_uid'] and person['cracha_uid'] != card['cracha_uid']:
+                raise ValueError('Funcionário já possui outro crachá.')
+            # O índice único impede vínculo duplicado em requisições concorrentes.
+            db.execute('UPDATE acesso_funcionarios SET cracha_uid=?,updated_at=? WHERE id=? AND cliente_id=?',
+                       (card['cracha_uid'],_iso(),person_id,cid))
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        finally: db.close()
+        return jsonify(ok=True,mensagem='Crachá vinculado. Use Permissões para autorizar nas máquinas e aguarde a confirmação do ESP32.')
+    except sqlite3.IntegrityError: return _error('Crachá já vinculado a outro funcionário.',409)
+    except ValueError as exc: return _error(str(exc),409)

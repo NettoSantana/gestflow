@@ -1,6 +1,6 @@
 // Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\acesso.js
-// Último recode: 2026-10-26 10:37:41 (America/Bahia)
-// Motivo: Recuperar e acompanhar solicitações pendentes e permitir cancelamento pelo painel.
+// Último recode: 2026-10-26 11:31 (America/Bahia)
+// Motivo: Vincular crachás coletados pelo mestre, sem liberação automática.
 (() => {
   'use strict';
   const root = document.getElementById('accessModule'); if (!root) return;
@@ -33,6 +33,14 @@
       } catch(err) {show(err.message,'error');} finally{btn.disabled=false;}
     });
   }
+  document.getElementById('accessRefreshCollected')?.addEventListener('click',()=>location.reload());
+  root.querySelectorAll('form[data-collected]').forEach(form=>form.addEventListener('submit',async event=>{
+    event.preventDefault();const button=form.querySelector('button[type=submit]');button.disabled=true;
+    try{
+      const result=await api(`/acesso/api/crachas/${encodeURIComponent(form.dataset.collected)}/vincular`,Object.fromEntries(new FormData(form)));
+      show(result.mensagem,'success');form.closest('[data-collected-row]').remove();setTimeout(()=>location.reload(),2200);
+    }catch(error){button.disabled=false;show(error.message,'error');}
+  }));
   submitForm('accessPersonForm','/acesso/api/funcionarios');
   submitForm('accessReaderForm','/acesso/api/leitores');
   document.getElementById('accessCopyToken')?.addEventListener('click',()=>{

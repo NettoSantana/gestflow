@@ -1,10 +1,12 @@
 // Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\firmware\controle_cracha\indflow_integrado\indflow_integrado.ino
-// Data/hora do ultimo recode: 2026-10-25 06:06:09 (America/Bahia)
-// Motivo: Organizar os firmwares no projeto GestFlow/IndFlow; somente cabecalho atualizado, funcionamento preservado.
+// Data/hora do ultimo recode: 26/10/2026 11:31 (America/Bahia)
+// Motivo: Cadastro em lote pelo mestre e portal Wi-Fi PLAINA01; coleta sem autorizar a maquina.
 
 #include <Arduino.h>
 #include <Preferences.h>
 #include <WiFi.h>
+#include <WebServer.h>
+#include <DNSServer.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include "esp32_cert_bundle.h" // Biblioteca ESP32CertBundle - valida TLS do IndFlow.
@@ -22,6 +24,15 @@
 #endif
 
 Preferences prefs;
+
+// Coletas pendentes persistem em namespace separado dos cartoes autorizados.
+const int MAX_COLETAS=80;
+SemaphoreHandle_t mutexColetas=NULL;
+uint64_t cartoesDaSessao[MAX_COLETAS]={};
+int coletasDaSessao=0;
+bool indflowGuardarColeta(uint64_t codigo);
+void indflowEnviarColeta();
+bool leituraRepetidaMuitoRapida(uint64_t codigo);
 
 // ===================== CONFIGURACAO DE PINOS =====================
 // Entradas Wiegand
@@ -58,8 +69,8 @@ const bool RELE_ATIVO_EM_LOW = true;
 const bool PERMITIR_MESTRE_COMO_USUARIO_TESTE = false;
 
 // ===================== CONFIGURACAO WIFI / GOOGLE SHEETS =====================
-// Preencha o SSID e a senha do Wi-Fi 2.4 GHz antes de gravar no ESP32.
-// Exemplo de SSID: hotspot do celular Redmi configurado em 2.4 GHz.
+// Rede inicial de compatibilidade. O portal permite trocar pelo celular.
+// Preferencia wifi-plaina/cfg tem prioridade e nao altera os cartoes RFID.
 const char* WIFI_SSID = "Netto Santana";
 const char* WIFI_SENHA = "12345678";
 
@@ -74,7 +85,7 @@ SemaphoreHandle_t mutexFilaLogs = NULL;
 const unsigned long TEMPO_AUTORIZACAO_MS = 30000;
 const unsigned long TEMPO_RESTART_MS = 30000;
 const unsigned long TEMPO_MESTRE_SEGURADO_MS = 5000;
-const unsigned long TEMPO_MODO_ADMIN_MS = 20000;
+const unsigned long TEMPO_MODO_ADMIN_MS = 60000; // Inatividade desde a ultima leitura.
 const unsigned long TEMPO_PULSO_RELE_MS = 500;
 const unsigned long TEMPO_DEBOUNCE_BOTAO_MS = 80;
 const unsigned long TEMPO_DEBOUNCE_EMERGENCIA_MS = 80;
@@ -83,7 +94,7 @@ const unsigned long TEMPO_RELEITURA_CARTAO_MS = 1200;
 const unsigned long TEMPO_BLOQUEIO_WIEGAND_APOS_RELE_MS = 2000;
 
 // ===================== CARTAO MESTRE =====================
-// Cracha mestre fixo. Serve somente para cadastrar/descadastrar usuarios.
+// Cracha mestre fixo. Ativa/encerra coleta em lote; nao concede nem remove acesso.
 const uint64_t CARTAO_MESTRE_FIXO = 0x0E6242DULL;
 uint64_t cartaoMestre = CARTAO_MESTRE_FIXO;
 
@@ -212,7 +223,7 @@ const char *INDFLOW_FILA_TEMP = "/if_eventos_tmp.txt";
 const uint32_t INDFLOW_POLL_MS = 2500UL;
 const uint32_t INDFLOW_CAPTURA_MS = 45000UL;
 const size_t INDFLOW_LIMITE_EVENTOS = 256UL * 1024UL;
-const char *INDFLOW_VERSAO = "indflow-rfid-2026.10.23-01";
+const char *INDFLOW_VERSAO = "indflow-rfid-2026.10.26-02";
 
 struct AcaoIndflow {
   char id[48];
@@ -727,47 +738,154 @@ void iniciarLittleFs() {
   if (horarioConfiavel) salvarMarcoHorario(true); // Hora valida pelo RTC no boot.
 }
 
-void conectarWifi() {
-  if (strlen(WIFI_SSID) == 0 || String(WIFI_SSID) == "COLOQUE_AQUI_O_NOME_DO_WIFI") {
-    wifiConectado = false;
-    wifiTentativaEmAndamento = false;
-    return;
-  }
+// Portal e reconexao pertencem exclusivamente a tarefaWifiPortal.
+// Nunca chamar WebServer/DNS nem esperar conexao no loop de seguranca.
+const char *PORTAL_SSID = "PLAINA01";
+const char *PORTAL_SENHA = "Plaina01!";
+WebServer portalWifi(80);
+DNSServer portalDns;
+bool portalAtivo = false, portalNovaRede = false, portalTestando = false;
+unsigned long portalConectadoDesde = 0;
+String wifiNomeAtual, wifiSenhaAtual, portalNomeTeste, portalSenhaTeste;
+String portalMensagem = "Escolha uma rede Wi-Fi de 2,4 GHz.";
+String portalOpcoes, portalCsrf;
 
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_SENHA);
-  ultimaTentativaWifiMs = millis();
-  wifiTentativaEmAndamento = true;
+String portalEscape(String text) {
+  text.replace("&","&amp;");text.replace("<","&lt;");text.replace(">","&gt;");
+  text.replace("\"","&quot;");text.replace("'","&#39;");return text;
+}
+
+bool portalClienteLocal() {
+  return portalAtivo && portalWifi.client().localIP() == WiFi.softAPIP();
+}
+
+void carregarWifiSalvo() {
+  wifiNomeAtual = WIFI_SSID;wifiSenhaAtual = WIFI_SENHA;
+  Preferences p;
+  if (!p.begin("wifi-plaina",true)) return;
+  String cfg=p.getString("cfg","");p.end();int n=cfg.indexOf('\n');
+  if(n>0){wifiNomeAtual=cfg.substring(0,n);wifiSenhaAtual=cfg.substring(n+1);}
+}
+
+void portalPagina() {
+  if(!portalClienteLocal()){portalWifi.send(403,"text/plain","Acesse pela rede PLAINA01.");return;}
+  portalWifi.sendHeader("Cache-Control","no-store");
+  String page=R"HTML(<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PLAINA01 · Wi-Fi</title>
+<style>body{margin:0;background:#edf2f7;color:#17324d;font:16px system-ui}main{max-width:420px;margin:6vh auto;padding:25px;background:white;border-radius:20px}h1{margin:0}p{line-height:1.5}label{display:block;margin:18px 0 6px}input,button{box-sizing:border-box;width:100%;padding:14px;border:1px solid #b9c9d9;border-radius:10px;font:inherit}button{background:#185caa;color:white;margin-top:22px}small{display:block;margin-top:18px;color:#526579}#msg{padding:14px;background:#eaf3fc;border-radius:10px}</style>
+<main><h1>PLAINA01</h1><p>Conectar a máquina à internet</p><p id="msg" role="status">)HTML";
+  page+=portalEscape(portalMensagem);
+  page+=R"HTML(</p><form method="post" action="/salvar"><input type="hidden" name="csrf" value=")HTML"+portalCsrf+R"HTML("><label for="ssid">Rede Wi-Fi / hotspot</label><input id="ssid" name="ssid" list="redes" maxlength="32" required autocomplete="off"><datalist id="redes"></datalist><label for="senha">Senha da rede</label><input id="senha" name="senha" type="password" maxlength="63" autocomplete="new-password"><button>Testar e salvar conexão</button></form><small>Use uma rede de 2,4 GHz. O celular pode avisar que PLAINA01 está sem internet: mantenha a conexão até terminar. A configuração não liga a máquina.</small></main>
+<script>let busy=false;setInterval(async()=>{if(busy)return;busy=true;try{const r=await fetch('/status',{cache:'no-store'});document.getElementById('msg').textContent=await r.text();const n=await fetch('/redes',{cache:'no-store'});document.getElementById('redes').innerHTML=await n.text();}catch(e){}finally{busy=false;}},2000);</script></html>)HTML";
+  portalWifi.send(200,"text/html; charset=utf-8",page);
+}
+
+void iniciarPortalWifi() {
+  if(portalAtivo)return;
+  WiFi.mode(WIFI_AP_STA);
+  if(!WiFi.softAP(PORTAL_SSID,PORTAL_SENHA)){
+    Serial.println("WIFI_PORTAL_ERRO | Nao foi possivel criar PLAINA01.");return;
+  }
+  portalAtivo=true;
+  portalCsrf=String((uint32_t)esp_random(),HEX)+String((uint32_t)esp_random(),HEX);
+  portalDns.start(53,"*",WiFi.softAPIP());
+  portalWifi.on("/",HTTP_GET,portalPagina);
+  portalWifi.on("/status",HTTP_GET,[](){
+    portalWifi.sendHeader("Cache-Control","no-store");
+    portalWifi.send(portalClienteLocal()?200:403,"text/plain; charset=utf-8",portalClienteLocal()?portalMensagem:"Acesso local apenas.");
+  });
+  portalWifi.on("/redes",HTTP_GET,[](){
+    portalWifi.sendHeader("Cache-Control","no-store");
+    portalWifi.send(portalClienteLocal()?200:403,"text/html; charset=utf-8",portalClienteLocal()?portalOpcoes:"");
+  });
+  portalWifi.on("/salvar",HTTP_POST,[](){
+    if(!portalClienteLocal() || portalWifi.arg("csrf")!=portalCsrf){portalWifi.send(403,"text/plain","Atualize a pagina.");return;}
+    String nome=portalWifi.arg("ssid"),senha=portalWifi.arg("senha");
+    if(nome.isEmpty() || nome.length()>32 || nome.indexOf('\n')>=0 || nome.indexOf('\r')>=0 ||
+       senha.length()>63 || (!senha.isEmpty() && senha.length()<8) || senha.indexOf('\n')>=0 || senha.indexOf('\r')>=0){
+      portalMensagem="Confira o nome da rede e a senha (8 a 63 caracteres; vazia somente em rede aberta).";
+    } else if(portalTestando || portalNovaRede){portalMensagem="Conexão em teste. Aguarde até 20 segundos.";}
+    else{portalNomeTeste=nome;portalSenhaTeste=senha;portalNovaRede=true;portalConectadoDesde=0;
+      portalMensagem="Testando conexão. Aguarde até 20 segundos; mantenha-se em PLAINA01.";}
+    portalPagina();
+  });
+  portalWifi.onNotFound([](){
+    if(!portalClienteLocal()){portalWifi.send(403,"text/plain","Acesso local apenas.");return;}
+    portalWifi.sendHeader("Location","http://192.168.4.1/",true);portalWifi.send(302,"text/plain","");
+  });
+  portalWifi.begin();
+  Serial.println("WIFI_PORTAL | Rede PLAINA01 | Senha Plaina01! | http://192.168.4.1");
+}
+
+void conectarWifi() {
+  if(wifiNomeAtual.isEmpty())return;
+  WiFi.mode(portalAtivo?WIFI_AP_STA:WIFI_STA);
+  WiFi.begin(wifiNomeAtual.c_str(),wifiSenhaAtual.c_str());
+  ultimaTentativaWifiMs=millis();wifiTentativaEmAndamento=true;
   Serial.println("Wi-Fi: conexao iniciada em segundo plano.");
 }
 
 void atualizarWifi() {
-  if (WiFi.status() == WL_CONNECTED) {
-    wifiTentativaEmAndamento = false;
-
-    if (!wifiConectado) {
-      wifiConectado = true;
-      Serial.print("Wi-Fi conectado. IP: ");
-      Serial.println(WiFi.localIP());
-      configurarNtp();
+  if(portalNovaRede && WiFi.scanComplete()!=WIFI_SCAN_RUNNING){
+    WiFi.scanDelete();WiFi.disconnect();wifiConectado=false;
+    WiFi.begin(portalNomeTeste.c_str(),portalSenhaTeste.c_str());
+    portalNovaRede=false;portalTestando=true;ultimaTentativaWifiMs=millis();wifiTentativaEmAndamento=true;
+  }
+  if(WiFi.status()==WL_CONNECTED){
+    wifiTentativaEmAndamento=false;
+    if(portalTestando){
+      if(WiFi.SSID()!=portalNomeTeste)return;
+      Preferences p;bool salvo=false;
+      if(p.begin("wifi-plaina",false)){
+        String cfg=portalNomeTeste+"\n"+portalSenhaTeste;
+        salvo=p.putString("cfg",cfg)==cfg.length() && p.getString("cfg","")==cfg;p.end();
+      }
+      if(salvo){wifiNomeAtual=portalNomeTeste;wifiSenhaAtual=portalSenhaTeste;}
+      portalMensagem=salvo?"Conectado! Rede salva. Volte ao IndFlow. PLAINA01 fechará em 20 segundos.":"Conectado, mas não foi possível salvar. Envie novamente para tentar salvar.";
+      portalTestando=false;portalSenhaTeste="";portalConectadoDesde=salvo?millis():0;
+    }
+    if(!wifiConectado){wifiConectado=true;Serial.print("Wi-Fi conectado. IP: ");Serial.println(WiFi.localIP());configurarNtp();}
+    if(portalAtivo && !portalNovaRede && !portalTestando){
+      if(!portalConectadoDesde && portalMensagem.startsWith("Escolha")){
+        portalMensagem="Conectado à rede salva. Volte ao IndFlow. PLAINA01 fechará em 20 segundos.";portalConectadoDesde=millis();
+      }
+      if(portalConectadoDesde && millis()-portalConectadoDesde>=20000UL){
+        portalWifi.stop();portalDns.stop();WiFi.softAPdisconnect(true);WiFi.mode(WIFI_STA);portalAtivo=false;
+      }
     }
     return;
   }
-
-  wifiConectado = false;
-
-  if (wifiTentativaEmAndamento) {
-    if (millis() - ultimaTentativaWifiMs < TEMPO_MAXIMO_TENTATIVA_WIFI_MS) {
-      return;
-    }
-
-    WiFi.disconnect();
-    wifiTentativaEmAndamento = false;
-    Serial.println("Wi-Fi: tentativa expirou. Nova tentativa sera realizada.");
+  wifiConectado=false;portalConectadoDesde=0;
+  if(wifiTentativaEmAndamento){
+    if(millis()-ultimaTentativaWifiMs<TEMPO_MAXIMO_TENTATIVA_WIFI_MS)return;
+    WiFi.disconnect();wifiTentativaEmAndamento=false;
+    if(portalTestando){portalTestando=false;portalSenhaTeste="";portalMensagem="Não conectou. Confira a senha, o sinal e se o hotspot está em 2,4 GHz; tente novamente.";}
+    iniciarPortalWifi();
   }
+  if(!portalAtivo && millis()-ultimaTentativaWifiMs>=TEMPO_MAXIMO_TENTATIVA_WIFI_MS)iniciarPortalWifi();
+  // Enquanto o telefone configura, nao interromper com reconexoes/varreduras concorrentes.
+  if(!portalAtivo && millis()-ultimaTentativaWifiMs>=INTERVALO_RECONEXAO_WIFI_MS)conectarWifi();
+  if(portalAtivo && !portalTestando && !portalNovaRede && WiFi.softAPgetStationNum()==0 &&
+     WiFi.scanComplete()!=WIFI_SCAN_RUNNING && millis()-ultimaTentativaWifiMs>=30000UL)conectarWifi();
+}
 
-  if (millis() - ultimaTentativaWifiMs >= INTERVALO_RECONEXAO_WIFI_MS) {
-    conectarWifi();
+void tarefaWifiPortal(void *parametro) {
+  unsigned long ultimaVarredura=0;
+  for(;;){
+    atualizarWifi();
+    if(portalAtivo){
+      portalDns.processNextRequest();portalWifi.handleClient();
+      int n=WiFi.scanComplete();
+      if(n>=0){
+        portalOpcoes="";
+        for(int i=0;i<n && i<30;++i)portalOpcoes+="<option value=\""+portalEscape(WiFi.SSID(i))+"\"></option>";
+        WiFi.scanDelete();
+      }
+      if(!wifiTentativaEmAndamento && !portalNovaRede && !portalTestando &&
+         WiFi.scanComplete()!=WIFI_SCAN_RUNNING && millis()-ultimaVarredura>=15000UL){
+        ultimaVarredura=millis();WiFi.scanNetworks(true);
+      }
+    }
+    vTaskDelay(pdMS_TO_TICKS(20));
   }
 }
 
@@ -1146,7 +1264,6 @@ void enviarProximoLogDaFila() {
 }
 
 void atualizarLogsOnline() {
-  atualizarWifi();
   atualizarHorarioNtp();
   salvarMarcoHorario(false); // 60 segundos, somente com hora confiavel.
   converterLogsProvisoriosDaInicializacao();
@@ -1511,8 +1628,9 @@ bool removerCartao(uint64_t codigo) {
 // ===================== LOGICA DE ADMINISTRACAO =====================
 void entrarModoAdmin() {
   modoAdmin = true;
+  coletasDaSessao=0;
   inicioModoAdmin = millis();
-  Serial.println("Modo administrador ativo por 20 segundos.");
+  Serial.println("CADASTRO_ATIVO | Passe os crachas. Mestre encerra; 60s sem leitura tambem.");
   registrarLogSimples("MODO_ADMIN_ON", "OK", "");
 }
 
@@ -1525,18 +1643,13 @@ void sairModoAdmin() {
 }
 
 void tratarCartaoModoAdmin(uint64_t codigo) {
-  if (codigo == cartaoMestre) {
-    Serial.println("Cartao mestre ignorado no modo administrador.");
-    return;
-  }
-
-  if (cartaoExiste(codigo)) {
-    removerCartao(codigo);
-  } else {
-    cadastrarCartao(codigo);
-  }
-
-  sairModoAdmin();
+  inicioModoAdmin=millis(); // Qualquer leitura reinicia os 60 segundos de inatividade.
+  if(leituraRepetidaMuitoRapida(codigo))return;
+  if(codigo==cartaoMestre){sairModoAdmin();return;}
+  if(codigo==0)return;
+  if(indflowGuardarColeta(codigo)){
+    Serial.println("CRACHA_COLETADO | Aguardando vinculo no IndFlow; permissao local nao alterada.");
+  } else Serial.println("COLETA_NAO_SALVA | Memoria indisponivel/cheia; tente novamente apos sincronizar.");
 }
 
 void tratarCartaoMestre(uint64_t codigo) {
@@ -1548,7 +1661,10 @@ void tratarCartaoMestre(uint64_t codigo) {
 
   mestreEmLeitura = false;
   inicioLeituraMestre = 0;
-  Serial.println("Cartao mestre detectado. Modo administrador liberado para cadastrar ou descadastrar.");
+  if(comandoRetidoLigado() || autorizado || aguardandoRestart || !indflowCapturaId.isEmpty()){
+    Serial.println("CADASTRO_OCUPADO | Finalize a operacao atual e passe o mestre novamente.");return;
+  }
+  Serial.println("Cartao mestre detectado. Cadastro em lote sem liberar a maquina.");
   registrarLog("MESTRE_DETECTADO", codigo, "OK", "");
   entrarModoAdmin();
 }
@@ -2258,11 +2374,57 @@ void indflowTratarPoll(const String &resp, String &idAnterior, bool &esperandoCo
   }
 }
 
+// Coleta administrativa nao chama cadastrarCartao/removerCartao.
+// A chave cN so e apagada depois de confirmacao da API; repeticao e idempotente.
+bool indflowGuardarColeta(uint64_t codigo) {
+  for(int i=0;i<coletasDaSessao;++i)if(cartoesDaSessao[i]==codigo)return true;
+  if(coletasDaSessao>=MAX_COLETAS || !mutexColetas ||
+     xSemaphoreTake(mutexColetas,pdMS_TO_TICKS(20))!=pdTRUE)return false;
+  Preferences p;bool salvo=false;int livre=-1;
+  String uid=codigoCartaoHex(codigo);
+  if(p.begin("rfid-coletas",false)){
+    for(int i=0;i<MAX_COLETAS;++i){
+      String v=p.getString((String("c")+i).c_str(),"");
+      if(v==uid){salvo=true;break;}
+      if(v.isEmpty() && livre<0)livre=i;
+    }
+    if(!salvo && livre>=0){String key=String("c")+livre;
+      salvo=p.putString(key.c_str(),uid)==uid.length() && p.getString(key.c_str(),"")==uid;
+    }
+    p.end();
+  }
+  xSemaphoreGive(mutexColetas);
+  if(salvo)cartoesDaSessao[coletasDaSessao++]=codigo;
+  return salvo;
+}
+
+void indflowEnviarColeta() {
+  if(!mutexColetas || xSemaphoreTake(mutexColetas,pdMS_TO_TICKS(20))!=pdTRUE)return;
+  String uid,key;Preferences p;
+  if(p.begin("rfid-coletas",true)){
+    for(int i=0;i<MAX_COLETAS;++i){key=String("c")+i;uid=p.getString(key.c_str(),"");if(!uid.isEmpty())break;}
+    p.end();
+  }
+  xSemaphoreGive(mutexColetas);
+  if(!indflowUidValido(uid))return;
+  String resp;
+  int http=indflowRequisicao("/iot/crachas","POST",String("{\"cracha_uid\":\"")+uid+"\",\"bits\":26}",resp);
+  if(http!=200 || !indflowConectadoApi)return;
+  if(xSemaphoreTake(mutexColetas,pdMS_TO_TICKS(20))!=pdTRUE)return;
+  if(p.begin("rfid-coletas",false)){
+    if(p.getString(key.c_str(),"")==uid && p.remove(key.c_str()))
+      Serial.println("COLETA_SINCRONIZADA | "+uid+" | Vincule ao funcionario no IndFlow.");
+    p.end();
+  }
+  xSemaphoreGive(mutexColetas);
+}
+
 void tarefaIndflowOnline(void *parametro) {
   String idAtual;bool esperandoConfirmacao=false;
-  unsigned long ultimoPoll=0, ultimoEvento=0, ultimoAck=0, ultimoRetry=0;
+  unsigned long ultimoPoll=0, ultimoEvento=0, ultimoAck=0, ultimoRetry=0, ultimaColeta=0;
   for (;;) {
     if (WiFi.status()==WL_CONNECTED && indflowToken.length()>=32 && horarioConfiavel) {
+      if(millis()-ultimaColeta>=5000UL){ultimaColeta=millis();indflowEnviarColeta();}
       String ackId,ackErro;bool ackOk=false;
       AcaoIndflow tarefaSalva={};
       if (indflowLerRetorno(ackId,ackOk,ackErro)) {
@@ -2446,6 +2608,7 @@ void setup() {
 
   mutexFilaLogs = xSemaphoreCreateMutex();
   iniciarLittleFs();
+  carregarWifiSalvo();
   conectarWifi();
 
   pinMode(PIN_WIEGAND_D0, INPUT_PULLUP);
@@ -2497,6 +2660,9 @@ void setup() {
     &tarefaLogsHandle,
     0
   );
+  mutexColetas=xSemaphoreCreateMutex();
+  if(xTaskCreatePinnedToCore(tarefaWifiPortal,"WifiPortal",8192,NULL,1,NULL,0)!=pdPASS)
+    Serial.println("WIFI_PORTAL_ERRO | Falha ao criar tarefa de rede.");
   indflowIniciarTarefa();
 }
 
@@ -2508,11 +2674,14 @@ void loop() {
   uint64_t codigo = 0;
   uint8_t bitsLeitura = 0;
 
+  if(modoAdmin && millis()-inicioModoAdmin>=TEMPO_MODO_ADMIN_MS)sairModoAdmin();
   if (obterCartao(codigo, &bitsLeitura)) {
-    if (indflowCapturarLeitura(codigo, bitsLeitura)) {
+    if(modoAdmin){
+      inicioModoAdmin=millis();
+      if(bitsLeitura==26)tratarCartaoModoAdmin(codigo);
+      else Serial.println("COLETA_IGNORADA | Use cracha Wiegand 26.");
+    } else if (indflowCapturarLeitura(codigo, bitsLeitura)) {
       // Captura administrativa: nenhuma autorizacao/acionamento neste evento.
-    } else if (modoAdmin) {
-      tratarCartaoModoAdmin(codigo);
     } else {
       tratarCartaoNormal(codigo);
     }
