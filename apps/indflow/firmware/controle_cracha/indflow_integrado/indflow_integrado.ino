@@ -1,11 +1,10 @@
 // Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\firmware\controle_cracha\indflow_integrado\indflow_integrado.ino
-// Data/hora do ultimo recode: 26/10/2026 11:31 (America/Bahia)
-// Motivo: Cadastro em lote pelo mestre e portal Wi-Fi PLAINA01; coleta sem autorizar a maquina.
+// Data/hora do ultimo recode: 26/10/2026 11:57:53 (America/Bahia)
+// Motivo: Reduzir flash trocando WebServer pelo HTTP restrito ao portal, sem alterar funcoes ou particoes.
 
 #include <Arduino.h>
 #include <Preferences.h>
 #include <WiFi.h>
-#include <WebServer.h>
 #include <DNSServer.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
@@ -223,7 +222,7 @@ const char *INDFLOW_FILA_TEMP = "/if_eventos_tmp.txt";
 const uint32_t INDFLOW_POLL_MS = 2500UL;
 const uint32_t INDFLOW_CAPTURA_MS = 45000UL;
 const size_t INDFLOW_LIMITE_EVENTOS = 256UL * 1024UL;
-const char *INDFLOW_VERSAO = "indflow-rfid-2026.10.26-02";
+const char *INDFLOW_VERSAO = "indflow-rfid-2026.10.26-03";
 
 struct AcaoIndflow {
   char id[48];
@@ -739,10 +738,129 @@ void iniciarLittleFs() {
 }
 
 // Portal e reconexao pertencem exclusivamente a tarefaWifiPortal.
-// Nunca chamar WebServer/DNS nem esperar conexao no loop de seguranca.
+// Nunca servir HTTP/DNS nem esperar conexao no loop de seguranca.
 const char *PORTAL_SSID = "PLAINA01";
 const char *PORTAL_SENHA = "Plaina01!";
-WebServer portalWifi(80);
+// Servidor restrito ao portal local: GET de paginas e POST de formulario.
+// Sem upload de arquivos, multipart, regex ou conexoes HTTP persistentes.
+// Recepcao limitada por tamanho/tempo, sempre na tarefa de rede.
+enum { PORTAL_GET, PORTAL_POST };
+class PortalHttpLocal {
+  using Handler = void (*)();
+  struct Rota {const char *caminho;int metodo;Handler executar;};
+  WiFiServer servidor;
+  WiFiClient conexao;
+  Rota rotas[4];int quantidade=0;
+  Handler naoEncontrado=nullptr;
+  String recebido, formulario, extras;
+  unsigned long inicio=0;
+  int fimCabecalho=-1, tamanhoCorpo=0;
+
+  static int hex(char c) {
+    if(c>='0' && c<='9')return c-'0';
+    if(c>='a' && c<='f')return c-'a'+10;
+    if(c>='A' && c<='F')return c-'A'+10;
+    return -1;
+  }
+  static bool decodificar(const String &origem,String &destino) {
+    destino="";
+    for(size_t i=0;i<origem.length();++i){
+      char c=origem.charAt(i);
+      if(c=='+')c=' ';
+      else if(c=='%'){
+        if(i+2>=origem.length())return false;
+        int a=hex(origem.charAt(i+1)),b=hex(origem.charAt(i+2));
+        if(a<0 || b<0){return false;}c=(char)((a<<4)|b);i+=2;
+      }
+      if(c=='\0')return false;
+      destino+=c;
+    }
+    return true;
+  }
+  void fechar() {conexao.stop();recebido="";formulario="";extras="";fimCabecalho=-1;}
+public:
+  explicit PortalHttpLocal(uint16_t porta):servidor(porta) {}
+  WiFiClient &client(){return conexao;}
+  void begin(){servidor.begin();}
+  void stop(){fechar();servidor.stop();}
+  void on(const char *caminho,int metodo,Handler executar){
+    // Substituir rota existente ao reabrir o portal, sem acumular registros.
+    for(int i=0;i<quantidade;++i)if(String(rotas[i].caminho)==caminho){rotas[i]={caminho,metodo,executar};return;}
+    if(quantidade<4)rotas[quantidade++]={caminho,metodo,executar};
+  }
+  void onNotFound(Handler executar){naoEncontrado=executar;}
+  void sendHeader(const char *nome,const char *valor,bool substituir=false){
+    (void)substituir;extras+=String(nome)+": "+valor+"\r\n";
+  }
+  void send(int codigo,const char *tipo,const String &corpo){
+    conexao.print(String("HTTP/1.1 ")+codigo+" Resposta\r\nContent-Type: "+tipo+
+      "\r\nContent-Length: "+corpo.length()+"\r\nConnection: close\r\n"+extras+"\r\n");
+    conexao.print(corpo);fechar();
+  }
+  String arg(const char *nome){
+    int pos=0;
+    while(pos<(int)formulario.length()){
+      int fim=formulario.indexOf('&',pos);if(fim<0)fim=formulario.length();
+      int igual=formulario.indexOf('=',pos);
+      if(igual>=pos && igual<fim){
+        String chave,valor;
+        if(!decodificar(formulario.substring(pos,igual),chave) ||
+           !decodificar(formulario.substring(igual+1,fim),valor))return "";
+        if(chave==nome)return valor;
+      }
+      pos=fim+1;
+    }
+    return "";
+  }
+  void handleClient(){
+    if(!conexao){
+      conexao=servidor.available();if(!conexao)return;
+      recebido="";formulario="";extras="";fimCabecalho=-1;tamanhoCorpo=0;inicio=millis();
+      recebido.reserve(2560);
+    }
+    if(millis()-inicio>=2000UL){fechar();return;}
+    for(int n=0;n<512 && conexao.available();++n){
+      int c=conexao.read();if(c<0)break;
+      if(c==0 || recebido.length()>=2560){send(413,"text/plain","Requisicao invalida ou grande.");return;}
+      recebido+=(char)c;
+    }
+    if(fimCabecalho<0){
+      int separador=recebido.indexOf("\r\n\r\n");
+      if(separador<0){if(recebido.length()>2048)send(431,"text/plain","Cabecalho grande.");return;}
+      if(separador>2048){send(431,"text/plain","Cabecalho grande.");return;}
+      fimCabecalho=separador+4;
+      String cabecalho=recebido.substring(0,separador);cabecalho.toLowerCase();
+      if(cabecalho.indexOf("\r\ntransfer-encoding:")>=0){send(400,"text/plain","Formato nao aceito.");return;}
+      int pos=cabecalho.indexOf("\r\ncontent-length:");
+      if(pos>=0){
+        int comeco=pos+17,fim=cabecalho.indexOf("\r\n",comeco);if(fim<0)fim=cabecalho.length();
+        String valor=cabecalho.substring(comeco,fim);valor.trim();
+        if(valor.isEmpty() || cabecalho.indexOf("\r\ncontent-length:",comeco)>=0){send(400,"text/plain","Tamanho invalido.");return;}
+        for(size_t i=0;i<valor.length();++i){
+          char c=valor.charAt(i);
+          if(c<'0' || c>'9'){send(400,"text/plain","Tamanho invalido.");return;}
+          tamanhoCorpo=tamanhoCorpo*10+(c-'0');
+          if(tamanhoCorpo>512){send(413,"text/plain","Formulario grande.");return;}
+        }
+      } else if(recebido.startsWith("POST ")){send(411,"text/plain","Tamanho obrigatorio.");return;}
+      if(recebido.startsWith("POST ") && cabecalho.indexOf("application/x-www-form-urlencoded")<0){send(415,"text/plain","Envie o formulario da pagina.");return;}
+    }
+    if((int)recebido.length()<fimCabecalho+tamanhoCorpo)return;
+    int espaco=recebido.indexOf(' '),fim=recebido.indexOf(' ',espaco+1);
+    if(espaco<1 || fim<=espaco+1){send(400,"text/plain","Linha HTTP invalida.");return;}
+    String verbo=recebido.substring(0,espaco),caminho=recebido.substring(espaco+1,fim);
+    if(verbo!="GET" && verbo!="POST"){send(405,"text/plain","Metodo nao aceito.");return;}
+    int consulta=caminho.indexOf('?');if(consulta>=0)caminho=caminho.substring(0,consulta);
+    formulario=recebido.substring(fimCabecalho,fimCabecalho+tamanhoCorpo);
+    // Rejeitar escapes invalidos em qualquer campo antes de executar o formulario.
+    String validacao;
+    if(!decodificar(formulario,validacao)){send(400,"text/plain","Formulario invalido.");return;}
+    int metodo=verbo=="GET"?PORTAL_GET:PORTAL_POST;
+    for(int i=0;i<quantidade;++i)if(caminho==rotas[i].caminho && metodo==rotas[i].metodo){rotas[i].executar();return;}
+    if(naoEncontrado)naoEncontrado();else send(404,"text/plain","Nao encontrado.");
+  }
+};
+PortalHttpLocal portalWifi(80);
 DNSServer portalDns;
 bool portalAtivo = false, portalNovaRede = false, portalTestando = false;
 unsigned long portalConectadoDesde = 0;
@@ -788,16 +906,16 @@ void iniciarPortalWifi() {
   portalAtivo=true;
   portalCsrf=String((uint32_t)esp_random(),HEX)+String((uint32_t)esp_random(),HEX);
   portalDns.start(53,"*",WiFi.softAPIP());
-  portalWifi.on("/",HTTP_GET,portalPagina);
-  portalWifi.on("/status",HTTP_GET,[](){
+  portalWifi.on("/",PORTAL_GET,portalPagina);
+  portalWifi.on("/status",PORTAL_GET,[](){
     portalWifi.sendHeader("Cache-Control","no-store");
     portalWifi.send(portalClienteLocal()?200:403,"text/plain; charset=utf-8",portalClienteLocal()?portalMensagem:"Acesso local apenas.");
   });
-  portalWifi.on("/redes",HTTP_GET,[](){
+  portalWifi.on("/redes",PORTAL_GET,[](){
     portalWifi.sendHeader("Cache-Control","no-store");
     portalWifi.send(portalClienteLocal()?200:403,"text/html; charset=utf-8",portalClienteLocal()?portalOpcoes:"");
   });
-  portalWifi.on("/salvar",HTTP_POST,[](){
+  portalWifi.on("/salvar",PORTAL_POST,[](){
     if(!portalClienteLocal() || portalWifi.arg("csrf")!=portalCsrf){portalWifi.send(403,"text/plain","Atualize a pagina.");return;}
     String nome=portalWifi.arg("ssid"),senha=portalWifi.arg("senha");
     if(nome.isEmpty() || nome.length()>32 || nome.indexOf('\n')>=0 || nome.indexOf('\r')>=0 ||
