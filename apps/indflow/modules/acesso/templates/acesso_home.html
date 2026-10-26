@@ -1,6 +1,6 @@
-{# Caminho: apps/indflow/modules/acesso/templates/acesso_home.html
-   Último recode: 2026-10-23 13:35 (America/Bahia)
-   Motivo: Gestão de operadores e cadastro de crachás por confirmação real de leitor ESP32. #}
+{# Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\acesso\templates\acesso_home.html
+    Último recode: 2026-10-26 10:37:41 (America/Bahia)
+    Motivo: Recuperar e acompanhar solicitações pendentes e permitir cancelamento pelo painel. #}
 {% extends 'base.html' %}
 {% block title %}Controle de Acesso — IndFlow{% endblock %}
 {% block head %}
@@ -49,6 +49,21 @@
     </section>
   </div>
   {% endif %}
+  {% if can_write and pending %}
+  <section class="access-panel" aria-labelledby="pendingTitle">
+    <div class="access-panel-heading"><div><h2 id="pendingTitle">Solicitações pendentes</h2><p>Aguardando confirmação do ESP32. Atualizar a página não cancela estas solicitações.</p></div></div>
+    <div class="access-scroll"><table class="access-table"><thead><tr><th>Funcionário / máquina</th><th>Operação / estado</th><th>Criada em / prazo</th><th>Ações</th></tr></thead><tbody>
+    {% for cmd in pending %}
+      <tr><td>{{ cmd.funcionario_nome or 'Funcionário indisponível' }}<small>{{ cmd.machine_id|upper }} — {{ cmd.codigo }}</small></td>
+        <td>{{ {'capturar':'Vincular crachá','permitir':'Autorizar','revogar':'Revogar'}.get(cmd.operacao,cmd.operacao) }}<small>{{ {'aguardando_leitura':'Aguardando leitura','aguardando_confirmacao':'Aguardando confirmação','pendente_dispositivo':'Aguardando dispositivo'}.get(cmd.estado,cmd.estado) }}</small></td>
+        <td><time datetime="{{ cmd.criado_em }}">{{ cmd.criado_em }}</time><small>Até <time datetime="{{ cmd.expira_em }}">{{ cmd.expira_em }}</time></small></td>
+        <td><button type="button" class="access-button secondary" data-pending="{{ cmd.id }}" data-mode="{{ 'capture' if cmd.operacao == 'capturar' else 'permission' }}" data-operation="{{ cmd.operacao }}" data-name="{{ cmd.funcionario_nome or '' }}" data-reader="{{ cmd.leitor_id }}">Acompanhar</button>
+          <button type="button" class="access-button secondary" data-cancel-pending="{{ cmd.id }}">Cancelar solicitação</button></td></tr>
+    {% endfor %}
+    </tbody></table></div>
+    <p>Cancelar encerra a solicitação no servidor; não desfaz uma alteração que o ESP32 já tenha executado.</p>
+  </section>
+  {% endif %}
   <section class="access-panel">
     <div class="access-panel-heading"><div><h2>Funcionários e crachás</h2><p>O sucesso só aparece depois que o dispositivo confirmar a gravação local.</p></div></div>
     {% if not readers %}<div class="access-note">Nenhum leitor configurado. Cadastre o leitor da máquina para liberar a vinculação.</div>{% endif %}
@@ -93,5 +108,5 @@
       <button id="accessDialogCancel" type="button" class="access-button secondary">Cancelar</button></div>
   </dialog>
 </section>
-<script src="{{ url_for('static', filename='acesso.js') }}" defer></script>
+<script src="{{ url_for('static', filename='acesso.js', v='20261026-pendencias') }}" defer></script>
 {% endblock %}

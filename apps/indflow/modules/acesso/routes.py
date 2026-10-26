@@ -1,7 +1,6 @@
-# Caminho: apps/indflow/modules/acesso/routes.py
-# Último recode: 2026-10-23 14:15 (America/Bahia)
-# Motivo: Listar no Controle de Acesso as máquinas registradas em Devices,
-#         inclusive sem dispositivo de produção, respeitando cliente e arquivamento.
+# Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\acesso\routes.py
+# Último recode: 2026-10-26 10:37:41 (America/Bahia)
+# Motivo: Recuperar e acompanhar solicitações pendentes e permitir cancelamento pelo painel.
 """API preparada para firmware ESP32 futuro: não altera o firmware já instalado.
 
 Fluxo:
@@ -234,12 +233,18 @@ def home():
                     ZoneInfo('America/Bahia')).strftime('%d/%m/%Y %H:%M:%S') if epoch else 'Não confirmado'
             except (ValueError, TypeError, OverflowError, OSError):
                 event['horario_local'] = 'Não confirmado'
+        pending = [dict(r) for r in db.execute("""SELECT c.id,c.operacao,c.estado,c.criado_em,c.expira_em,
+          c.funcionario_id,c.leitor_id,f.nome AS funcionario_nome,l.machine_id,l.codigo
+          FROM acesso_comandos c JOIN acesso_leitores l ON l.id=c.leitor_id AND l.cliente_id=c.cliente_id
+          LEFT JOIN acesso_funcionarios f ON f.id=c.funcionario_id AND f.cliente_id=c.cliente_id
+          WHERE c.cliente_id=? AND c.estado IN ('aguardando_leitura','aguardando_confirmacao','pendente_dispositivo')
+          ORDER BY c.criado_em""", (cid,))]
         machines = [m['machine_id'] for m in _machine_rows(db, cid)]
         db.commit()
     finally:
         db.close()
     return render_template('acesso_home.html', people=people, readers=readers,
-                           grants=grants, events=events, machines=machines,
+                           grants=grants, events=events, machines=machines, pending=pending,
                            csrf=_csrf(), can_write=str(session.get('role') or '').lower() in ('admin','superadmin'))
 
 

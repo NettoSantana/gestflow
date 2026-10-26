@@ -1,5 +1,6 @@
-// Caminho: apps/indflow/static/acesso.js | 2026-10-23
-// Motivo: Cadastro de crachás com confirmação REAL do ESP32; nunca exibir sucesso no início da leitura.
+// Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\acesso.js
+// Último recode: 2026-10-26 10:37:41 (America/Bahia)
+// Motivo: Recuperar e acompanhar solicitações pendentes e permitir cancelamento pelo painel.
 (() => {
   'use strict';
   const root = document.getElementById('accessModule'); if (!root) return;
@@ -9,6 +10,7 @@
   const info = document.getElementById('accessDialogInfo');
   const readerSelect = document.getElementById('accessSelectedReader');
   const startBtn = document.getElementById('accessDialogStart');
+  let trackingExisting = false;
   let selectedPerson = null, selectedMode = 'capture', activeCmd = null, polling = null;
   function show(message, kind='') { feedback.hidden = false; feedback.className = 'access-feedback ' + kind; feedback.textContent = message; }
   function explain(message, kind='') { info.className='access-dialog-info ' + kind; info.textContent=message; }
@@ -38,10 +40,30 @@
   });
   function stopPolling(){if(polling){clearInterval(polling);polling=null;}}
   async function cancel(){
-    stopPolling();const cmd=activeCmd;activeCmd=null;
-    if(cmd)try{await api(`/acesso/api/comandos/${encodeURIComponent(cmd)}/cancelar`,{});}catch(_err){}
-    if(dialog.open)dialog.close();
+    if(trackingExisting){stopPolling();activeCmd=null;trackingExisting=false;if(dialog.open)dialog.close();return;}
+    const cmd=activeCmd;
+    if(cmd){
+      try{await api(`/acesso/api/comandos/${encodeURIComponent(cmd)}/cancelar`,{});}
+      catch(err){explain('Não foi possível cancelar: '+err.message,'error');return;}
+    }
+    stopPolling();activeCmd=null;if(dialog.open)dialog.close();
   }
+  document.querySelectorAll('[data-pending]').forEach(button=>button.addEventListener('click',()=>{
+    stopPolling();trackingExisting=true;activeCmd=button.dataset.pending;selectedMode=button.dataset.mode;
+    document.getElementById('accessDialogTitle').textContent='Acompanhar solicitação';
+    document.getElementById('accessDialogName').textContent=button.dataset.name;
+    readerSelect.value=button.dataset.reader;readerSelect.disabled=true;
+    document.getElementById('accessPermissionRow').hidden=true;
+    startBtn.hidden=true;document.getElementById('accessDialogCancel').textContent='Fechar';
+    explain('Consultando solicitação pendente...');dialog.showModal();polling=setInterval(check,1200);check();
+  }));
+  document.querySelectorAll('[data-cancel-pending]').forEach(button=>button.addEventListener('click',async()=>{
+    if(!window.confirm('Cancelar esta solicitação no servidor? Isso não desfaz alterações já executadas no ESP32.'))return;
+    button.disabled=true;
+    try{await api(`/acesso/api/comandos/${encodeURIComponent(button.dataset.cancelPending)}/cancelar`,{});location.reload();}
+    catch(err){button.disabled=false;show(err.message,'error');}
+  }));
+  root.querySelectorAll('time[datetime]').forEach(el=>{const date=new Date(el.dateTime);if(!Number.isNaN(date.getTime()))el.textContent=date.toLocaleString('pt-BR',{timeZone:'America/Bahia'})+' (Bahia)';});
   async function check(){
     if(!activeCmd)return;
     const current=activeCmd;
@@ -62,7 +84,7 @@
     }catch(e){explain(e.message,'error');}
   }
   document.querySelectorAll('[data-action="capture"],[data-action="permission"]').forEach(button=>button.addEventListener('click',()=>{
-    stopPolling();activeCmd=null;selectedPerson=button.dataset.person;
+    stopPolling();activeCmd=null;trackingExisting=false;readerSelect.disabled=false;startBtn.hidden=false;document.getElementById('accessDialogCancel').textContent='Cancelar';selectedPerson=button.dataset.person;
     selectedMode=button.dataset.action;
     document.getElementById('accessDialogTitle').textContent=selectedMode==='capture'?'Vincular crachá':'Permissão por máquina';
     document.getElementById('accessDialogName').textContent=button.dataset.name;
