@@ -1,6 +1,6 @@
 // Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\firmware\controle_cracha\indflow_integrado\indflow_integrado.ino
-// Data/hora do ultimo recode: 26/10/2026 12:07:55 (America/Bahia)
-// Motivo: Reduzir flash substituindo DNS geral por resposta local, preservando funcoes e particoes.
+// Data/hora do ultimo recode: 26/10/2026 12:26:36 (America/Bahia)
+// Motivo: Acrescentar hotspot Redmi sem remover rede Netto, com tentativa automatica das duas redes.
 
 #include <Arduino.h>
 #include <Preferences.h>
@@ -70,10 +70,12 @@ const bool RELE_ATIVO_EM_LOW = true;
 const bool PERMITIR_MESTRE_COMO_USUARIO_TESTE = false;
 
 // ===================== CONFIGURACAO WIFI / GOOGLE SHEETS =====================
-// Rede inicial de compatibilidade. O portal permite trocar pelo celular.
+// Duas redes fixas; o portal continua permitindo salvar outra rede.
 // Preferencia wifi-plaina/cfg tem prioridade e nao altera os cartoes RFID.
 const char* WIFI_SSID = "Netto Santana";
 const char* WIFI_SENHA = "12345678";
+const char* WIFI_SSID_ALTERNATIVO = "Redmi Note 14 5G";
+const char* WIFI_SENHA_ALTERNATIVA = "vs240982";
 
 const char* URL_LOGS_GOOGLE_SHEETS = "https://script.google.com/macros/s/AKfycbzGFGUd4SOBzzFLidfpOq63jlWS8XfMnWff1Swcsbfa_JS8Cr230DM73DbYZfE8FLewyA/exec";
 const char* DISPOSITIVO_ID = "ESP32_CRACHA_01";
@@ -224,7 +226,7 @@ const char *INDFLOW_FILA_TEMP = "/if_eventos_tmp.txt";
 const uint32_t INDFLOW_POLL_MS = 2500UL;
 const uint32_t INDFLOW_CAPTURA_MS = 45000UL;
 const size_t INDFLOW_LIMITE_EVENTOS = 256UL * 1024UL;
-const char *INDFLOW_VERSAO = "indflow-rfid-2026.10.26-04";
+const char *INDFLOW_VERSAO = "indflow-rfid-2026.10.26-05";
 
 struct AcaoIndflow {
   char id[48];
@@ -912,6 +914,7 @@ PortalDnsLocal portalDns;
 bool portalAtivo = false, portalNovaRede = false, portalTestando = false;
 unsigned long portalConectadoDesde = 0;
 String wifiNomeAtual, wifiSenhaAtual, portalNomeTeste, portalSenhaTeste;
+uint8_t wifiProximaRedeFixa=0;
 String portalMensagem = "Escolha uma rede Wi-Fi de 2,4 GHz.";
 String portalOpcoes, portalCsrf;
 
@@ -982,6 +985,19 @@ void iniciarPortalWifi() {
   Serial.println("WIFI_PORTAL | Rede PLAINA01 | Senha Plaina01! | http://192.168.4.1");
 }
 
+// Rede salva primeiro; em caso de falha, tentar as duas redes fixas.
+// Sem WiFiMulti: preservar o tamanho reduzido do firmware.
+bool selecionarProximaRedeWifi() {
+  while(wifiProximaRedeFixa<2){
+    const bool alternativa=wifiProximaRedeFixa++==1;
+    const char *nome=alternativa?WIFI_SSID_ALTERNATIVO:WIFI_SSID;
+    const char *senha=alternativa?WIFI_SENHA_ALTERNATIVA:WIFI_SENHA;
+    if(wifiNomeAtual==nome && wifiSenhaAtual==senha)continue;
+    wifiNomeAtual=nome;wifiSenhaAtual=senha;return true;
+  }
+  wifiProximaRedeFixa=0;carregarWifiSalvo();return false;
+}
+
 void conectarWifi() {
   if(wifiNomeAtual.isEmpty())return;
   WiFi.mode(portalAtivo?WIFI_AP_STA:WIFI_STA);
@@ -998,6 +1014,7 @@ void atualizarWifi() {
   }
   if(WiFi.status()==WL_CONNECTED){
     wifiTentativaEmAndamento=false;
+    wifiProximaRedeFixa=0;
     if(portalTestando){
       if(WiFi.SSID()!=portalNomeTeste)return;
       Preferences p;bool salvo=false;
@@ -1025,6 +1042,7 @@ void atualizarWifi() {
     if(millis()-ultimaTentativaWifiMs<TEMPO_MAXIMO_TENTATIVA_WIFI_MS)return;
     WiFi.disconnect();wifiTentativaEmAndamento=false;
     if(portalTestando){portalTestando=false;portalSenhaTeste="";portalMensagem="Não conectou. Confira a senha, o sinal e se o hotspot está em 2,4 GHz; tente novamente.";}
+    else if(selecionarProximaRedeWifi()){conectarWifi();return;}
     iniciarPortalWifi();
   }
   if(!portalAtivo && millis()-ultimaTentativaWifiMs>=TEMPO_MAXIMO_TENTATIVA_WIFI_MS)iniciarPortalWifi();
