@@ -1,11 +1,13 @@
 // Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\firmware\controle_cracha\indflow_integrado\indflow_integrado.ino
-// Data/hora do ultimo recode: 26/10/2026 11:57:53 (America/Bahia)
-// Motivo: Reduzir flash trocando WebServer pelo HTTP restrito ao portal, sem alterar funcoes ou particoes.
+// Data/hora do ultimo recode: 26/10/2026 12:07:55 (America/Bahia)
+// Motivo: Reduzir flash substituindo DNS geral por resposta local, preservando funcoes e particoes.
 
 #include <Arduino.h>
 #include <Preferences.h>
 #include <WiFi.h>
-#include <DNSServer.h>
+#include <lwip/sockets.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include "esp32_cert_bundle.h" // Biblioteca ESP32CertBundle - valida TLS do IndFlow.
@@ -222,7 +224,7 @@ const char *INDFLOW_FILA_TEMP = "/if_eventos_tmp.txt";
 const uint32_t INDFLOW_POLL_MS = 2500UL;
 const uint32_t INDFLOW_CAPTURA_MS = 45000UL;
 const size_t INDFLOW_LIMITE_EVENTOS = 256UL * 1024UL;
-const char *INDFLOW_VERSAO = "indflow-rfid-2026.10.26-03";
+const char *INDFLOW_VERSAO = "indflow-rfid-2026.10.26-04";
 
 struct AcaoIndflow {
   char id[48];
@@ -861,7 +863,52 @@ public:
   }
 };
 PortalHttpLocal portalWifi(80);
-DNSServer portalDns;
+// DNS local do portal: responder consultas A com o IP do proprio ESP.
+// Usa sockets ja presentes na rede; nao incorpora a biblioteca AsyncUDP.
+class PortalDnsLocal {
+  int descritor=-1;
+  uint8_t ip[4]={};
+public:
+  bool start(uint16_t porta,const char *dominio,IPAddress endereco){
+    (void)dominio;stop();
+    for(int i=0;i<4;++i)ip[i]=endereco[i];
+    descritor=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP);
+    if(descritor<0)return false;
+    sockaddr_in local={};local.sin_family=AF_INET;local.sin_port=htons(porta);
+    local.sin_addr.s_addr=htonl(((uint32_t)ip[0]<<24)|((uint32_t)ip[1]<<16)|((uint32_t)ip[2]<<8)|ip[3]);
+    if(bind(descritor,(sockaddr*)&local,sizeof(local))<0 ||
+       fcntl(descritor,F_SETFL,O_NONBLOCK)<0){stop();return false;}
+    return true;
+  }
+  void stop(){if(descritor>=0){close(descritor);descritor=-1;}}
+  void processNextRequest(){
+    if(descritor<0)return;
+    uint8_t pacote[512];sockaddr_in origem={};socklen_t tamanho=sizeof(origem);
+    int n=recvfrom(descritor,pacote,sizeof(pacote),0,(sockaddr*)&origem,&tamanho);
+    // Consulta padrao, uma pergunta, sem respostas nem truncamento.
+    if(n<17 || n>496 || (pacote[2]&0xFA)!=0 || (pacote[3]&0xCF)!=0 ||
+       pacote[4]!=0 || pacote[5]!=1 || pacote[6]!=0 || pacote[7]!=0)return;
+    int pos=12;
+    while(pos<n){
+      int rotulo=pacote[pos++];if(rotulo==0)break;
+      if(rotulo>63 || pos+rotulo>=n)return;
+      pos+=rotulo;
+    }
+    if(pos+4>n || pos-12>255)return;
+    bool respostaA=pacote[pos]==0 && pacote[pos+1]==1 && pacote[pos+2]==0 && pacote[pos+3]==1;
+    int fim=pos+4;
+    pacote[2]=0x84|(pacote[2]&1);pacote[3]=0;
+    pacote[6]=0;pacote[7]=respostaA?1:0;
+    pacote[8]=pacote[9]=pacote[10]=pacote[11]=0;
+    if(respostaA){
+      const uint8_t registro[]={0xC0,0x0C,0,1,0,1,0,0,0,0,0,4};
+      memcpy(pacote+fim,registro,sizeof(registro));fim+=sizeof(registro);
+      memcpy(pacote+fim,ip,4);fim+=4;
+    }
+    sendto(descritor,pacote,fim,0,(sockaddr*)&origem,tamanho);
+  }
+};
+PortalDnsLocal portalDns;
 bool portalAtivo = false, portalNovaRede = false, portalTestando = false;
 unsigned long portalConectadoDesde = 0;
 String wifiNomeAtual, wifiSenhaAtual, portalNomeTeste, portalSenhaTeste;
@@ -905,7 +952,8 @@ void iniciarPortalWifi() {
   }
   portalAtivo=true;
   portalCsrf=String((uint32_t)esp_random(),HEX)+String((uint32_t)esp_random(),HEX);
-  portalDns.start(53,"*",WiFi.softAPIP());
+  if(!portalDns.start(53,"*",WiFi.softAPIP()))
+    Serial.println("WIFI_DNS_ERRO | Use http://192.168.4.1");
   portalWifi.on("/",PORTAL_GET,portalPagina);
   portalWifi.on("/status",PORTAL_GET,[](){
     portalWifi.sendHeader("Cache-Control","no-store");
