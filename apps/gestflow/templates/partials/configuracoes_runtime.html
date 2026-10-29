@@ -1,12 +1,12 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\partials\configuracoes_runtime.html
-Último recode: 2026-09-01 20:36 (America/Bahia)
-Motivo: Adicionar sidebar compacta no desktop, expansão por hover e opção de fixar aberta, preservando o menu mobile.
+Último recode: 2026-10-29 12:34 (America/Bahia)
+Motivo: Atualizar a versão do script para carregar as validações corrigidas de Produtos e Fornecedores sem reutilizar o cache anterior.
 #}
 
 {% if gestflow_configuracoes_runtime %}
 <script id="gestflow-configuracoes-runtime" type="application/json">{{ gestflow_configuracoes_runtime|tojson }}</script>
-<script src="{{ url_for('static', filename='js/configuracoes_modulos.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/configuracoes_modulos.js', v='20261029-testes-01') }}" defer></script>
 {% endif %}
 
 <style id="gestflow-sidebar-compact-style">

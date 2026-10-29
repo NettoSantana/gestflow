@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\static\js\configuracoes_modulos.js
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-10-29 12:34 (America/Bahia)
+Motivo: Exibir aviso de preço inválido nos produtos e exigir CPF/CNPJ de fornecedor conforme a configuração, preservando o formulário.
 */
 
 (function () {
@@ -199,8 +199,32 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
             preencherSeVazio('cliente_status', obter('cadastros', 'status_padrao', 'ativo'));
             preencherSeVazio('fornecedor_status', obter('cadastros', 'status_padrao', 'ativo'));
             preencherSeVazio('cliente_observacoes', obter('cadastros', 'observacoes_padrao', ''));
+            if (/^\/fornecedores(?:\/|$)/.test(caminho)) {
+                const exigeDocumento = lista('cadastros', 'documentos_obrigatorios')
+                    .some(item => /cpf|cnpj/i.test(item));
+                exigir('fornecedor_documento', exigeDocumento);
+            }
         }
         if (modulo === 'produtos') {
+            campos('produto_preco_venda').forEach(elemento => {
+                const formato = /^(?:R\$\s*)?(?:[0-9]+(?:[.,][0-9]{1,2})?|[0-9]{1,3}(?:\.[0-9]{3})+,[0-9]{1,2})$/;
+                const validarPreco = () => {
+                    const texto = String(elemento.value || '').trim();
+                    let normalizado = texto.replace(/^R\$\s*/, '').replace(/ /g, '');
+                    if (normalizado.includes(',')) normalizado = normalizado.replace(/\./g, '').replace(',', '.');
+                    const numero = Number(normalizado);
+                    elemento.setCustomValidity(!texto || (formato.test(texto) && Number.isFinite(numero))
+                        ? '' : 'Informe um preço de venda válido, sem letras ou valores negativos. Exemplo: 30,50.');
+                };
+                elemento.setAttribute('inputmode', 'decimal');
+                elemento.addEventListener('input', validarPreco);
+                elemento.addEventListener('change', validarPreco);
+                if (elemento.form) elemento.form.addEventListener('submit', event => {
+                    validarPreco();
+                    if (!elemento.reportValidity()) event.preventDefault();
+                });
+                validarPreco();
+            });
             preencherSeVazio('produto_estoque_minimo', obter('produtos', 'estoque_minimo_padrao', 0));
             preencherSeVazio('produto_unidade', lista('produtos', 'unidades_medida')[0] || 'UN');
             esconder('[name="componente_produto_id"], [name="composicao_custo_descricao"]', !booleano('produtos', 'produto_composto', true));

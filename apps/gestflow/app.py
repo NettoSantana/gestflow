@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-10-16 14:32 (America/Bahia)
-# Motivo: Preservar formatação do escopo ao salvar, revisar e imprimir orçamentos.
+# Último recode: 2026-10-29 12:34 (America/Bahia)
+# Motivo: Validar preço de venda de produtos e manter o cadastro de fornecedor com os dados preenchidos após erro de CPF/CNPJ.
 
 from __future__ import annotations
 
@@ -22941,7 +22941,22 @@ def proximo_codigo_cadastro_configurado(
 def _erro_regra_configurada(modulo: str, mensagem: str) -> Response:
     if request.path.startswith("/api/") or request.accept_mimetypes.best == "application/json":
         return jsonify({"ok": False, "erro": mensagem}), 400
+    if modulo == "cadastros" and request.endpoint == "salvar_fornecedor":
+        contexto = montar_contexto_cadastro_paginado("fornecedores")
+        return render_template(
+            "fornecedores.html",
+            fornecedores=contexto["registros"],
+            resumo_fornecedores=contexto["resumo"],
+            paginacao=contexto["paginacao"],
+            busca=contexto["busca"],
+            ordenar=contexto["ordenar"],
+            direcao=contexto["direcao"],
+            por_pagina=contexto["por_pagina"],
+            erro_formulario=mensagem,
+        ), 400
     destino = CONFIGURACOES_DESTINOS_ERRO.get(modulo, "/")
+    if modulo == "cadastros" and request.endpoint == "atualizar_fornecedor":
+        destino = url_for("editar_fornecedor", fornecedor_id=request.view_args["fornecedor_id"])
     separador = "&" if "?" in destino else "?"
     return redirect(f"{destino}{separador}{urllib.parse.urlencode({'erro': mensagem})}")
 
@@ -35941,6 +35956,14 @@ def validar_produto_para_salvar(produto: dict[str, str]) -> str:
 
     if not produto["unidade"]:
         return "Selecione a unidade do produto."
+
+    preco = str(produto.get("preco_venda") or "").strip()
+    formato_preco = r"(?:R\$\s*)?(?:[0-9]+(?:[.,][0-9]{1,2})?|[0-9]{1,3}(?:\.[0-9]{3})+,[0-9]{1,2})"
+    if preco and (
+        not re.fullmatch(formato_preco, preco)
+        or not math.isfinite(_converter_valor_brl(preco))
+    ):
+        return "Informe um preço de venda válido, sem letras ou valores negativos. Exemplo: 30,50."
 
     if not produto["status"]:
         return "Selecione o status do produto."

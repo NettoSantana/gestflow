@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\fornecedores.html
-Último recode: 2026-08-22 00:35 (America/Bahia)
-Motivo: Vincular explicitamente a tabela principal ao componente padronizado de Busca avançada, Colunas e Mais ações no mesmo padrão de Orçamentos.
+Último recode: 2026-10-29 12:34 (America/Bahia)
+Motivo: Preservar os campos do novo fornecedor e apresentar o erro na própria tela após validação no servidor.
 #}
 
 <!DOCTYPE html>
@@ -221,9 +221,9 @@ Motivo: Vincular explicitamente a tabela principal ao componente padronizado de 
         {% set page_title = 'Fornecedores' %}
         {% include "partials/topbar.html" %}
 
-        {% if request.args.get("erro") %}
+        {% if erro_formulario|default('') or request.args.get("erro") %}
             <section class="panel page-section">
-                <div class="alert-error">{{ request.args.get("erro") }}</div>
+                <div class="alert-error">{{ erro_formulario|default('') or request.args.get('erro') }}</div>
             </section>
         {% endif %}
 
@@ -297,41 +297,44 @@ Motivo: Vincular explicitamente a tabela principal ao componente padronizado de 
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="fornecedor_nome">Nome / Razão Social *</label>
-                        <input id="fornecedor_nome" name="fornecedor_nome" type="text" placeholder="Ex: Fornecedor ABC Ltda" class="form-control" required>
+                        <input id="fornecedor_nome" name="fornecedor_nome" value="{{ request.form.get('fornecedor_nome', '') }}" type="text" placeholder="Ex: Fornecedor ABC Ltda" class="form-control" required>
                     </div>
 
                     <div class="form-group">
                         <label for="fornecedor_documento">CPF/CNPJ</label>
-                        <input id="fornecedor_documento" name="fornecedor_documento" type="text" placeholder="Ex: 00.000.000/0000-00" class="form-control">
+                        <input id="fornecedor_documento" name="fornecedor_documento" value="{{ request.form.get('fornecedor_documento', '') }}" type="text" placeholder="Ex: 00.000.000/0000-00" class="form-control">
                     </div>
 
                     <div class="form-group">
                         <label for="fornecedor_telefone">Telefone</label>
-                        <input id="fornecedor_telefone" name="fornecedor_telefone" type="text" placeholder="Ex: (71) 99999-9999" class="form-control">
+                        <input id="fornecedor_telefone" name="fornecedor_telefone" value="{{ request.form.get('fornecedor_telefone', '') }}" type="text" placeholder="Ex: (71) 99999-9999" class="form-control">
                     </div>
 
                     <div class="form-group">
                         <label for="fornecedor_cidade">Cidade</label>
-                        <input id="fornecedor_cidade" name="fornecedor_cidade" type="text" placeholder="Ex: Salvador" class="form-control">
+                        <input id="fornecedor_cidade" name="fornecedor_cidade" value="{{ request.form.get('fornecedor_cidade', '') }}" type="text" placeholder="Ex: Salvador" class="form-control">
                     </div>
 
                     <div class="form-group">
                         <label for="fornecedor_status">Status *</label>
                         <select id="fornecedor_status" name="fornecedor_status" class="form-control" required>
-                            <option value="ativo">Ativo</option>
-                            <option value="inativo">Inativo</option>
-                            <option value="pendente">Pendente</option>
+                            <option value="ativo" {% if request.form.get("fornecedor_status", "ativo") == "ativo" %}selected{% endif %}>Ativo</option>
+                            <option value="inativo" {% if request.form.get("fornecedor_status", "ativo") == "inativo" %}selected{% endif %}>Inativo</option>
+                            <option value="pendente" {% if request.form.get("fornecedor_status", "ativo") == "pendente" %}selected{% endif %}>Pendente</option>
                         </select>
                     </div>
 
                     <div class="form-group">
                         <label for="fornecedor_email">E-mail</label>
-                        <input id="fornecedor_email" name="fornecedor_email" type="email" placeholder="Ex: contato@fornecedor.com.br" class="form-control">
+                        <input id="fornecedor_email" name="fornecedor_email" value="{{ request.form.get('fornecedor_email', '') }}" type="email" placeholder="Ex: contato@fornecedor.com.br" class="form-control">
                     </div>
 
                     <div class="form-group">
                         <label for="fornecedor_categoria">Categoria *</label>
                         <select id="fornecedor_categoria" name="fornecedor_categoria" class="form-control" required>
+                            {% if request.form.get('fornecedor_categoria') %}
+                                <option value="{{ request.form.get('fornecedor_categoria') }}" selected>{{ request.form.get('fornecedor_categoria') }}</option>
+                            {% endif %}
                             <option value="">Selecione</option>
                             <option value="Material elétrico">Material elétrico</option>
                             <option value="Material mecânico">Material mecânico</option>
@@ -345,7 +348,7 @@ Motivo: Vincular explicitamente a tabela principal ao componente padronizado de 
 
                     <div class="form-group">
                         <label for="fornecedor_observacoes">Observações</label>
-                        <input id="fornecedor_observacoes" name="fornecedor_observacoes" type="text" placeholder="Ex: Condição de pagamento, contato principal ou observação" class="form-control">
+                        <input id="fornecedor_observacoes" name="fornecedor_observacoes" value="{{ request.form.get('fornecedor_observacoes', '') }}" type="text" placeholder="Ex: Condição de pagamento, contato principal ou observação" class="form-control">
                     </div>
                 </div>
 
