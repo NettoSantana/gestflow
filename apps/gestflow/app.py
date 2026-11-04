@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-10-13 20:59:28 (America/Bahia)
-# Motivo: Permitir salvar dados de equipamento e local na edição da mesma OS, preservando número, vínculo e validação da criação.
+# Último recode: 2026-11-04 18:04:48 (America/Bahia)
+# Motivo: Disponibilizar a verificação Strix sem login somente no domínio DEV.
 
 from __future__ import annotations
 
@@ -4189,6 +4189,14 @@ def injetar_usuario_logado() -> dict[str, Any]:
 
 @app.before_request
 def exigir_login_rotas_internas() -> Response | None:
+    if (
+        request.path == "/.well-known/strix-verify.txt"
+        and request.host.split(":", 1)[0].lower() == "gestflow-dev.up.railway.app"
+        and request.method in {"GET", "HEAD"}
+    ):
+        return Response("strix-verify-801fdddde593b5112ddffe42846ff130", mimetype="text/plain")
+
+
     rotas_publicas = {
         "portal",
         "politica_privacidade",
