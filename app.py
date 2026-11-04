@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-09-11 19:39 (America/Bahia)
-# Motivo: Criar a base do módulo Fiscal no DEV com configuração da empresa, rascunhos e estrutura para NF-e, NFC-e e NFS-e.
+# Último recode: 2026-11-04 17:59 (America/Bahia)
+# Motivo: Disponibilizar a verificação Strix sem login somente no domínio DEV.
 
 from __future__ import annotations
 
@@ -4038,6 +4038,14 @@ def injetar_usuario_logado() -> dict[str, Any]:
 
 @app.before_request
 def exigir_login_rotas_internas() -> Response | None:
+    if (
+        request.path == "/.well-known/strix-verify.txt"
+        and request.host.split(":", 1)[0].lower() == "gestflow-dev.up.railway.app"
+        and request.method in {"GET", "HEAD"}
+    ):
+        return Response("strix-verify-801fdddde593b5112ddffe42846ff130", mimetype="text/plain")
+
+
     rotas_publicas = {
         "portal",
         "politica_privacidade",
