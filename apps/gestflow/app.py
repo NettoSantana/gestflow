@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-11-14 06:47:08 (America/Bahia)
-# Motivo: Unir DEV e MAIN e permitir concluir a configuração inicial sem depender de JavaScript.
+# Último recode: 2026-11-14 07:22:57 (America/Bahia)
+# Motivo: Padronizar o título da tela de Configurações do módulo Fiscal.
 
 from __future__ import annotations
 
@@ -28883,7 +28883,7 @@ FISCAL_SECOES = {
     'atividades-servicos': {"titulo": 'Atividades de serviços', "subtitulo": 'Cadastros auxiliares dos serviços.', "grupo": 'auxiliar', "tipo": ''},
     'modelos-email': {"titulo": 'Modelos de e-mail', "subtitulo": 'Modelos de comunicação dos documentos fiscais.', "grupo": 'auxiliar', "tipo": ''},
     'integracoes': {"titulo": 'Integrações fiscais', "subtitulo": 'Identificação do provedor e do ambiente fiscal.', "grupo": 'auxiliar', "tipo": ''},
-    'configuracoes': {"titulo": 'Configurações fiscais', "subtitulo": 'Dados fiscais da empresa.', "grupo": 'auxiliar', "tipo": ''},
+    'configuracoes': {"titulo": 'Configurações', "subtitulo": 'Dados fiscais da empresa.', "grupo": 'auxiliar', "tipo": ''},
 }
 
 @app.get("/fiscal")

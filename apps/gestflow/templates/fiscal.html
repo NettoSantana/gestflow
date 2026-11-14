@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\fiscal.html
-Último recode: 2026-11-14 06:47:08 (America/Bahia)
-Motivo: Unir DEV e MAIN preservando as funções existentes dos dois sistemas.
+Último recode: 2026-11-14 07:22:57 (America/Bahia)
+Motivo: Priorizar os atalhos fiscais e agrupar os ajustes essenciais em Configurações.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -47,7 +47,7 @@ Motivo: Unir DEV e MAIN preservando as funções existentes dos dois sistemas.
                 <a class="fiscal-shortcut" href="/fiscal/produtos"><span>NF-e</span><strong>Notas de produtos</strong><small>Vendas de produtos e mercadorias.</small></a>
                 <a class="fiscal-shortcut" href="/fiscal/servicos"><span>NFS-e</span><strong>Notas de serviços</strong><small>Ordens de serviço e prestação de serviços.</small></a>
                 <a class="fiscal-shortcut" href="/fiscal/consumidor"><span>NFC-e</span><strong>Notas do consumidor</strong><small>Vendas ao consumidor e operação de balcão.</small></a>
-                <a class="fiscal-shortcut" href="/fiscal/compras"><span>Entradas</span><strong>Notas de compras</strong><small>Documentos recebidos de fornecedores.</small></a>
+                <a class="fiscal-shortcut" href="/fiscal/configuracoes"><span>Ajustes</span><strong>Configurações</strong><small>Dados fiscais, certificado e integração.</small></a>
             </section>
 
             <div class="fiscal-grid">
@@ -104,6 +104,13 @@ Motivo: Unir DEV e MAIN preservando as funções existentes dos dois sistemas.
 
         {% elif secao_fiscal == 'configuracoes' %}
             <section class="fiscal-panel"><div class="fiscal-panel-header"><div><h3>Dados fiscais da empresa</h3><p>Confirme estas informações com a contabilidade antes de usar o ambiente de produção.</p></div></div>{% if usuario_eh_admin_empresa %}<form action="/fiscal/configuracoes" method="post"><input type="hidden" name="fiscal_retorno" value="configuracoes"><div class="fiscal-form-grid"><div class="fiscal-field full"><label for="fiscal_razao_social">Razão social</label><input id="fiscal_razao_social" name="fiscal_razao_social" type="text" value="{{ configuracao.razao_social or '' }}"></div><div class="fiscal-field"><label for="fiscal_cnpj">CNPJ</label><input id="fiscal_cnpj" name="fiscal_cnpj" type="text" value="{{ configuracao.cnpj or '' }}"></div><div class="fiscal-field"><label for="fiscal_cnae">CNAE</label><input id="fiscal_cnae" name="fiscal_cnae" type="text" value="{{ configuracao.cnae or '' }}"></div><div class="fiscal-field"><label for="fiscal_inscricao_estadual">Inscrição estadual</label><input id="fiscal_inscricao_estadual" name="fiscal_inscricao_estadual" type="text" value="{{ configuracao.inscricao_estadual or '' }}"></div><div class="fiscal-field"><label for="fiscal_inscricao_municipal">Inscrição municipal</label><input id="fiscal_inscricao_municipal" name="fiscal_inscricao_municipal" type="text" value="{{ configuracao.inscricao_municipal or '' }}"></div><div class="fiscal-field"><label for="fiscal_crt">CRT</label><input id="fiscal_crt" name="fiscal_crt" type="text" value="{{ configuracao.crt or '' }}"></div><div class="fiscal-field"><label for="fiscal_serie_nfe">Série NF-e</label><input id="fiscal_serie_nfe" name="fiscal_serie_nfe" type="text" value="{{ configuracao.serie_nfe or '1' }}"></div><div class="fiscal-field"><label for="fiscal_serie_nfce">Série NFC-e</label><input id="fiscal_serie_nfce" name="fiscal_serie_nfce" type="text" value="{{ configuracao.serie_nfce or '1' }}"></div><div class="fiscal-field"><label for="fiscal_serie_nfse">Série NFS-e</label><input id="fiscal_serie_nfse" name="fiscal_serie_nfse" type="text" value="{{ configuracao.serie_nfse or '1' }}"></div></div><div class="fiscal-actions" style="margin-top:16px;justify-content:flex-end"><button class="fiscal-button" type="submit">Salvar configurações</button></div></form>{% else %}<div class="fiscal-alert info">Somente administradores podem alterar a configuração fiscal.</div>{% endif %}</section>
+            <section class="fiscal-panel" aria-label="Configurações de emissão">
+                <div class="fiscal-panel-header"><div><h3>Emissão e certificado</h3><p>Acessos essenciais para preparar a emissão de documentos fiscais.</p></div></div>
+                <div class="fiscal-actions">
+                    <a class="fiscal-button-secondary" href="/fiscal/certificado-digital">Certificado digital</a>
+                    <a class="fiscal-button-secondary" href="/fiscal/integracoes">Integração fiscal</a>
+                </div><div class="fiscal-alert info" style="margin-top:16px;margin-bottom:0">A emissão real ainda não está liberada. Nesta etapa, os dados do certificado são apenas informativos; o GestFlow não recebe nem armazena o arquivo A1.</div>
+            </section>
 
         {% else %}
             <section class="fiscal-panel"><div class="fiscal-panel-header"><div><h3>{{ secao_info.titulo }}</h3><p>{{ secao_info.subtitulo }}</p></div><span class="fiscal-badge">Estrutura preparada</span></div><div class="fiscal-placeholder-list"><div class="fiscal-placeholder-row"><div><strong>Nenhum cadastro criado</strong><span>Esta área já está separada para receber os parâmetros fiscais sem misturar com a emissão.</span></div><button class="fiscal-button-secondary" type="button" disabled>Novo cadastro</button></div></div><div class="fiscal-alert info" style="margin-top:16px;margin-bottom:0">Nesta etapa estamos organizando o módulo. As regras de cadastro e validação fiscal serão implementadas junto da integração com o provedor.</div></section>
