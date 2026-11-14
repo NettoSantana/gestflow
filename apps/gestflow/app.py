@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-11-14 07:22:57 (America/Bahia)
-# Motivo: Padronizar o título da tela de Configurações do módulo Fiscal.
+# Último recode: 2026-11-14 07:42:05 (America/Bahia)
+# Motivo: Validar e completar os dados da configuração fiscal, com UF, município IBGE e CNPJ alfanumérico.
 
 from __future__ import annotations
 
@@ -5229,6 +5229,8 @@ def iniciar_banco() -> None:
                 inscricao_municipal TEXT,
                 crt TEXT,
                 cnae TEXT,
+                uf TEXT,
+                municipio_ibge TEXT,
                 serie_nfe TEXT NOT NULL DEFAULT '1',
                 serie_nfce TEXT NOT NULL DEFAULT '1',
                 serie_nfse TEXT NOT NULL DEFAULT '1',
@@ -5246,6 +5248,14 @@ def iniciar_banco() -> None:
             )
             """
         )
+        colunas_fiscais = {
+            str(linha["name"])
+            for linha in conn.execute("PRAGMA table_info(fiscal_configuracoes)").fetchall()
+        }
+        for coluna in ("uf", "municipio_ibge"):
+            if coluna not in colunas_fiscais:
+                conn.execute(f"ALTER TABLE fiscal_configuracoes ADD COLUMN {coluna} TEXT")
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS fiscal_documentos (
@@ -21035,6 +21045,33 @@ FISCAL_STATUS = {
     "cancelada": "Cancelada",
 }
 
+FISCAL_UFS = {
+    "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS",
+    "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC",
+    "SP", "SE", "TO",
+}
+
+
+def _normalizar_cnpj_fiscal(valor: Any) -> str:
+    return re.sub(r"[.\/\-\s]", "", str(valor or "").upper())
+
+
+def _cnpj_fiscal_valido(valor: Any) -> bool:
+    codigo = _normalizar_cnpj_fiscal(valor)
+    if not re.fullmatch(r"[A-Z0-9]{12}[0-9]{2}", codigo):
+        return False
+    if len(set(codigo)) == 1:
+        return False
+
+    def digito(base: str, pesos: tuple[int, ...]) -> str:
+        soma = sum((ord(caractere) - 48) * peso for caractere, peso in zip(base, pesos))
+        resto = soma % 11
+        return str(0 if resto < 2 else 11 - resto)
+
+    primeiro = digito(codigo[:12], (5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2))
+    segundo = digito(codigo[:12] + primeiro, (6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2))
+    return codigo[-2:] == primeiro + segundo
+
 
 def buscar_configuracao_fiscal() -> dict[str, Any]:
     empresa = buscar_empresa_configuracoes() if "buscar_empresa_configuracoes" in globals() else {}
@@ -21063,6 +21100,8 @@ def buscar_configuracao_fiscal() -> dict[str, Any]:
         "inscricao_municipal": "",
         "crt": "",
         "cnae": "",
+        "uf": "",
+        "municipio_ibge": "",
         "serie_nfe": "1",
         "serie_nfce": "1",
         "serie_nfse": "1",
@@ -21085,11 +21124,11 @@ def salvar_configuracao_fiscal(dados: dict[str, Any]) -> None:
             """
             INSERT INTO fiscal_configuracoes (
                 empresa_id, ambiente, provedor, razao_social, cnpj,
-                inscricao_estadual, inscricao_municipal, crt, cnae,
+                inscricao_estadual, inscricao_municipal, crt, cnae, uf, municipio_ibge,
                 serie_nfe, serie_nfce, serie_nfse,
                 certificado_tipo, certificado_status, certificado_titular,
                 certificado_cnpj, certificado_validade, atualizado_em, criado_em
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(empresa_id) DO UPDATE SET
                 ambiente = excluded.ambiente,
                 provedor = excluded.provedor,
@@ -21099,6 +21138,8 @@ def salvar_configuracao_fiscal(dados: dict[str, Any]) -> None:
                 inscricao_municipal = excluded.inscricao_municipal,
                 crt = excluded.crt,
                 cnae = excluded.cnae,
+                uf = excluded.uf,
+                municipio_ibge = excluded.municipio_ibge,
                 serie_nfe = excluded.serie_nfe,
                 serie_nfce = excluded.serie_nfce,
                 serie_nfse = excluded.serie_nfse,
@@ -21119,6 +21160,8 @@ def salvar_configuracao_fiscal(dados: dict[str, Any]) -> None:
                 str(dados.get("inscricao_municipal") or "").strip(),
                 str(dados.get("crt") or "").strip(),
                 str(dados.get("cnae") or "").strip(),
+                str(dados.get("uf") or "").strip().upper(),
+                str(dados.get("municipio_ibge") or "").strip(),
                 str(dados.get("serie_nfe") or "1").strip() or "1",
                 str(dados.get("serie_nfce") or "1").strip() or "1",
                 str(dados.get("serie_nfse") or "1").strip() or "1",
@@ -28925,12 +28968,37 @@ def salvar_fiscal_configuracoes() -> Response:
         return Response("Acesso negado às configurações fiscais da empresa.", status=403)
 
     atual = buscar_configuracao_fiscal()
+    retorno = str(request.form.get("fiscal_retorno") or "").strip()
+    cnpj = _normalizar_cnpj_fiscal(request.form.get("fiscal_cnpj", atual.get("cnpj")))
+    certificado_cnpj = _normalizar_cnpj_fiscal(request.form.get("fiscal_certificado_cnpj", atual.get("certificado_cnpj")))
+    uf = str(request.form.get("fiscal_uf", atual.get("uf")) or "").strip().upper()
+    municipio_ibge = str(request.form.get("fiscal_municipio_ibge", atual.get("municipio_ibge")) or "").strip()
+    crt = str(request.form.get("fiscal_crt", atual.get("crt")) or "").strip()
+    cnae = re.sub(r"[.\-\s]", "", str(request.form.get("fiscal_cnae", atual.get("cnae")) or ""))
+
+    if retorno == "configuracoes":
+        if cnpj and not _cnpj_fiscal_valido(cnpj):
+            return redirecionar_fiscal(erro="CNPJ inválido. Confira os 14 caracteres e os dígitos verificadores.")
+        if uf and uf not in FISCAL_UFS:
+            return redirecionar_fiscal(erro="UF inválida. Selecione um estado brasileiro.")
+        if municipio_ibge and not re.fullmatch(r"[0-9]{7}", municipio_ibge):
+            return redirecionar_fiscal(erro="Informe o código IBGE do município com 7 dígitos.")
+        if crt and crt not in {"1", "2", "3", "4"}:
+            return redirecionar_fiscal(erro="Regime tributário (CRT) inválido.")
+        if cnae and not re.fullmatch(r"[0-9]{7}", cnae):
+            return redirecionar_fiscal(erro="CNAE deve ter 7 dígitos.")
+        for documento in ("nfe", "nfce"):
+            serie = str(request.form.get(f"fiscal_serie_{documento}", atual.get(f"serie_{documento}")) or "1").strip()
+            if not serie.isascii() or not serie.isdigit() or len(serie) > 3 or int(serie) > 999:
+                return redirecionar_fiscal(erro=f"Série {documento.upper()} deve ter de 1 a 3 dígitos numéricos.")
+    if retorno == "certificado-digital" and certificado_cnpj and not _cnpj_fiscal_valido(certificado_cnpj):
+        return redirecionar_fiscal(erro="CNPJ do certificado inválido. Confira os dígitos verificadores.")
+
     ambiente = str(request.form.get("fiscal_ambiente", atual.get("ambiente")) or "homologacao").strip().lower()
     if ambiente not in {"homologacao", "producao"}:
         ambiente = "homologacao"
 
     certificado_titular = str(request.form.get("fiscal_certificado_titular", atual.get("certificado_titular")) or "").strip()
-    certificado_cnpj = str(request.form.get("fiscal_certificado_cnpj", atual.get("certificado_cnpj")) or "").strip()
     certificado_validade = str(request.form.get("fiscal_certificado_validade", atual.get("certificado_validade")) or "").strip()
     certificado_status = "aguardando_integracao" if any((certificado_titular, certificado_cnpj, certificado_validade)) else "nao_configurado"
 
@@ -28938,11 +29006,13 @@ def salvar_fiscal_configuracoes() -> Response:
         "ambiente": ambiente,
         "provedor": str(request.form.get("fiscal_provedor", atual.get("provedor")) or "nao_configurado").strip() or "nao_configurado",
         "razao_social": request.form.get("fiscal_razao_social", atual.get("razao_social")),
-        "cnpj": request.form.get("fiscal_cnpj", atual.get("cnpj")),
+        "cnpj": cnpj,
         "inscricao_estadual": request.form.get("fiscal_inscricao_estadual", atual.get("inscricao_estadual")),
         "inscricao_municipal": request.form.get("fiscal_inscricao_municipal", atual.get("inscricao_municipal")),
-        "crt": request.form.get("fiscal_crt", atual.get("crt")),
-        "cnae": request.form.get("fiscal_cnae", atual.get("cnae")),
+        "crt": crt,
+        "cnae": cnae,
+        "uf": uf,
+        "municipio_ibge": municipio_ibge,
         "serie_nfe": request.form.get("fiscal_serie_nfe", atual.get("serie_nfe")),
         "serie_nfce": request.form.get("fiscal_serie_nfce", atual.get("serie_nfce")),
         "serie_nfse": request.form.get("fiscal_serie_nfse", atual.get("serie_nfse")),

@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\fiscal.html
-Último recode: 2026-11-14 07:22:57 (America/Bahia)
-Motivo: Priorizar os atalhos fiscais e agrupar os ajustes essenciais em Configurações.
+Último recode: 2026-11-14 07:42:05 (America/Bahia)
+Motivo: Orientar o cadastro fiscal e disponibilizar UF, município IBGE e validações essenciais.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -103,13 +103,94 @@ Motivo: Priorizar os atalhos fiscais e agrupar os ajustes essenciais em Configur
             <div class="fiscal-grid"><section class="fiscal-panel"><div class="fiscal-panel-header"><div><h3>Provedor fiscal</h3><p>Defina o ambiente e identifique o provedor que fará a comunicação com SEFAZ e prefeituras.</p></div></div>{% if usuario_eh_admin_empresa %}<form action="/fiscal/configuracoes" method="post"><input type="hidden" name="fiscal_retorno" value="integracoes"><div class="fiscal-form-grid"><div class="fiscal-field full"><label for="fiscal_provedor">Provedor</label><input id="fiscal_provedor" name="fiscal_provedor" type="text" value="{{ configuracao.provedor or 'nao_configurado' }}" placeholder="Ainda não definido"></div><div class="fiscal-field"><label for="fiscal_ambiente">Ambiente</label><select id="fiscal_ambiente" name="fiscal_ambiente"><option value="homologacao" {% if configuracao.ambiente != 'producao' %}selected{% endif %}>Homologação</option><option value="producao" {% if configuracao.ambiente == 'producao' %}selected{% endif %}>Produção</option></select></div></div><div class="fiscal-actions" style="margin-top:16px;justify-content:flex-end"><button class="fiscal-button" type="submit">Salvar integração</button></div></form>{% endif %}</section><aside><section class="fiscal-panel"><h3>Estado da integração</h3><div class="fiscal-config-summary"><div class="fiscal-config-item"><span>Provedor</span><strong>{{ configuracao.provedor or 'Não configurado' }}</strong></div><div class="fiscal-config-item"><span>Ambiente</span><strong>{{ 'Produção' if configuracao.ambiente == 'producao' else 'Homologação' }}</strong></div></div></section></aside></div>
 
         {% elif secao_fiscal == 'configuracoes' %}
-            <section class="fiscal-panel"><div class="fiscal-panel-header"><div><h3>Dados fiscais da empresa</h3><p>Confirme estas informações com a contabilidade antes de usar o ambiente de produção.</p></div></div>{% if usuario_eh_admin_empresa %}<form action="/fiscal/configuracoes" method="post"><input type="hidden" name="fiscal_retorno" value="configuracoes"><div class="fiscal-form-grid"><div class="fiscal-field full"><label for="fiscal_razao_social">Razão social</label><input id="fiscal_razao_social" name="fiscal_razao_social" type="text" value="{{ configuracao.razao_social or '' }}"></div><div class="fiscal-field"><label for="fiscal_cnpj">CNPJ</label><input id="fiscal_cnpj" name="fiscal_cnpj" type="text" value="{{ configuracao.cnpj or '' }}"></div><div class="fiscal-field"><label for="fiscal_cnae">CNAE</label><input id="fiscal_cnae" name="fiscal_cnae" type="text" value="{{ configuracao.cnae or '' }}"></div><div class="fiscal-field"><label for="fiscal_inscricao_estadual">Inscrição estadual</label><input id="fiscal_inscricao_estadual" name="fiscal_inscricao_estadual" type="text" value="{{ configuracao.inscricao_estadual or '' }}"></div><div class="fiscal-field"><label for="fiscal_inscricao_municipal">Inscrição municipal</label><input id="fiscal_inscricao_municipal" name="fiscal_inscricao_municipal" type="text" value="{{ configuracao.inscricao_municipal or '' }}"></div><div class="fiscal-field"><label for="fiscal_crt">CRT</label><input id="fiscal_crt" name="fiscal_crt" type="text" value="{{ configuracao.crt or '' }}"></div><div class="fiscal-field"><label for="fiscal_serie_nfe">Série NF-e</label><input id="fiscal_serie_nfe" name="fiscal_serie_nfe" type="text" value="{{ configuracao.serie_nfe or '1' }}"></div><div class="fiscal-field"><label for="fiscal_serie_nfce">Série NFC-e</label><input id="fiscal_serie_nfce" name="fiscal_serie_nfce" type="text" value="{{ configuracao.serie_nfce or '1' }}"></div><div class="fiscal-field"><label for="fiscal_serie_nfse">Série NFS-e</label><input id="fiscal_serie_nfse" name="fiscal_serie_nfse" type="text" value="{{ configuracao.serie_nfse or '1' }}"></div></div><div class="fiscal-actions" style="margin-top:16px;justify-content:flex-end"><button class="fiscal-button" type="submit">Salvar configurações</button></div></form>{% else %}<div class="fiscal-alert info">Somente administradores podem alterar a configuração fiscal.</div>{% endif %}</section>
+            <section class="fiscal-panel">
+                <div class="fiscal-panel-header">
+                    <div>
+                        <h3>Dados fiscais da empresa</h3>
+                        <p>Preencha com os dados do CNPJ e confirme o enquadramento com seu contador. Campos sem informação podem permanecer vazios nesta preparação.</p>
+                    </div>
+                    <span class="fiscal-badge warning">Emissão não habilitada</span>
+                </div>
+                {% if usuario_eh_admin_empresa %}
+                <form action="/fiscal/configuracoes" method="post">
+                    <input type="hidden" name="fiscal_retorno" value="configuracoes">
+                    <div class="fiscal-form-grid">
+                        <div class="fiscal-field full">
+                            <label for="fiscal_razao_social">Razão social</label>
+                            <input id="fiscal_razao_social" name="fiscal_razao_social" type="text" maxlength="180" value="{{ configuracao.razao_social or '' }}" autocomplete="organization">
+                        </div>
+                        <div class="fiscal-field">
+                            <label for="fiscal_cnpj">CNPJ (numérico ou alfanumérico)</label>
+                            <input id="fiscal_cnpj" name="fiscal_cnpj" type="text" maxlength="18" value="{{ configuracao.cnpj or '' }}" placeholder="14 caracteres">
+                            <small>O GestFlow verifica o formato e os dígitos antes de salvar.</small>
+                        </div>
+                        <div class="fiscal-field">
+                            <label for="fiscal_crt">Regime tributário (CRT)</label>
+                            <select id="fiscal_crt" name="fiscal_crt">
+                                <option value="" {% if not configuracao.crt %}selected{% endif %}>Selecione com orientação contábil</option>
+                                <option value="1" {% if configuracao.crt == '1' %}selected{% endif %}>1 — Simples Nacional</option>
+                                <option value="2" {% if configuracao.crt == '2' %}selected{% endif %}>2 — Simples Nacional (excesso de sublimite)</option>
+                                <option value="3" {% if configuracao.crt == '3' %}selected{% endif %}>3 — Regime Normal</option>
+                                <option value="4" {% if configuracao.crt == '4' %}selected{% endif %}>4 — MEI</option>
+                            </select>
+                        </div>
+                        <div class="fiscal-field">
+                            <label for="fiscal_cnae">CNAE principal</label>
+                            <input id="fiscal_cnae" name="fiscal_cnae" type="text" maxlength="10" value="{{ configuracao.cnae or '' }}" placeholder="7 dígitos" inputmode="numeric">
+                        </div>
+                        <div class="fiscal-field">
+                            <label for="fiscal_inscricao_estadual">Inscrição estadual</label>
+                            <input id="fiscal_inscricao_estadual" name="fiscal_inscricao_estadual" type="text" maxlength="30" value="{{ configuracao.inscricao_estadual or '' }}">
+                        </div>
+                        <div class="fiscal-field">
+                            <label for="fiscal_inscricao_municipal">Inscrição municipal</label>
+                            <input id="fiscal_inscricao_municipal" name="fiscal_inscricao_municipal" type="text" maxlength="30" value="{{ configuracao.inscricao_municipal or '' }}">
+                        </div>
+                        <div class="fiscal-field">
+                            <label for="fiscal_uf">UF da empresa</label>
+                            <select id="fiscal_uf" name="fiscal_uf">
+                                <option value="">Selecione</option>
+                                {% for uf in ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'] %}
+                                <option value="{{ uf }}" {% if configuracao.uf == uf %}selected{% endif %}>{{ uf }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="fiscal-field">
+                            <label for="fiscal_municipio_ibge">Código IBGE do município</label>
+                            <input id="fiscal_municipio_ibge" name="fiscal_municipio_ibge" type="text" maxlength="7" inputmode="numeric" value="{{ configuracao.municipio_ibge or '' }}" placeholder="7 dígitos">
+                            <small>O município é necessário para a integração com a NFS-e nacional. Confirme o código com sua contabilidade.</small>
+                        </div>
+                        <div class="fiscal-field">
+                            <label for="fiscal_serie_nfe">Série NF-e</label>
+                            <input id="fiscal_serie_nfe" name="fiscal_serie_nfe" type="text" inputmode="numeric" maxlength="3" value="{{ configuracao.serie_nfe or '1' }}">
+                        </div>
+                        <div class="fiscal-field">
+                            <label for="fiscal_serie_nfce">Série NFC-e</label>
+                            <input id="fiscal_serie_nfce" name="fiscal_serie_nfce" type="text" inputmode="numeric" maxlength="3" value="{{ configuracao.serie_nfce or '1' }}">
+                        </div>
+                        <div class="fiscal-field">
+                            <label for="fiscal_serie_nfse">Série NFS-e</label>
+                            <input id="fiscal_serie_nfse" name="fiscal_serie_nfse" type="text" maxlength="10" value="{{ configuracao.serie_nfse or '1' }}">
+                            <small>A numeração para emissão oficial será validada na integração.</small>
+                        </div>
+                    </div>
+                    <div class="fiscal-actions" style="margin-top:16px;justify-content:flex-end">
+                        <button class="fiscal-button" type="submit">Salvar configurações</button>
+                    </div>
+                </form>
+                {% else %}
+                <div class="fiscal-alert info">Somente administradores podem alterar as configurações fiscais.</div>
+                {% endif %}
+            </section>
             <section class="fiscal-panel" aria-label="Configurações de emissão">
-                <div class="fiscal-panel-header"><div><h3>Emissão e certificado</h3><p>Acessos essenciais para preparar a emissão de documentos fiscais.</p></div></div>
+                <div class="fiscal-panel-header">
+                    <div><h3>Certificado e integração</h3><p>As próximas etapas permitirão transmitir notas ao governo.</p></div>
+                </div>
                 <div class="fiscal-actions">
-                    <a class="fiscal-button-secondary" href="/fiscal/certificado-digital">Certificado digital</a>
-                    <a class="fiscal-button-secondary" href="/fiscal/integracoes">Integração fiscal</a>
-                </div><div class="fiscal-alert info" style="margin-top:16px;margin-bottom:0">A emissão real ainda não está liberada. Nesta etapa, os dados do certificado são apenas informativos; o GestFlow não recebe nem armazena o arquivo A1.</div>
+                    <a class="fiscal-button-secondary" href="/fiscal/certificado-digital">Dados do certificado A1</a>
+                    <a class="fiscal-button-secondary" href="/fiscal/integracoes">Ambiente fiscal</a>
+                </div>
+                <div class="fiscal-alert info" style="margin-top:16px;margin-bottom:0">O GestFlow salva apenas os dados informativos do certificado, sem receber arquivos .pfx/.p12 ou senhas. Nenhuma nota é transmitida nesta etapa.</div>
             </section>
 
         {% else %}
