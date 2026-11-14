@@ -1,10 +1,11 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-11-14 07:42:05 (America/Bahia)
-# Motivo: Validar e completar os dados da configuração fiscal, com UF, município IBGE e CNPJ alfanumérico.
+# Último recode: 2026-11-14 08:12:44 (America/Bahia)
+# Motivo: Consultar diagnóstico local do A1 piloto no módulo Fiscal, sem transmitir notas.
 
 from __future__ import annotations
 
 from budget_scope import normalizar_escopo, formatar_escopo, escopo_texto_simples
+from nfse_homologacao import diagnosticar_certificado_nfse
 
 import csv
 import hashlib
@@ -28938,13 +28939,20 @@ def fiscal(secao: str = "") -> str | Response:
     tipo = secao_info["tipo"] or str(request.args.get("tipo") or "").strip().lower()
     if tipo not in FISCAL_TIPOS_DOCUMENTO:
         tipo = ""
+    configuracao_fiscal = buscar_configuracao_fiscal()
+    diagnostico_nfse = None
+    if secao == "certificado-digital" and usuario_logado_eh_administrador_empresa():
+        diagnostico_nfse = diagnosticar_certificado_nfse(
+            empresa_logada_id(), str(configuracao_fiscal.get("cnpj") or "")
+        )
     return render_template(
         "fiscal.html",
         secao_fiscal=secao,
         secao_info=secao_info,
         painel=montar_painel_fiscal(),
         documentos=listar_documentos_fiscais(tipo=tipo),
-        configuracao=buscar_configuracao_fiscal(),
+        configuracao=configuracao_fiscal,
+        diagnostico_nfse=diagnostico_nfse,
         origens=listar_origens_fiscais(),
         tipo_filtro=tipo,
         tipos_documento=FISCAL_TIPOS_DOCUMENTO,

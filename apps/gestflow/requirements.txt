@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\requirements.txt
-# Último recode: 2026-11-14 06:47:08 (America/Bahia)
-# Motivo: Unir DEV e MAIN preservando as funções existentes dos dois sistemas.
+# Último recode: 2026-11-14 08:12:44 (America/Bahia)
+# Motivo: Adicionar bibliotecas criptográficas necessárias para diagnosticar A1 e assinar DPS localmente.
 
 Flask==3.0.2
 twilio==9.0.4
@@ -10,3 +10,5 @@ weasyprint==61.2
 pydyf==0.10.0
 mercadopago==3.4.0
 qrcode==8.2
+cryptography==46.0.4
+lxml==6.1.1

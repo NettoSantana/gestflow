@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\fiscal.html
-Último recode: 2026-11-14 07:42:05 (America/Bahia)
-Motivo: Orientar o cadastro fiscal e disponibilizar UF, município IBGE e validações essenciais.
+Último recode: 2026-11-14 08:12:44 (America/Bahia)
+Motivo: Informar o diagnóstico protegido do certificado A1 piloto na tela Fiscal.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -97,7 +97,29 @@ Motivo: Orientar o cadastro fiscal e disponibilizar UF, município IBGE e valida
             <section class="fiscal-panel"><div class="fiscal-panel-header"><div><h3>Importar XML de NF-e</h3><p>Prepare a entrada de uma nota fiscal recebida de fornecedor.</p></div></div><div class="fiscal-dropzone"><strong>Selecione o arquivo XML</strong><p>A leitura automática do XML e a geração de estoque/financeiro serão implementadas na etapa de integração fiscal.</p><div class="fiscal-field" style="max-width:520px;margin:0 auto"><input type="file" accept=".xml" disabled></div><div class="fiscal-actions" style="justify-content:center;margin-top:14px"><button class="fiscal-button" type="button" disabled>Analisar XML</button></div></div></section>
 
         {% elif secao_fiscal == 'certificado-digital' %}
-            <div class="fiscal-grid"><section class="fiscal-panel"><div class="fiscal-panel-header"><div><h3>Certificado A1</h3><p>Dados de identificação do certificado que será usado pelo provedor fiscal.</p></div><span class="fiscal-badge warning">{{ configuracao.certificado_status|replace('_',' ')|title }}</span></div>{% if usuario_eh_admin_empresa %}<form action="/fiscal/configuracoes" method="post"><input type="hidden" name="fiscal_retorno" value="certificado-digital"><div class="fiscal-form-grid"><div class="fiscal-field full"><label for="fiscal_certificado_titular">Titular</label><input id="fiscal_certificado_titular" name="fiscal_certificado_titular" type="text" value="{{ configuracao.certificado_titular or '' }}"></div><div class="fiscal-field"><label for="fiscal_certificado_cnpj">CNPJ</label><input id="fiscal_certificado_cnpj" name="fiscal_certificado_cnpj" type="text" value="{{ configuracao.certificado_cnpj or '' }}"></div><div class="fiscal-field"><label for="fiscal_certificado_validade">Validade</label><input id="fiscal_certificado_validade" name="fiscal_certificado_validade" type="date" value="{{ configuracao.certificado_validade or '' }}"></div></div><div class="fiscal-actions" style="margin-top:16px;justify-content:flex-end"><button class="fiscal-button" type="submit">Salvar dados</button></div></form>{% else %}<div class="fiscal-alert info">Somente administradores podem alterar os dados do certificado.</div>{% endif %}</section><aside><section class="fiscal-panel"><h3>Upload do arquivo</h3><p>O arquivo .pfx/.p12 e a senha ainda não são armazenados pelo GestFlow nesta etapa. Eles serão tratados de forma criptografada quando definirmos o provedor fiscal.</p></section></aside></div>
+            <div class="fiscal-grid"><section class="fiscal-panel"><div class="fiscal-panel-header"><div><h3>Certificado A1</h3><p>Dados de identificação do certificado que será usado pelo provedor fiscal.</p></div><span class="fiscal-badge warning">{{ configuracao.certificado_status|replace('_',' ')|title }}</span></div>{% if usuario_eh_admin_empresa %}<form action="/fiscal/configuracoes" method="post"><input type="hidden" name="fiscal_retorno" value="certificado-digital"><div class="fiscal-form-grid"><div class="fiscal-field full"><label for="fiscal_certificado_titular">Titular</label><input id="fiscal_certificado_titular" name="fiscal_certificado_titular" type="text" value="{{ configuracao.certificado_titular or '' }}"></div><div class="fiscal-field"><label for="fiscal_certificado_cnpj">CNPJ</label><input id="fiscal_certificado_cnpj" name="fiscal_certificado_cnpj" type="text" value="{{ configuracao.certificado_cnpj or '' }}"></div><div class="fiscal-field"><label for="fiscal_certificado_validade">Validade</label><input id="fiscal_certificado_validade" name="fiscal_certificado_validade" type="date" value="{{ configuracao.certificado_validade or '' }}"></div></div><div class="fiscal-actions" style="margin-top:16px;justify-content:flex-end"><button class="fiscal-button" type="submit">Salvar dados</button></div></form>{% else %}<div class="fiscal-alert info">Somente administradores podem alterar os dados do certificado.</div>{% endif %}</section><aside>
+                <section class="fiscal-panel">
+                    <h3>Certificado A1 protegido</h3>
+                    <p>O A1 deste piloto será configurado apenas nas variáveis privadas do Railway. Não envie o arquivo .pfx/.p12 nem a senha por esta página ou pelo chat.</p>
+                    {% if usuario_eh_admin_empresa and diagnostico_nfse %}
+                        <div class="fiscal-alert {{ 'success' if diagnostico_nfse.ok else 'info' }}" style="margin-top:14px">
+                            {{ diagnostico_nfse.mensagem }}
+                        </div>
+                        {% if diagnostico_nfse.ok %}
+                            <div class="fiscal-config-summary">
+                                <div class="fiscal-config-item"><span>CNPJ titular</span><strong>{{ diagnostico_nfse.cnpj }}</strong></div>
+                                <div class="fiscal-config-item"><span>Validade A1</span><strong>{{ diagnostico_nfse.validade }}</strong></div>
+                                <div class="fiscal-config-item"><span>Identificação SHA-256</span><strong>{{ diagnostico_nfse.fingerprint }}</strong></div>
+                                <div class="fiscal-config-item"><span>Emissão fiscal</span><strong>Bloqueada</strong></div>
+                            </div>
+                            <p><strong>Titular:</strong> {{ diagnostico_nfse.titular }}</p>
+                        {% endif %}
+                    {% else %}
+                        <div class="fiscal-alert info" style="margin-top:14px">Diagnóstico reservado ao administrador.</div>
+                    {% endif %}
+                    <p>A verificação é apenas local: não valida a cadeia ICP-Brasil, a revogação, o XSD da DPS ou a autorização na SEFIN Nacional.</p>
+                </section>
+            </aside></div>
 
         {% elif secao_fiscal == 'integracoes' %}
             <div class="fiscal-grid"><section class="fiscal-panel"><div class="fiscal-panel-header"><div><h3>Provedor fiscal</h3><p>Defina o ambiente e identifique o provedor que fará a comunicação com SEFAZ e prefeituras.</p></div></div>{% if usuario_eh_admin_empresa %}<form action="/fiscal/configuracoes" method="post"><input type="hidden" name="fiscal_retorno" value="integracoes"><div class="fiscal-form-grid"><div class="fiscal-field full"><label for="fiscal_provedor">Provedor</label><input id="fiscal_provedor" name="fiscal_provedor" type="text" value="{{ configuracao.provedor or 'nao_configurado' }}" placeholder="Ainda não definido"></div><div class="fiscal-field"><label for="fiscal_ambiente">Ambiente</label><select id="fiscal_ambiente" name="fiscal_ambiente"><option value="homologacao" {% if configuracao.ambiente != 'producao' %}selected{% endif %}>Homologação</option><option value="producao" {% if configuracao.ambiente == 'producao' %}selected{% endif %}>Produção</option></select></div></div><div class="fiscal-actions" style="margin-top:16px;justify-content:flex-end"><button class="fiscal-button" type="submit">Salvar integração</button></div></form>{% endif %}</section><aside><section class="fiscal-panel"><h3>Estado da integração</h3><div class="fiscal-config-summary"><div class="fiscal-config-item"><span>Provedor</span><strong>{{ configuracao.provedor or 'Não configurado' }}</strong></div><div class="fiscal-config-item"><span>Ambiente</span><strong>{{ 'Produção' if configuracao.ambiente == 'producao' else 'Homologação' }}</strong></div></div></section></aside></div>
