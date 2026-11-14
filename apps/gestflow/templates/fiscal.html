@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\fiscal.html
-Último recode: 2026-11-14 08:12:44 (America/Bahia)
-Motivo: Informar o diagnóstico protegido do certificado A1 piloto na tela Fiscal.
+Último recode: 2026-11-14 09:02:52 (America/Bahia)
+Motivo: Exibir laboratório separado de NFS-e e simular retorno sem emitir documento fiscal.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -69,6 +69,22 @@ Motivo: Informar o diagnóstico protegido do certificado A1 piloto na tela Fisca
                 </aside>
             </div>
 
+        {% elif secao_info.grupo == 'laboratorio' %}
+            <section class="fiscal-panel">
+                <div class="fiscal-panel-header"><div><h3>Laboratório de NFS-e — sem emissão</h3><p>Dados integralmente fictícios. Não cria notas, não usa certificado e não altera o financeiro.</p></div><span class="fiscal-badge warning">SIMULAÇÃO</span></div>
+                <div class="fiscal-alert info">{{ laboratorio_nfse.aviso }}</div>
+                <div class="fiscal-actions">
+                    <a class="fiscal-button-secondary" href="/fiscal/nfse-laboratorio?cenario=aceita">Simular aceite</a>
+                    <a class="fiscal-button-secondary" href="/fiscal/nfse-laboratorio?cenario=rejeitada">Simular rejeição</a>
+                    <a class="fiscal-button-secondary" href="/fiscal/nfse-laboratorio?cenario=cancelada">Simular cancelamento</a>
+                    <a class="fiscal-button" href="/fiscal/nfse-laboratorio/xml">Baixar XML de demonstração</a>
+                </div>
+                <div class="fiscal-config-summary"><div class="fiscal-config-item"><span>Retorno simulado</span><strong>{{ laboratorio_nfse.simulacao.codigo }}</strong></div><div class="fiscal-config-item"><span>Validação XSD oficial</span><strong>{{ 'Aprovada localmente' if laboratorio_nfse.xsd.executada and laboratorio_nfse.xsd.aprovada else 'Pendente / não aprovada' }}</strong></div></div>
+                <p>{{ laboratorio_nfse.simulacao.mensagem }}</p><p>{{ laboratorio_nfse.xsd.mensagem }}</p>
+                <hr class="fiscal-separator"><h3>XML demonstrativo (sem assinatura)</h3><p>Leiaute em preparação: {{ laboratorio_nfse.leiaute }}.</p>
+                <pre style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:460px;overflow:auto;padding:14px;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc;font-size:11px">{{ laboratorio_nfse.xml }}</pre>
+            </section>
+
         {% elif secao_info.grupo == 'documentos' %}
             <div class="fiscal-grid">
                 <div>
@@ -87,7 +103,7 @@ Motivo: Informar o diagnóstico protegido do certificado A1 piloto na tela Fisca
                         {% if documentos %}<div class="fiscal-table-wrap"><table class="fiscal-table"><thead><tr><th>Origem</th><th>Cliente</th><th>Série</th><th>Número</th><th>Valor</th><th>Status</th><th>Mensagem</th><th>Ações</th></tr></thead><tbody>{% for documento in documentos %}<tr><td>{{ documento.origem_tipo|replace('_',' ')|title }} {{ documento.origem_numero or '' }}</td><td>{{ documento.cliente_nome or '-' }}</td><td>{{ documento.serie or '-' }}</td><td>{{ documento.numero or '-' }}</td><td>R$ {{ documento.valor_total or '0,00' }}</td><td><span class="fiscal-status {{ documento.status }}">{{ documento.status_nome }}</span></td><td>{{ documento.mensagem_status or '-' }}</td><td>{% if documento.status in ['rascunho','rejeitada'] %}<form action="/fiscal/documentos/{{ documento.id }}/cancelar" method="post"><input type="hidden" name="fiscal_retorno" value="{{ secao_fiscal }}"><button class="fiscal-button-danger" type="submit">Cancelar</button></form>{% else %}-{% endif %}</td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="fiscal-empty"><strong>Nenhum documento nesta área</strong>Crie o primeiro rascunho usando uma operação finalizada.</div>{% endif %}
                     </section>
                 </div>
-                <aside><section class="fiscal-panel"><h3>Antes de transmitir</h3><p>A transmissão continuará bloqueada até a integração com o provedor fiscal e a validação do certificado digital.</p><div class="fiscal-config-summary"><div class="fiscal-config-item"><span>Ambiente</span><strong>{{ 'Produção' if configuracao.ambiente == 'producao' else 'Homologação' }}</strong></div><div class="fiscal-config-item"><span>Certificado</span><strong>{{ configuracao.certificado_status|replace('_',' ')|title }}</strong></div></div></section></aside>
+                <aside><section class="fiscal-panel"><h3>Antes de transmitir</h3><p>A transmissão continuará bloqueada até a integração com o provedor fiscal e a validação do certificado digital.</p>{% if tipo_filtro == 'nfse' and usuario_eh_admin_empresa %}<div class="fiscal-actions" style="margin-top:14px"><a class="fiscal-button-secondary" href="/fiscal/nfse-laboratorio">Abrir laboratório NFS-e (sem emissão)</a></div>{% endif %}<div class="fiscal-config-summary"><div class="fiscal-config-item"><span>Ambiente</span><strong>{{ 'Produção' if configuracao.ambiente == 'producao' else 'Homologação' }}</strong></div><div class="fiscal-config-item"><span>Certificado</span><strong>{{ configuracao.certificado_status|replace('_',' ')|title }}</strong></div></div></section></aside>
             </div>
 
         {% elif secao_info.grupo == 'compras' %}

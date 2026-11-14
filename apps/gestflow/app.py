@@ -1,11 +1,12 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-11-14 08:12:44 (America/Bahia)
-# Motivo: Consultar diagnóstico local do A1 piloto no módulo Fiscal, sem transmitir notas.
+# Último recode: 2026-11-14 09:02:52 (America/Bahia)
+# Motivo: Disponibilizar laboratório NFS-e sem emissão e sem alterar o banco de dados fiscal.
 
 from __future__ import annotations
 
 from budget_scope import normalizar_escopo, formatar_escopo, escopo_texto_simples
 from nfse_homologacao import diagnosticar_certificado_nfse
+from nfse_laboratorio import executar_laboratorio
 
 import csv
 import hashlib
@@ -28928,6 +28929,7 @@ FISCAL_SECOES = {
     'modelos-email': {"titulo": 'Modelos de e-mail', "subtitulo": 'Modelos de comunicação dos documentos fiscais.', "grupo": 'auxiliar', "tipo": ''},
     'integracoes': {"titulo": 'Integrações fiscais', "subtitulo": 'Identificação do provedor e do ambiente fiscal.', "grupo": 'auxiliar', "tipo": ''},
     'configuracoes': {"titulo": 'Configurações', "subtitulo": 'Dados fiscais da empresa.', "grupo": 'auxiliar', "tipo": ''},
+    'nfse-laboratorio': {"titulo": 'Laboratório NFS-e', "subtitulo": 'DPS demonstrativa e retornos simulados, sem emissão fiscal.', "grupo": 'laboratorio', "tipo": ''},
 }
 
 @app.get("/fiscal")
@@ -28941,6 +28943,11 @@ def fiscal(secao: str = "") -> str | Response:
         tipo = ""
     configuracao_fiscal = buscar_configuracao_fiscal()
     diagnostico_nfse = None
+    laboratorio_nfse = None
+    if secao == "nfse-laboratorio":
+        if not usuario_logado_eh_administrador_empresa():
+            return Response("Acesso restrito ao administrador da empresa.", status=403)
+        laboratorio_nfse = executar_laboratorio(str(request.args.get("cenario") or "aceita"))
     if secao == "certificado-digital" and usuario_logado_eh_administrador_empresa():
         diagnostico_nfse = diagnosticar_certificado_nfse(
             empresa_logada_id(), str(configuracao_fiscal.get("cnpj") or "")
@@ -28953,11 +28960,24 @@ def fiscal(secao: str = "") -> str | Response:
         documentos=listar_documentos_fiscais(tipo=tipo),
         configuracao=configuracao_fiscal,
         diagnostico_nfse=diagnostico_nfse,
+        laboratorio_nfse=laboratorio_nfse,
         origens=listar_origens_fiscais(),
         tipo_filtro=tipo,
         tipos_documento=FISCAL_TIPOS_DOCUMENTO,
         status_documento=FISCAL_STATUS,
     )
+
+
+@app.get("/fiscal/nfse-laboratorio/xml")
+def baixar_xml_dps_laboratorio() -> Response:
+    if not usuario_logado_eh_administrador_empresa():
+        return Response("Acesso restrito ao administrador da empresa.", status=403)
+    laboratorio = executar_laboratorio("aceita")
+    resposta = Response(laboratorio["xml"], mimetype="application/xml; charset=utf-8")
+    resposta.headers["Content-Disposition"] = 'attachment; filename="GESTFLOW_DPS_LABORATORIO_SEM_VALIDADE.xml"'
+    resposta.headers["Cache-Control"] = "no-store"
+    resposta.headers["X-Gestflow-Simulacao"] = "true"
+    return resposta
 
 
 def redirecionar_fiscal(*, sucesso: str = "", erro: str = "") -> Response:
