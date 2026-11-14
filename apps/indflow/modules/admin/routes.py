@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\admin\routes.py
-# Último recode: 2026-10-15 15:14 (America/Bahia)
-# Motivo: Receber permissões do GestFlow no SSO e impedir promoção automática do primeiro usuário restrito.
+# Último recode: 2026-11-14 06:47:08 (America/Bahia)
+# Motivo: Unir DEV e MAIN preservando as funções existentes dos dois sistemas.
 
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for
 from datetime import datetime

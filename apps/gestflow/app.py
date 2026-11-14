@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-11-14 06:28:56 (America/Bahia)
-# Motivo: Consolidar Fiscal e limite de usuários na MAIN, preservando as correções de Produtos, Fornecedores e Orçamentos.
+# Último recode: 2026-11-14 06:47:08 (America/Bahia)
+# Motivo: Unir DEV e MAIN e permitir concluir a configuração inicial sem depender de JavaScript.
 
 from __future__ import annotations
 
@@ -4198,6 +4198,14 @@ def injetar_usuario_logado() -> dict[str, Any]:
 
 @app.before_request
 def exigir_login_rotas_internas() -> Response | None:
+    if (
+        request.path == "/.well-known/strix-verify.txt"
+        and request.host.split(":", 1)[0].lower() == "gestflow-dev.up.railway.app"
+        and request.method in {"GET", "HEAD"}
+    ):
+        return Response("strix-verify-801fdddde593b5112ddffe42846ff130", mimetype="text/plain")
+
+
     rotas_publicas = {
         "portal",
         "politica_privacidade",
@@ -28994,21 +29002,71 @@ def onboarding() -> str | Response:
         return redirect(url_for("login"))
 
     empresa = buscar_onboarding_empresa()
+    nomes_tipo = {
+        "produtos": "Venda de produtos", "servicos": "Prestação de serviços",
+        "ambos": "Produtos e serviços", "industrial": "Produção / Indústria",
+    }
+    nomes_fluxo = {
+        "orcamento": "orçamentos antes de fechar", "agendamento": "atendimentos agendados",
+        "servico_direto": "serviços recebidos diretamente", "recorrente": "clientes recorrentes",
+        "venda_direta": "vendas diretas", "online": "vendas pela internet",
+        "producao": "produção das máquinas", "paradas": "paradas das máquinas",
+        "producao_paradas": "produção e paradas das máquinas",
+    }
+    nomes_controle = {
+        "produtos_materiais": "produtos e materiais", "compras_fornecedores": "compras e fornecedores",
+        "funcionarios": "funcionários", "horarios_agendamentos": "horários e agendamentos",
+        "servicos_andamento": "serviços em andamento", "vendas_online": "vendas pela internet",
+    }
+    fluxos_permitidos = {
+        "produtos": {"venda_direta", "orcamento", "online"},
+        "servicos": {"orcamento", "agendamento", "servico_direto", "recorrente"},
+        "ambos": {"orcamento", "venda_direta", "agendamento", "servico_direto", "online"},
+        "industrial": {"producao", "paradas", "producao_paradas"},
+    }
+    tipo = (request.form.get("tipo_empresa") or "").strip()
+    fluxos = list(dict.fromkeys(
+        item for item in request.form.getlist("fluxo") if item in fluxos_permitidos.get(tipo, set())
+    ))
+    controles = list(dict.fromkeys(item for item in request.form.getlist("controle") if item in nomes_controle))
+    passo = 0
+    erro = ""
 
     if request.method == "POST":
-        dados = montar_onboarding_formulario()
-        salvar_onboarding_empresa_db(dados)
-        return redirect(url_for("dashboard", tour="1"))
+        acao = request.form.get("onboarding_acao") or "concluir"
+        destinos = {
+            "comecar": 1, "avancar_tipo": 2, "voltar_tipo": 1,
+            "avancar_fluxo": 3, "voltar_fluxo": 2, "resumo": 4, "revisar": 1, "concluir": 4,
+        }
+        passo = destinos.get(acao, 1)
+        if acao not in destinos:
+            erro = "Escolha uma ação válida para continuar."
+        elif acao in {"avancar_tipo", "avancar_fluxo", "voltar_fluxo", "resumo", "concluir"} and tipo not in nomes_tipo:
+            passo = 1
+            erro = "Escolha o que sua empresa faz para continuar."
+        elif acao in {"avancar_fluxo", "resumo", "concluir"} and (
+            not fluxos or (tipo == "industrial" and len(fluxos) != 1)
+            or set(request.form.getlist("fluxo")) != set(fluxos)
+            or set(request.form.getlist("controle")) != set(controles)
+        ):
+            passo = 2
+            erro = "Escolha sua rotina de trabalho para continuar."
+        elif acao == "concluir":
+            dados = montar_onboarding_formulario()
+            dados["fluxo"] = fluxos
+            dados["controles"] = controles
+            salvar_onboarding_empresa_db(dados)
+            return redirect(url_for("dashboard", tour="1"))
 
     return render_template(
-        "onboarding.html",
-        empresa=empresa,
-        segmentos=GESTFLOW_SEGMENTOS,
-        niveis_onboarding=GESTFLOW_NIVEIS_ONBOARDING,
-        modulos_sistema=GESTFLOW_MODULOS,
-        modulos_nucleo=GESTFLOW_MODULOS_NUCLEO,
-        modulos_operacionais=GESTFLOW_MODULOS_OPERACIONAIS,
-        modulos_especializados=GESTFLOW_MODULOS_ESPECIALIZADOS,
+        "onboarding.html", empresa=empresa, segmentos=GESTFLOW_SEGMENTOS,
+        niveis_onboarding=GESTFLOW_NIVEIS_ONBOARDING, modulos_sistema=GESTFLOW_MODULOS,
+        modulos_nucleo=GESTFLOW_MODULOS_NUCLEO, modulos_operacionais=GESTFLOW_MODULOS_OPERACIONAIS,
+        modulos_especializados=GESTFLOW_MODULOS_ESPECIALIZADOS, passo=passo, erro=erro,
+        formulario_onboarding={"tipo_empresa": tipo, "fluxo": fluxos, "controle": controles},
+        resumo_tipo=nomes_tipo.get(tipo, "Seu negócio"),
+        resumo_fluxo=", ".join(nomes_fluxo[item] for item in fluxos) or "rotina básica",
+        resumo_controles=", ".join(nomes_controle[item] for item in controles) or "Só o essencial por enquanto",
     )
 
 

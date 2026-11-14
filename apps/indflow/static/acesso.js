@@ -1,6 +1,6 @@
 // Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\acesso.js
-// Último recode: 2026-10-26 11:31 (America/Bahia)
-// Motivo: Vincular crachás coletados pelo mestre, sem liberação automática.
+// Último recode: 2026-11-14 06:47:08 (America/Bahia)
+// Motivo: Unir DEV e MAIN preservando as funções existentes dos dois sistemas.
 (() => {
   'use strict';
   const root = document.getElementById('accessModule'); if (!root) return;

@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\devices\routes.py
-# Último recode: 2026-10-06 10:08 (America/Bahia)
-# Motivo: Remover e restaurar máquinas do painel com confirmação, preservando o histórico.
+# Último recode: 2026-11-14 06:47:08 (America/Bahia)
+# Motivo: Unir DEV e MAIN preservando as funções existentes dos dois sistemas.
 
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify
 from datetime import datetime

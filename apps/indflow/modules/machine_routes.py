@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\machine_routes.py
-# Último recode: 2026-10-05 11:35 (America/Bahia)
-# Motivo: Tornar opcional por máquina a exibição da hora atual no Painel Industrial.
+# Último recode: 2026-11-14 06:47:08 (America/Bahia)
+# Motivo: Unir DEV e MAIN preservando as funções existentes dos dois sistemas.
 
 import os
 import json

@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\budget_scope.py
-# Último recode: 2026-10-16 14:32 (America/Bahia)
-# Motivo: Preservar títulos, listas e parágrafos dos orçamentos com HTML limitado e seguro.
+# Último recode: 2026-11-14 06:47:08 (America/Bahia)
+# Motivo: Unir DEV e MAIN preservando as funções existentes dos dois sistemas.
 
 import html
 import re

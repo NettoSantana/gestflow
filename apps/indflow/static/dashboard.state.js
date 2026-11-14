@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\dashboard.state.js
-Último recode: 2026-10-06 09:43 (America/Bahia)
-Motivo: Ajustar até dez máquinas ao espaço da tela, adicionar tela inteira e troca automática de páginas por intervalo.
+Último recode: 2026-11-14 06:47:08 (America/Bahia)
+Motivo: Unir DEV e MAIN preservando as funções existentes dos dois sistemas.
 */
 
 // static/dashboard.state.js

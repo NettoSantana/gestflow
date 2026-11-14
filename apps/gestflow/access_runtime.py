@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\access_runtime.py
-# Último recode: 2026-10-23 13:35 (America/Bahia)
-# Motivo: Disponibilizar subitem Controle de Acesso por Crachás nas permissões IndFlow.
+# Último recode: 2026-11-14 06:47:08 (America/Bahia)
+# Motivo: Unir DEV e MAIN preservando as funções existentes dos dois sistemas.
 
 import json
 import secrets

@@ -1,3 +1,9 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\CONTROLE_ACESSO_LEIA_ME.md
+Último recode: 2026-11-14 06:47:08 (America/Bahia)
+Motivo: Unir DEV e MAIN preservando as funções existentes dos dois sistemas.
+-->
+
 # IndFlow — Controle de Acesso por Crachá
 
 Atualizado em 23/10/2026. Este pacote altera exclusivamente o módulo web GestFlow/IndFlow. Não altera firmware ESP32, relés ou emergência.

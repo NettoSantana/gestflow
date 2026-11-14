@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\access_control.py
-# Último recode: 2026-10-23 13:35 (America/Bahia)
-# Motivo: Incluir Controle de Acesso no controle de telas e permissões do GestFlow.
+# Último recode: 2026-11-14 06:47:08 (America/Bahia)
+# Motivo: Unir DEV e MAIN preservando as funções existentes dos dois sistemas.
 
 import json
 import os

@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\static\js\configuracoes_modulos.js
-Último recode: 2026-10-29 12:34 (America/Bahia)
-Motivo: Exibir aviso de preço inválido nos produtos e exigir CPF/CNPJ de fornecedor conforme a configuração, preservando o formulário.
+Último recode: 2026-11-14 06:47:08 (America/Bahia)
+Motivo: Unir DEV e MAIN preservando as funções existentes dos dois sistemas.
 */
 
 (function () {

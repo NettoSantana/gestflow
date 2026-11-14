@@ -1,3 +1,7 @@
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\firmware\controle_cracha\LEIA_ME_INSTALACAO_ORIGINAL.txt
+Último recode: 2026-11-14 06:47:08 (America/Bahia)
+Motivo: Unir DEV e MAIN preservando as funções existentes dos dois sistemas.
+
 INDFLOW - CONTROLE DE ACESSO POR CRACHA | Firmware ESP32
 Versao: 2026-10-23 | Base: firmware DS3231+NTP+LittleFS de 2005 linhas.
 Caminho de destino Windows:

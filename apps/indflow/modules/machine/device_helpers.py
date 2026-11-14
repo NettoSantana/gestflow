@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\machine\device_helpers.py
-# Último recode: 2026-10-07 06:30:28 (America/Bahia)
-# Motivo: Usar 120 segundos de tolerância entre recebimentos reais do ESP, sem mudar a parada por falta de pulso.
+# Último recode: 2026-11-14 06:47:08 (America/Bahia)
+# Motivo: Unir DEV e MAIN preservando as funções existentes dos dois sistemas.
 
 # modules/machine/device_helpers.py
 import re

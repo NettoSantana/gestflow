@@ -1,3 +1,9 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\acesso\INTEGRACAO_ESP32.md
+Último recode: 2026-11-14 06:47:08 (America/Bahia)
+Motivo: Unir DEV e MAIN preservando as funções existentes dos dois sistemas.
+-->
+
 # IndFlow — Controle de Acesso por Crachá (integração ESP32)
 
 Atualização: 23/10/2026. Módulo backend/UI preparado. **O firmware ESP32 existente NÃO foi alterado** neste pacote. Assim, as operações ficarão aguardando o leitor até existir firmware compatível. Não há cadastro fictício.

@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\acesso\routes.py
-# Último recode: 2026-10-26 11:31 (America/Bahia)
-# Motivo: Receber crachás coletados pelo mestre e vincular depois, sem liberar máquinas.
+# Último recode: 2026-11-14 06:47:08 (America/Bahia)
+# Motivo: Unir DEV e MAIN preservando as funções existentes dos dois sistemas.
 """API preparada para firmware ESP32 futuro: não altera o firmware já instalado.
 
 Fluxo:

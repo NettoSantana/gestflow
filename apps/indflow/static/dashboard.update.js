@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\dashboard.update.js
-Último recode: 2026-10-07 06:30:28 (America/Bahia)
-Motivo: Repassar a programação atual para o status do card, preservando balizador, produção e tempos.
+Último recode: 2026-11-14 06:47:08 (America/Bahia)
+Motivo: Unir DEV e MAIN preservando as funções existentes dos dois sistemas.
 */
 
 // static/dashboard.update.js

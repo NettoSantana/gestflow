@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\README.md
-Último recode: 2026-11-14 06:28:56 (America/Bahia)
-Motivo: Identificar a pasta executada pelo GestFlow e registrar a consolidação inicial sem excluir a cópia da raiz.
+Último recode: 2026-11-14 06:47:08 (America/Bahia)
+Motivo: Unir DEV e MAIN preservando as funções existentes dos dois sistemas.
 -->
 
 # GESTFLOW

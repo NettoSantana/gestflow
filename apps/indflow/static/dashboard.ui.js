@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\dashboard.ui.js
-Último recode: 2026-10-07 06:30:28 (America/Bahia)
-Motivo: Priorizar FORA DE TURNO/PAUSA em cinza no painel e usar 120 segundos no fallback de comunicação, preservando os cards.
+Último recode: 2026-11-14 06:47:08 (America/Bahia)
+Motivo: Unir DEV e MAIN preservando as funções existentes dos dois sistemas.
 */
 
 function fmt(n){

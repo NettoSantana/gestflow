@@ -1,3 +1,7 @@
+# Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\tests\test_acesso_backend.py
+# Último recode: 2026-11-14 06:47:08 (America/Bahia)
+# Motivo: Unir DEV e MAIN preservando as funções existentes dos dois sistemas.
+
 # Caminho: apps/indflow/tests/test_acesso_backend.py
 # Testes de integração isolada do SQLite/fluxo de comandos, sem conexão à internet.
 # Correção 23/10/2026: fechar conexões SQLite; testar máquinas registradas sem device,

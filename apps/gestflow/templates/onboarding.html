@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\onboarding.html
-Último recode: 2026-08-22 12:37 (America/Bahia)
-Motivo: Simplificar a primeira entrada para uma experiência intuitiva, sem linguagem de módulos: boas-vindas, tipo de negócio, rotina, controles desejados e início do uso.
+Último recode: 2026-11-14 06:47:08 (America/Bahia)
+Motivo: Unir DEV e MAIN e permitir concluir a configuração inicial sem depender de JavaScript.
 #}
 
 <!DOCTYPE html>
@@ -79,7 +79,7 @@ Motivo: Simplificar a primeira entrada para uma experiência intuitiva, sem ling
             transition: border-color .15s ease, background .15s ease, transform .15s ease, box-shadow .15s ease;
         }
         .option-card:hover { border-color: #93c5fd; transform: translateY(-1px); box-shadow: 0 7px 18px rgba(15, 98, 254, .07); }
-        .option-card.selected { border-color: #0f62fe; background: #eff6ff; box-shadow: 0 0 0 2px rgba(15, 98, 254, .08); }
+        .option-card:has(input:checked) { border-color: #0f62fe; background: #eff6ff; box-shadow: 0 0 0 2px rgba(15, 98, 254, .08); }
         .option-card input { width: 18px; height: 18px; margin-top: 3px; accent-color: #16a34a; flex: 0 0 auto; }
         .option-icon {
             width: 38px; height: 38px; display: grid; place-items: center; flex: 0 0 auto;
@@ -130,239 +130,142 @@ Motivo: Simplificar a primeira entrada para uma experiência intuitiva, sem ling
     </header>
 
     <main class="onboarding-shell">
-        <div class="progress-wrap" id="progress-wrap" aria-hidden="true">
-            <div class="progress-caption" id="progress-caption">1 de 4</div>
+        <div class="progress-wrap{% if passo > 0 %} visible{% endif %}" id="progress-wrap" aria-hidden="{{ 'false' if passo > 0 else 'true' }}">
+            <div class="progress-caption" id="progress-caption">{{ passo }} de 4</div>
             <div class="onboarding-progress">
-                <span></span><span></span><span></span><span></span>
+                {% for indice in range(1, 5) %}<span{% if indice <= passo %} class="active"{% endif %}></span>{% endfor %}
             </div>
         </div>
 
         <form id="onboarding-form" action="/onboarding" method="post">
             <div class="onboarding-card">
-                <section class="onboarding-step welcome-step active" data-step="0">
+                {% if erro %}<div class="inline-error visible" role="alert">{{ erro }}</div>{% endif %}
+                <section class="onboarding-step welcome-step{% if passo == 0 %} active{% endif %}" data-step="0">
                     <div class="welcome-inner">
                         <div class="welcome-mark">G</div>
                         <span class="eyebrow">Bem-vindo</span>
                         <h1 class="onboarding-title">Vamos preparar o GestFlow para sua empresa.</h1>
                         <p class="onboarding-subtitle">Você só precisa contar, de forma simples, como trabalha. O GestFlow organiza o restante para você.</p>
                         <span class="time-note">Leva menos de 1 minuto</span>
-                        <div class="welcome-action"><button type="button" class="btn-start" onclick="irParaPasso(1)">Começar</button></div>
+                        <div class="welcome-action"><button type="submit" class="btn-start" name="onboarding_acao" value="comecar" formnovalidate>Começar</button></div>
                     </div>
                 </section>
 
-                <section class="onboarding-step" data-step="1">
+                <section class="onboarding-step{% if passo == 1 %} active{% endif %}" data-step="1">
                     <span class="eyebrow">Sobre seu negócio</span>
                     <h2 class="question-title">O que sua empresa faz?</h2>
                     <p class="question-help">Escolha a opção que mais se parece com o seu dia a dia. Não precisa ser perfeita.</p>
                     <div class="option-grid">
                         <label class="option-card">
-                            <input type="radio" name="tipo_empresa" value="produtos">
+                            <input type="radio" name="tipo_empresa" value="produtos" {% if formulario_onboarding.tipo_empresa == 'produtos' %}checked{% endif %}>
                             <span class="option-icon">🛍️</span>
                             <span class="option-copy"><strong>Vendo produtos</strong><small>Loja, comércio, distribuidora, revenda...</small></span>
                         </label>
                         <label class="option-card">
-                            <input type="radio" name="tipo_empresa" value="servicos">
+                            <input type="radio" name="tipo_empresa" value="servicos" {% if formulario_onboarding.tipo_empresa == 'servicos' %}checked{% endif %}>
                             <span class="option-icon">🔧</span>
                             <span class="option-copy"><strong>Presto serviços</strong><small>Manutenção, instalação, assistência, consultoria...</small></span>
                         </label>
                         <label class="option-card">
-                            <input type="radio" name="tipo_empresa" value="ambos">
+                            <input type="radio" name="tipo_empresa" value="ambos" {% if formulario_onboarding.tipo_empresa == 'ambos' %}checked{% endif %}>
                             <span class="option-icon">↔</span>
                             <span class="option-copy"><strong>Vendo produtos e serviços</strong><small>Minha empresa trabalha com as duas coisas.</small></span>
                         </label>
                         <label class="option-card">
-                            <input type="radio" name="tipo_empresa" value="industrial">
+                            <input type="radio" name="tipo_empresa" value="industrial" {% if formulario_onboarding.tipo_empresa == 'industrial' %}checked{% endif %}>
                             <span class="option-icon">🏭</span>
                             <span class="option-copy"><strong>Produção / Indústria</strong><small>Quero acompanhar uma operação produtiva ou máquinas.</small></span>
                         </label>
                     </div>
                     <div class="inline-error" id="erro-tipo">Escolha uma opção para continuar.</div>
-                    <div class="onboarding-actions"><span></span><button type="button" class="btn-next" onclick="avancarTipoEmpresa()">Continuar</button></div>
+                    <div class="onboarding-actions"><span></span><button type="submit" class="btn-next" name="onboarding_acao" value="avancar_tipo" formnovalidate>Continuar</button></div>
                 </section>
 
-                <section class="onboarding-step" data-step="2">
+                <section class="onboarding-step{% if passo == 2 %} active{% endif %}" data-step="2">
                     <span class="eyebrow">Seu jeito de trabalhar</span>
 
-                    <div class="flow-group" data-flow="servicos">
+                    <div class="flow-group{% if formulario_onboarding.tipo_empresa == 'servicos' %} active{% endif %}" data-flow="servicos">
                         <h2 class="question-title">Como normalmente começa um serviço?</h2>
                         <p class="question-help">Pode escolher mais de uma opção.</p>
                         <div class="option-grid">
-                            <label class="option-card"><input type="checkbox" name="fluxo" value="orcamento"><span class="option-icon">💬</span><span class="option-copy"><strong>Pedem um orçamento</strong><small>Primeiro envio uma proposta para o cliente.</small></span></label>
-                            <label class="option-card"><input type="checkbox" name="fluxo" value="agendamento"><span class="option-icon">📅</span><span class="option-copy"><strong>Agendam um horário</strong><small>O atendimento é marcado por dia e hora.</small></span></label>
-                            <label class="option-card"><input type="checkbox" name="fluxo" value="servico_direto"><span class="option-icon">🔧</span><span class="option-copy"><strong>Pedem o serviço diretamente</strong><small>Recebo a solicitação e parto para a execução.</small></span></label>
-                            <label class="option-card"><input type="checkbox" name="fluxo" value="recorrente"><span class="option-icon">🔁</span><span class="option-copy"><strong>Tenho clientes recorrentes</strong><small>Faço serviços periódicos ou contínuos.</small></span></label>
+                            <label class="option-card"><input type="checkbox" name="fluxo" value="orcamento" {% if formulario_onboarding.tipo_empresa == 'servicos' and 'orcamento' in formulario_onboarding.fluxo %}checked{% endif %}><span class="option-icon">💬</span><span class="option-copy"><strong>Pedem um orçamento</strong><small>Primeiro envio uma proposta para o cliente.</small></span></label>
+                            <label class="option-card"><input type="checkbox" name="fluxo" value="agendamento" {% if formulario_onboarding.tipo_empresa == 'servicos' and 'agendamento' in formulario_onboarding.fluxo %}checked{% endif %}><span class="option-icon">📅</span><span class="option-copy"><strong>Agendam um horário</strong><small>O atendimento é marcado por dia e hora.</small></span></label>
+                            <label class="option-card"><input type="checkbox" name="fluxo" value="servico_direto" {% if formulario_onboarding.tipo_empresa == 'servicos' and 'servico_direto' in formulario_onboarding.fluxo %}checked{% endif %}><span class="option-icon">🔧</span><span class="option-copy"><strong>Pedem o serviço diretamente</strong><small>Recebo a solicitação e parto para a execução.</small></span></label>
+                            <label class="option-card"><input type="checkbox" name="fluxo" value="recorrente" {% if formulario_onboarding.tipo_empresa == 'servicos' and 'recorrente' in formulario_onboarding.fluxo %}checked{% endif %}><span class="option-icon">🔁</span><span class="option-copy"><strong>Tenho clientes recorrentes</strong><small>Faço serviços periódicos ou contínuos.</small></span></label>
                         </div>
                     </div>
 
-                    <div class="flow-group" data-flow="produtos">
+                    <div class="flow-group{% if formulario_onboarding.tipo_empresa == 'produtos' %} active{% endif %}" data-flow="produtos">
                         <h2 class="question-title">Como você costuma vender?</h2>
                         <p class="question-help">Pode escolher mais de uma opção.</p>
                         <div class="option-grid">
-                            <label class="option-card"><input type="checkbox" name="fluxo" value="venda_direta"><span class="option-icon">🛒</span><span class="option-copy"><strong>Venda direta</strong><small>O cliente escolhe e a venda é feita na hora.</small></span></label>
-                            <label class="option-card"><input type="checkbox" name="fluxo" value="orcamento"><span class="option-icon">📋</span><span class="option-copy"><strong>Faço orçamento antes</strong><small>Primeiro envio uma proposta para o cliente.</small></span></label>
-                            <label class="option-card"><input type="checkbox" name="fluxo" value="online"><span class="option-icon">🌐</span><span class="option-copy"><strong>Também vendo pela internet</strong><small>Quero divulgar produtos ou receber pedidos online.</small></span></label>
+                            <label class="option-card"><input type="checkbox" name="fluxo" value="venda_direta" {% if formulario_onboarding.tipo_empresa == 'produtos' and 'venda_direta' in formulario_onboarding.fluxo %}checked{% endif %}><span class="option-icon">🛒</span><span class="option-copy"><strong>Venda direta</strong><small>O cliente escolhe e a venda é feita na hora.</small></span></label>
+                            <label class="option-card"><input type="checkbox" name="fluxo" value="orcamento" {% if formulario_onboarding.tipo_empresa == 'produtos' and 'orcamento' in formulario_onboarding.fluxo %}checked{% endif %}><span class="option-icon">📋</span><span class="option-copy"><strong>Faço orçamento antes</strong><small>Primeiro envio uma proposta para o cliente.</small></span></label>
+                            <label class="option-card"><input type="checkbox" name="fluxo" value="online" {% if formulario_onboarding.tipo_empresa == 'produtos' and 'online' in formulario_onboarding.fluxo %}checked{% endif %}><span class="option-icon">🌐</span><span class="option-copy"><strong>Também vendo pela internet</strong><small>Quero divulgar produtos ou receber pedidos online.</small></span></label>
                         </div>
                     </div>
 
-                    <div class="flow-group" data-flow="ambos">
+                    <div class="flow-group{% if formulario_onboarding.tipo_empresa == 'ambos' %} active{% endif %}" data-flow="ambos">
                         <h2 class="question-title">Como seus clientes costumam comprar de você?</h2>
                         <p class="question-help">Marque as formas que fazem parte da sua rotina.</p>
                         <div class="option-grid">
-                            <label class="option-card"><input type="checkbox" name="fluxo" value="orcamento"><span class="option-icon">📋</span><span class="option-copy"><strong>Faço orçamento antes</strong><small>Envio uma proposta antes de vender ou executar.</small></span></label>
-                            <label class="option-card"><input type="checkbox" name="fluxo" value="venda_direta"><span class="option-icon">🛒</span><span class="option-copy"><strong>Faço venda direta</strong><small>Algumas vendas são concluídas na hora.</small></span></label>
-                            <label class="option-card"><input type="checkbox" name="fluxo" value="agendamento"><span class="option-icon">📅</span><span class="option-copy"><strong>Agendam um horário</strong><small>Tenho atendimentos com data e hora.</small></span></label>
-                            <label class="option-card"><input type="checkbox" name="fluxo" value="servico_direto"><span class="option-icon">🔧</span><span class="option-copy"><strong>Recebo serviços para executar</strong><small>Também acompanho trabalhos em andamento.</small></span></label>
-                            <label class="option-card"><input type="checkbox" name="fluxo" value="online"><span class="option-icon">🌐</span><span class="option-copy"><strong>Também vendo pela internet</strong><small>Quero divulgar produtos ou serviços online.</small></span></label>
+                            <label class="option-card"><input type="checkbox" name="fluxo" value="orcamento" {% if formulario_onboarding.tipo_empresa == 'ambos' and 'orcamento' in formulario_onboarding.fluxo %}checked{% endif %}><span class="option-icon">📋</span><span class="option-copy"><strong>Faço orçamento antes</strong><small>Envio uma proposta antes de vender ou executar.</small></span></label>
+                            <label class="option-card"><input type="checkbox" name="fluxo" value="venda_direta" {% if formulario_onboarding.tipo_empresa == 'ambos' and 'venda_direta' in formulario_onboarding.fluxo %}checked{% endif %}><span class="option-icon">🛒</span><span class="option-copy"><strong>Faço venda direta</strong><small>Algumas vendas são concluídas na hora.</small></span></label>
+                            <label class="option-card"><input type="checkbox" name="fluxo" value="agendamento" {% if formulario_onboarding.tipo_empresa == 'ambos' and 'agendamento' in formulario_onboarding.fluxo %}checked{% endif %}><span class="option-icon">📅</span><span class="option-copy"><strong>Agendam um horário</strong><small>Tenho atendimentos com data e hora.</small></span></label>
+                            <label class="option-card"><input type="checkbox" name="fluxo" value="servico_direto" {% if formulario_onboarding.tipo_empresa == 'ambos' and 'servico_direto' in formulario_onboarding.fluxo %}checked{% endif %}><span class="option-icon">🔧</span><span class="option-copy"><strong>Recebo serviços para executar</strong><small>Também acompanho trabalhos em andamento.</small></span></label>
+                            <label class="option-card"><input type="checkbox" name="fluxo" value="online" {% if formulario_onboarding.tipo_empresa == 'ambos' and 'online' in formulario_onboarding.fluxo %}checked{% endif %}><span class="option-icon">🌐</span><span class="option-copy"><strong>Também vendo pela internet</strong><small>Quero divulgar produtos ou serviços online.</small></span></label>
                         </div>
                     </div>
 
-                    <div class="flow-group" data-flow="industrial">
+                    <div class="flow-group{% if formulario_onboarding.tipo_empresa == 'industrial' %} active{% endif %}" data-flow="industrial">
                         <h2 class="question-title">O que você quer acompanhar na operação?</h2>
                         <p class="question-help">Escolha a opção mais próxima do que você precisa agora.</p>
                         <div class="option-grid">
-                            <label class="option-card"><input type="radio" name="fluxo" value="producao"><span class="option-icon">🏭</span><span class="option-copy"><strong>Produção</strong><small>Quero acompanhar o que as máquinas estão produzindo.</small></span></label>
-                            <label class="option-card"><input type="radio" name="fluxo" value="paradas"><span class="option-icon">⏱️</span><span class="option-copy"><strong>Paradas das máquinas</strong><small>Quero entender quando e por que a produção para.</small></span></label>
-                            <label class="option-card"><input type="radio" name="fluxo" value="producao_paradas"><span class="option-icon">📊</span><span class="option-copy"><strong>Produção e paradas</strong><small>Quero acompanhar a operação de forma completa.</small></span></label>
+                            <label class="option-card"><input type="radio" name="fluxo" value="producao" {% if formulario_onboarding.tipo_empresa == 'industrial' and 'producao' in formulario_onboarding.fluxo %}checked{% endif %}><span class="option-icon">🏭</span><span class="option-copy"><strong>Produção</strong><small>Quero acompanhar o que as máquinas estão produzindo.</small></span></label>
+                            <label class="option-card"><input type="radio" name="fluxo" value="paradas" {% if formulario_onboarding.tipo_empresa == 'industrial' and 'paradas' in formulario_onboarding.fluxo %}checked{% endif %}><span class="option-icon">⏱️</span><span class="option-copy"><strong>Paradas das máquinas</strong><small>Quero entender quando e por que a produção para.</small></span></label>
+                            <label class="option-card"><input type="radio" name="fluxo" value="producao_paradas" {% if formulario_onboarding.tipo_empresa == 'industrial' and 'producao_paradas' in formulario_onboarding.fluxo %}checked{% endif %}><span class="option-icon">📊</span><span class="option-copy"><strong>Produção e paradas</strong><small>Quero acompanhar a operação de forma completa.</small></span></label>
                         </div>
                     </div>
 
                     <div class="inline-error" id="erro-fluxo">Escolha pelo menos uma opção para continuar.</div>
-                    <div class="onboarding-actions"><button type="button" class="btn-back" onclick="irParaPasso(1)">Voltar</button><button type="button" class="btn-next" onclick="avancarFluxo()">Continuar</button></div>
+                    <div class="onboarding-actions"><button type="submit" class="btn-back" name="onboarding_acao" value="voltar_tipo" formnovalidate>Voltar</button><button type="submit" class="btn-next" name="onboarding_acao" value="avancar_fluxo" formnovalidate>Continuar</button></div>
                 </section>
 
-                <section class="onboarding-step" data-step="3">
+                <section class="onboarding-step{% if passo == 3 %} active{% endif %}" data-step="3">
                     <span class="eyebrow">Só mais uma pergunta</span>
                     <h2 class="question-title">O que você também gostaria de controlar?</h2>
                     <p class="question-help">Marque apenas o que fizer sentido hoje. Você poderá mudar isso depois.</p>
                     <div class="option-grid">
-                        <label class="option-card"><input type="checkbox" name="controle" value="produtos_materiais"><span class="option-icon">📦</span><span class="option-copy"><strong>Produtos e materiais</strong><small>Quero acompanhar o que tenho disponível.</small></span></label>
-                        <label class="option-card"><input type="checkbox" name="controle" value="compras_fornecedores"><span class="option-icon">🧾</span><span class="option-copy"><strong>Compras e fornecedores</strong><small>Quero organizar de quem compro e o que entra.</small></span></label>
-                        <label class="option-card"><input type="checkbox" name="controle" value="funcionarios"><span class="option-icon">👥</span><span class="option-copy"><strong>Funcionários</strong><small>Quero cadastrar e organizar minha equipe.</small></span></label>
-                        <label class="option-card"><input type="checkbox" name="controle" value="horarios_agendamentos"><span class="option-icon">📅</span><span class="option-copy"><strong>Horários e agendamentos</strong><small>Quero organizar atendimentos por data e hora.</small></span></label>
-                        <label class="option-card"><input type="checkbox" name="controle" value="servicos_andamento"><span class="option-icon">🔧</span><span class="option-copy"><strong>Serviços em andamento</strong><small>Quero acompanhar o que está sendo executado.</small></span></label>
-                        <label class="option-card"><input type="checkbox" name="controle" value="vendas_online"><span class="option-icon">🌐</span><span class="option-copy"><strong>Vendas pela internet</strong><small>Quero divulgar e receber pedidos online.</small></span></label>
+                        <label class="option-card"><input type="checkbox" name="controle" value="produtos_materiais" {% if 'produtos_materiais' in formulario_onboarding.controle %}checked{% endif %}><span class="option-icon">📦</span><span class="option-copy"><strong>Produtos e materiais</strong><small>Quero acompanhar o que tenho disponível.</small></span></label>
+                        <label class="option-card"><input type="checkbox" name="controle" value="compras_fornecedores" {% if 'compras_fornecedores' in formulario_onboarding.controle %}checked{% endif %}><span class="option-icon">🧾</span><span class="option-copy"><strong>Compras e fornecedores</strong><small>Quero organizar de quem compro e o que entra.</small></span></label>
+                        <label class="option-card"><input type="checkbox" name="controle" value="funcionarios" {% if 'funcionarios' in formulario_onboarding.controle %}checked{% endif %}><span class="option-icon">👥</span><span class="option-copy"><strong>Funcionários</strong><small>Quero cadastrar e organizar minha equipe.</small></span></label>
+                        <label class="option-card"><input type="checkbox" name="controle" value="horarios_agendamentos" {% if 'horarios_agendamentos' in formulario_onboarding.controle %}checked{% endif %}><span class="option-icon">📅</span><span class="option-copy"><strong>Horários e agendamentos</strong><small>Quero organizar atendimentos por data e hora.</small></span></label>
+                        <label class="option-card"><input type="checkbox" name="controle" value="servicos_andamento" {% if 'servicos_andamento' in formulario_onboarding.controle %}checked{% endif %}><span class="option-icon">🔧</span><span class="option-copy"><strong>Serviços em andamento</strong><small>Quero acompanhar o que está sendo executado.</small></span></label>
+                        <label class="option-card"><input type="checkbox" name="controle" value="vendas_online" {% if 'vendas_online' in formulario_onboarding.controle %}checked{% endif %}><span class="option-icon">🌐</span><span class="option-copy"><strong>Vendas pela internet</strong><small>Quero divulgar e receber pedidos online.</small></span></label>
                     </div>
-                    <div class="onboarding-actions"><button type="button" class="btn-back" onclick="irParaPasso(2)">Voltar</button><button type="button" class="btn-next" onclick="prepararResumo()">Continuar</button></div>
+                    <div class="onboarding-actions"><button type="submit" class="btn-back" name="onboarding_acao" value="voltar_fluxo" formnovalidate>Voltar</button><button type="submit" class="btn-next" name="onboarding_acao" value="resumo" formnovalidate>Continuar</button></div>
                 </section>
 
-                <section class="onboarding-step ready-step" data-step="4">
+                <section class="onboarding-step ready-step{% if passo == 4 %} active{% endif %}" data-step="4">
                     <div class="ready-inner">
                         <div class="ready-check">✓</div>
                         <span class="eyebrow">Tudo pronto</span>
                         <h2 class="onboarding-title">Preparamos o GestFlow para sua empresa.</h2>
                         <p class="onboarding-subtitle">Você não precisa configurar mais nada agora. Vamos começar pelo essencial e o sistema vai te guiando.</p>
                         <div class="ready-summary">
-                            <div><strong>Seu negócio:</strong> <span id="resumo-tipo">—</span></div>
-                            <div><strong>Seu dia a dia:</strong> <span id="resumo-fluxo">—</span></div>
-                            <div><strong>Você quer controlar:</strong> <span id="resumo-controles">Só o essencial por enquanto</span></div>
+                            <div><strong>Seu negócio:</strong> <span id="resumo-tipo">{{ resumo_tipo }}</span></div>
+                            <div><strong>Seu dia a dia:</strong> <span id="resumo-fluxo">{{ resumo_fluxo }}</span></div>
+                            <div><strong>Você quer controlar:</strong> <span id="resumo-controles">{{ resumo_controles }}</span></div>
                         </div>
                         <div class="ready-note">Você poderá ajustar essas escolhas depois, sem perder nenhum dado.</div>
                         <div class="ready-actions">
-                            <button type="submit" class="btn-start">Começar a usar</button>
-                            <button type="button" class="review-link" onclick="irParaPasso(1)">Quero revisar minhas respostas</button>
+                            <button type="submit" class="btn-start" name="onboarding_acao" value="concluir">Começar a usar</button>
+                            <button type="submit" class="review-link" name="onboarding_acao" value="revisar" formnovalidate>Quero revisar minhas respostas</button>
                         </div>
                     </div>
                 </section>
             </div>
         </form>
     </main>
-
-    <script>
-        let passoAtual = 0;
-        const passos = Array.from(document.querySelectorAll('.onboarding-step'));
-        const barras = Array.from(document.querySelectorAll('.onboarding-progress span'));
-        const progresso = document.getElementById('progress-wrap');
-        const legendaProgresso = document.getElementById('progress-caption');
-
-        const nomesTipo = {
-            produtos: 'Venda de produtos',
-            servicos: 'Prestação de serviços',
-            ambos: 'Produtos e serviços',
-            industrial: 'Produção / Indústria'
-        };
-        const nomesFluxo = {
-            orcamento: 'orçamentos antes de fechar',
-            agendamento: 'atendimentos agendados',
-            servico_direto: 'serviços recebidos diretamente',
-            recorrente: 'clientes recorrentes',
-            venda_direta: 'vendas diretas',
-            online: 'vendas pela internet',
-            producao: 'produção das máquinas',
-            paradas: 'paradas das máquinas',
-            producao_paradas: 'produção e paradas das máquinas'
-        };
-        const nomesControle = {
-            produtos_materiais: 'produtos e materiais',
-            compras_fornecedores: 'compras e fornecedores',
-            funcionarios: 'funcionários',
-            horarios_agendamentos: 'horários e agendamentos',
-            servicos_andamento: 'serviços em andamento',
-            vendas_online: 'vendas pela internet'
-        };
-
-        function marcarCards() {
-            document.querySelectorAll('.option-card').forEach(card => {
-                const input = card.querySelector('input');
-                card.classList.toggle('selected', Boolean(input && input.checked));
-            });
-        }
-
-        function atualizarTela() {
-            passos.forEach((passo, indice) => passo.classList.toggle('active', indice === passoAtual));
-            progresso.classList.toggle('visible', passoAtual > 0);
-            if (passoAtual > 0) {
-                const etapaVisual = Math.min(passoAtual, 4);
-                legendaProgresso.textContent = etapaVisual + ' de 4';
-                barras.forEach((barra, indice) => barra.classList.toggle('active', indice < etapaVisual));
-            }
-            if (passoAtual === 2) mostrarFluxoCorreto();
-            marcarCards();
-            window.scrollTo({top: 0, behavior: 'smooth'});
-        }
-
-        function irParaPasso(numero) {
-            passoAtual = Math.max(0, Math.min(numero, passos.length - 1));
-            atualizarTela();
-        }
-
-        function avancarTipoEmpresa() {
-            const tipo = document.querySelector('input[name="tipo_empresa"]:checked');
-            document.getElementById('erro-tipo').classList.toggle('visible', !tipo);
-            if (!tipo) return;
-            irParaPasso(2);
-        }
-
-        function mostrarFluxoCorreto() {
-            const tipo = document.querySelector('input[name="tipo_empresa"]:checked')?.value || '';
-            document.querySelectorAll('.flow-group').forEach(grupo => {
-                const ativo = grupo.dataset.flow === tipo;
-                grupo.classList.toggle('active', ativo);
-                if (!ativo) grupo.querySelectorAll('input[name="fluxo"]').forEach(input => { input.checked = false; });
-            });
-            document.getElementById('erro-fluxo').classList.remove('visible');
-            marcarCards();
-        }
-
-        function avancarFluxo() {
-            const grupo = document.querySelector('.flow-group.active');
-            const escolhido = grupo ? grupo.querySelector('input[name="fluxo"]:checked') : null;
-            document.getElementById('erro-fluxo').classList.toggle('visible', !escolhido);
-            if (!escolhido) return;
-            irParaPasso(3);
-        }
-
-        function prepararResumo() {
-            const tipo = document.querySelector('input[name="tipo_empresa"]:checked')?.value || '';
-            const fluxos = Array.from(document.querySelectorAll('input[name="fluxo"]:checked')).map(input => nomesFluxo[input.value]).filter(Boolean);
-            const controles = Array.from(document.querySelectorAll('input[name="controle"]:checked')).map(input => nomesControle[input.value]).filter(Boolean);
-            document.getElementById('resumo-tipo').textContent = nomesTipo[tipo] || 'Seu negócio';
-            document.getElementById('resumo-fluxo').textContent = fluxos.length ? fluxos.join(', ') : 'rotina básica';
-            document.getElementById('resumo-controles').textContent = controles.length ? controles.join(', ') : 'Só o essencial por enquanto';
-            irParaPasso(4);
-        }
-
-        document.querySelectorAll('.option-card input').forEach(input => input.addEventListener('change', marcarCards));
-        atualizarTela();
-    </script>
 </body>
 </html>

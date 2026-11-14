@@ -1,3 +1,9 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\CONTROLE_ACESSO_CORRECAO_PLAINA_20261023.md
+Último recode: 2026-11-14 06:47:08 (America/Bahia)
+Motivo: Unir DEV e MAIN preservando as funções existentes dos dois sistemas.
+-->
+
 # IndFlow — Controle de Acesso: correção de máquinas sem device
 
 Data: 23/10/2026 (America/Bahia)

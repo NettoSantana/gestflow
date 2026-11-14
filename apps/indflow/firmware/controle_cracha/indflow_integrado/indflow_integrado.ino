@@ -1,3 +1,9 @@
+/*
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\firmware\controle_cracha\indflow_integrado\indflow_integrado.ino
+Último recode: 2026-11-14 06:47:08 (America/Bahia)
+Motivo: Unir DEV e MAIN preservando as funções existentes dos dois sistemas.
+*/
+
 // Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\firmware\controle_cracha\indflow_integrado\indflow_integrado.ino
 // Data/hora do ultimo recode: 26/10/2026 12:26:36 (America/Bahia)
 // Motivo: Acrescentar hotspot Redmi sem remover rede Netto, com tentativa automatica das duas redes.

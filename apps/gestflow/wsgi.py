@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\wsgi.py
-# Último recode: 2026-10-15 15:14 (America/Bahia)
-# Motivo: Instalar o controle de acesso ao IndFlow e senha provisória de 72 horas.
+# Último recode: 2026-11-14 06:47:08 (America/Bahia)
+# Motivo: Unir DEV e MAIN preservando as funções existentes dos dois sistemas.
 
 import app as gestflow_runtime
 from admin_runtime_actions import instalar_acoes_administrativas
