@@ -1,10 +1,26 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\README.md
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-11-14 06:07:11 (America/Bahia)
+Motivo: Identificar a pasta executada pelo GestFlow e registrar a consolidação inicial sem excluir a cópia da raiz.
 -->
 
 # GESTFLOW
+
+## Pasta ativa e consolidação
+
+O GestFlow de produção e DEV é executado a partir de `apps/gestflow`, pelo
+`wsgi.py` desta pasta. O IndFlow permanece em `apps/indflow`.
+
+Esta entrega incorpora a base fiscal (rascunhos e configurações, sem transmissão
+fiscal) e o limite de três usuários ativos que estavam apenas no `app.py` da raiz.
+A interface fiscal existente desta pasta foi mantida e conectada às funções.
+As integrações do `wsgi.py`, a proteção de login, projetos, fotos de produtos,
+reabertura de OS/vendas e integração com IndFlow foram preservadas.
+
+A cópia do GestFlow na raiz permanece intacta até a validação no DEV e a aprovação
+da etapa de remoção. Ela não deve receber novas alterações funcionais.
+Os problemas de cadastro e onboarding serão tratados em uma entrega separada.
+
 
 ## VISÃO GERAL
 

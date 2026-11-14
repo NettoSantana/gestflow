@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\requirements.txt
-# Último recode: 2026-09-12 11:25 (America/Bahia)
-# Motivo: Adicionar o SDK Mercado Pago usado na validação segura do webhook SaaS do GestFlow DEV.
+# Último recode: 2026-11-14 06:07:11 (America/Bahia)
+# Motivo: Unir a dependência de QR Code da raiz à lista ativa, mantendo o SDK Mercado Pago.
 
 Flask==3.0.2
 twilio==9.0.4
@@ -9,3 +9,4 @@ python-dotenv==1.0.1
 weasyprint==61.2
 pydyf==0.10.0
 mercadopago==3.4.0
+qrcode==8.2
