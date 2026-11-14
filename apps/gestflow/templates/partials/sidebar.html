@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\partials\sidebar.html
-Último recode: 2026-11-14 07:22:57 (America/Bahia)
-Motivo: Exibir somente os quatro itens essenciais no menu Fiscal.
+Último recode: 2026-11-14 07:52:31 (America/Bahia)
+Motivo: Preservar a posição vertical do sidebar ao navegar entre páginas.
 #}
 
 {% set _path = request.path if request is defined else '' %}
@@ -420,6 +420,40 @@ Motivo: Exibir somente os quatro itens essenciais no menu Fiscal.
         if (!sidebar) {
             return;
         }
+
+        // Mantem a posicao do menu entre navegacoes, sem alterar os links.
+        const chaveRolagem = 'gestflow.sidebar.scrollTop';
+        let posicaoSalva = null;
+        try {
+            const valor = sessionStorage.getItem(chaveRolagem);
+            const numero = Number(valor);
+            if (valor !== null && Number.isFinite(numero) && numero >= 0) {
+                posicaoSalva = numero;
+            }
+        } catch (erro) {
+            // Navegacao normal se o armazenamento estiver indisponivel.
+        }
+
+        if (posicaoSalva !== null) {
+            sidebar.scrollTop = posicaoSalva;
+            requestAnimationFrame(function () {
+                sidebar.scrollTop = posicaoSalva;
+            });
+        }
+
+        function salvarRolagem() {
+            try {
+                sessionStorage.setItem(chaveRolagem, String(sidebar.scrollTop));
+            } catch (erro) {
+                // Navegacao normal se o armazenamento estiver indisponivel.
+            }
+        }
+
+        sidebar.addEventListener('scroll', salvarRolagem, { passive: true });
+        sidebar.querySelectorAll('a[href]').forEach(function (link) {
+            link.addEventListener('click', salvarRolagem);
+        });
+        window.addEventListener('pagehide', salvarRolagem);
 
         let backdrop = document.querySelector('.sidebar-backdrop');
         if (!backdrop) {
