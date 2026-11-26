@@ -1,12 +1,13 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-11-14 09:02:52 (America/Bahia)
-# Motivo: Disponibilizar laboratório NFS-e sem emissão e sem alterar o banco de dados fiscal.
+# Último recode: 2026-11-26 05:22:02 (America/Bahia)
+# Motivo: Integrar cálculo RTC, validação de XML e DANFSe ao laboratório fiscal.
 
 from __future__ import annotations
 
 from budget_scope import normalizar_escopo, formatar_escopo, escopo_texto_simples
 from nfse_homologacao import diagnosticar_certificado_nfse
 from nfse_laboratorio import executar_laboratorio
+from rtc_laboratorio import RTCLaboratorioErro, calcular_rtc, conferir_xml_rtc, gerar_danfse
 
 import csv
 import hashlib
@@ -28934,7 +28935,7 @@ FISCAL_SECOES = {
 
 @app.get("/fiscal")
 @app.get("/fiscal/<secao>")
-def fiscal(secao: str = "") -> str | Response:
+def fiscal(secao: str = "", resultado_rtc=None) -> str | Response:
     secao_info = FISCAL_SECOES.get(secao)
     if secao_info is None:
         return Response("Página fiscal não encontrada.", status=404)
@@ -28961,11 +28962,40 @@ def fiscal(secao: str = "") -> str | Response:
         configuracao=configuracao_fiscal,
         diagnostico_nfse=diagnostico_nfse,
         laboratorio_nfse=laboratorio_nfse,
+        resultado_rtc=resultado_rtc,
         origens=listar_origens_fiscais(),
         tipo_filtro=tipo,
         tipos_documento=FISCAL_TIPOS_DOCUMENTO,
         status_documento=FISCAL_STATUS,
     )
+
+
+@app.post("/fiscal/nfse-laboratorio/rtc")
+def executar_rtc_laboratorio() -> str | Response:
+    if not usuario_logado_eh_administrador_empresa():
+        return Response("Acesso restrito ao administrador da empresa.", status=403)
+    if request.content_length is None or request.content_length > 1_000_000:
+        return Response("O formulário fiscal excede o limite permitido.", status=413)
+    operacao = request.form.get("operacao")
+    try:
+        if operacao == "calcular":
+            resultado = calcular_rtc(request.form.get("regime", ""), request.form.get("json_rtc", ""))
+        elif operacao == "validar":
+            resultado = conferir_xml_rtc(request.form.get("xml_rtc", "").encode("utf-8"))
+        elif operacao == "pdf":
+            pdf = gerar_danfse(request.form.get("xml_rtc", "").encode("utf-8"))
+            resposta = Response(pdf, mimetype="application/pdf")
+            resposta.headers["Content-Disposition"] = 'attachment; filename="DANFSE_LABORATORIO_SEM_VALIDADE.pdf"'
+            resposta.headers["Cache-Control"] = "no-store"
+            resposta.headers["X-Gestflow-Simulacao"] = "true"
+            return resposta
+        else:
+            return Response("Operação fiscal inválida.", status=400)
+    except RTCLaboratorioErro as erro:
+        resultado = {"mensagem": str(erro)}
+    resposta = Response(fiscal("nfse-laboratorio", resultado))
+    resposta.headers["Cache-Control"] = "no-store"
+    return resposta
 
 
 @app.get("/fiscal/nfse-laboratorio/xml")

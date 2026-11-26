@@ -1,13 +1,11 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\nfse_laboratorio.py
-# Último recode: 2026-11-14 09:02:52 (America/Bahia)
-# Motivo: Gerar DPS demonstrativa do leiaute restrito NT 009 e simular retornos, sem transmissão ou dados reais.
+# Último recode: 2026-11-26 05:22:01 (America/Bahia)
+# Motivo: Usar o pacote XSD oficial versionado e compartilhar a validação local.
 
 """Laboratório isolado de DPS/NFS-e: SEM envio, sem certificado e sem nota fiscal válida.
 
-A validação OFICIAL por XSD é habilitada somente quando um administrador coloca
-os arquivos originais do pacote governamental de 20/10/2026 em pasta privada
- e configura GESTFLOW_NFSE_XSD_DPS_PATH com o caminho absoluto para DPS_v1.01.xsd.
-Não se utiliza schema alternativo como prova de conformidade oficial.
+A validação usa o pacote oficial de produção restrita versionado no repositório.
+GESTFLOW_NFSE_XSD_DPS_PATH permite apontar para outra instalação do mesmo leiaute.
 """
 
 from __future__ import annotations
@@ -22,6 +20,7 @@ from lxml import etree
 
 NS_NFSE = "http://www.sped.fazenda.gov.br/nfse"
 LEIAUTE_HOMOLOGACAO = "NT 009 - Produção Restrita, pacote 20/10/2026"
+PASTA_XSD = Path(__file__).resolve().parent / "schemas" / "nfse" / "prodrest_20261020"
 CENARIOS = {"aceita", "rejeitada", "cancelada"}
 
 
@@ -150,34 +149,34 @@ def conferir_estrutura_local(xml: bytes) -> None:
 
 
 def validar_xsd_oficial(xml: bytes) -> dict[str, Any]:
-    """Só valida com o arquivo oficial completo instalado pelo administrador.
-
-    XSDs incluídos/importados devem estar ao lado do DPS_v1.01.xsd.
-    Não acessa rede, não transfere XML e não usa esquema simplificado.
-    """
+    """Valida a DPS no XSD oficial de produção restrita."""
     caminho = os.environ.get("GESTFLOW_NFSE_XSD_DPS_PATH", "").strip()
-    if not caminho:
-        return {
-            "executada": False, "aprovada": False,
-            "mensagem": "XSD oficial de homologação não instalado; conformidade nacional NÃO verificada.",
-        }
-    arquivo = Path(caminho)
+    arquivo = Path(caminho) if caminho else PASTA_XSD / "DPS_v1.01.xsd"
     if not arquivo.is_absolute() or arquivo.name != "DPS_v1.01.xsd" or not arquivo.is_file():
         return {"executada": False, "aprovada": False, "mensagem": "Caminho do XSD oficial inválido."}
     try:
         conferir_estrutura_local(xml)
-        parser = etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False, huge_tree=False)
-        documento_xsd = etree.parse(str(arquivo), parser)
-        schema = etree.XMLSchema(documento_xsd)
-        documento_xml = etree.fromstring(xml, parser)
-        if schema.validate(documento_xml):
+        erro = erro_validacao_xsd(xml, arquivo)
+        if erro is None:
             return {"executada": True, "aprovada": True, "mensagem": "XML aceito pelo XSD configurado localmente (não pela SEFIN)."}
         return {
             "executada": True, "aprovada": False,
-            "mensagem": "XML rejeitado pelo XSD configurado: " + str(schema.error_log.last_error or "erro desconhecido")[:250],
+            "mensagem": "XML rejeitado pelo XSD configurado: " + erro,
         }
     except (etree.XMLSchemaError, etree.XMLSyntaxError, NFSeLaboratorioErro, OSError):
         return {"executada": False, "aprovada": False, "mensagem": "Falha ao carregar/validar o pacote XSD local."}
+
+
+def erro_validacao_xsd(xml: bytes, arquivo: Path) -> str | None:
+    parser = etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False, huge_tree=False)
+    documento = etree.fromstring(xml, parser)
+    if documento.getroottree().docinfo.doctype:
+        raise NFSeLaboratorioErro("DTD e entidades externas são proibidas.")
+    schema = etree.XMLSchema(etree.parse(str(arquivo), parser))
+    if schema.validate(documento):
+        return None
+    erro = schema.error_log.last_error
+    return erro.message[:250] if erro is not None else "XML inválido."
 
 
 def simular_retorno(cenario: str) -> dict[str, Any]:

@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\fiscal.html
-Último recode: 2026-11-14 09:02:52 (America/Bahia)
-Motivo: Exibir laboratório separado de NFS-e e simular retorno sem emitir documento fiscal.
+Último recode: 2026-11-26 05:22:02 (America/Bahia)
+Motivo: Exibir os formulários RTC e os resultados no laboratório NFS-e.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -81,6 +81,30 @@ Motivo: Exibir laboratório separado de NFS-e e simular retorno sem emitir docum
                 </div>
                 <div class="fiscal-config-summary"><div class="fiscal-config-item"><span>Retorno simulado</span><strong>{{ laboratorio_nfse.simulacao.codigo }}</strong></div><div class="fiscal-config-item"><span>Validação XSD oficial</span><strong>{{ 'Aprovada localmente' if laboratorio_nfse.xsd.executada and laboratorio_nfse.xsd.aprovada else 'Pendente / não aprovada' }}</strong></div></div>
                 <p>{{ laboratorio_nfse.simulacao.mensagem }}</p><p>{{ laboratorio_nfse.xsd.mensagem }}</p>
+                <hr class="fiscal-separator">
+                <h3>Calculadoras de tributos da Receita Federal</h3>
+                <form method="post" action="{{ url_for('executar_rtc_laboratorio') }}">
+                    <label for="rtc-regime">Regime</label>
+                    <select id="rtc-regime" name="regime">
+                        <option value="regular">Regime regular</option>
+                        <option value="simples">Simples Nacional</option>
+                    </select>
+                    <p><label for="rtc-json">Operação de teste no formato JSON da calculadora selecionada</label></p>
+                    <textarea id="rtc-json" name="json_rtc" rows="8" style="width:100%" required></textarea>
+                    <button class="fiscal-button" type="submit" name="operacao" value="calcular">Calcular</button>
+                </form>
+                <hr class="fiscal-separator">
+                <h3>Validação XML e DANFSe</h3>
+                <form method="post" action="{{ url_for('executar_rtc_laboratorio') }}">
+                    <label for="rtc-xml">XML de teste (DPS ou NFS-e). Para gerar o PDF, use uma NFS-e completa de homologação.</label>
+                    <textarea id="rtc-xml" name="xml_rtc" rows="8" style="width:100%" required></textarea>
+                    <button class="fiscal-button-secondary" type="submit" name="operacao" value="validar">Validar XML</button>
+                    <button class="fiscal-button" type="submit" name="operacao" value="pdf">Baixar DANFSe de teste</button>
+                </form>
+                {% if resultado_rtc %}
+                    <h3>Resultado</h3>
+                    <pre style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:460px;overflow:auto">{{ resultado_rtc | tojson(indent=2) }}</pre>
+                {% endif %}
                 <hr class="fiscal-separator"><h3>XML demonstrativo (sem assinatura)</h3><p>Leiaute em preparação: {{ laboratorio_nfse.leiaute }}.</p>
                 <pre style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:460px;overflow:auto;padding:14px;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc;font-size:11px">{{ laboratorio_nfse.xml }}</pre>
             </section>
