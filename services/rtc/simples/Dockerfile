@@ -1,16 +1,16 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\services\rtc\simples\Dockerfile
-# Último recode: 2026-11-26 05:22:02 (America/Bahia)
-# Motivo: Empacotar a versão oficial da Receita Federal para execução privada no Railway.
+# Último recode: 2026-11-26 05:26:26 (America/Bahia)
+# Motivo: Compilar o serviço oficial com Maven instalado na imagem e executá-lo na rede privada.
 
 FROM eclipse-temurin:25-jdk AS builder
-RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates maven && rm -rf /var/lib/apt/lists/*
 WORKDIR /build
 RUN git init regular && git -C regular fetch --depth=1 https://github.com/ReceitaFederal/calculadora-rtc-regime-regular.git def97056b799da8dd1306f4c9e47c669f4d44b4e && git -C regular checkout --detach FETCH_HEAD
 WORKDIR /build/regular
-RUN mkdir -p calculadora/db && sh mvnw --batch-mode flyway:migrate -Dflyway.configFiles=flyway/flyway-pro.conf
+RUN mkdir -p calculadora/db && mvn --batch-mode flyway:migrate -Dflyway.configFiles=flyway/flyway-pro.conf
 RUN git init /build/simples && git -C /build/simples fetch --depth=1 https://github.com/ReceitaFederal/calculadora-rtc-simples-nacional.git a926d5a76095ac0295a6612a9a54db7ffead2396 && git -C /build/simples checkout --detach FETCH_HEAD
 WORKDIR /build/simples
-RUN sh mvnw --batch-mode -DskipTests package
+RUN mvn --batch-mode -DskipTests package
 
 FROM eclipse-temurin:25-jre
 WORKDIR /app
